@@ -1,0 +1,22 @@
+# macOS
+.DS_Store
+
+# Secrets — never commit real API keys (copy secrets.example.json instead)
+secrets.json
+**/secrets.json
+
+# Swift / SwiftPM build output
+.build/
+DerivedData/
+*.xcuserstate
+xcuserdata/
+
+# Flutter / Dart build output
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+**/build/
+**/Pods/
+**/.symlinks/
+**/Flutter/ephemeral/
+**/ServiceDefinitions.json

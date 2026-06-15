@@ -1,0 +1,26 @@
+name: thestage_tts_front_stream
+description: "NeuTTS Streaming Frontend — TheStage AI SDK"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+  path_provider: ^2.1.5
+  # This example lives inside the SDK repo, so it links the plugin by local
+  # path. In your own app, depend on it from GitHub instead — see the
+  # "Flutter (iOS)" section of the SDK README for the git: dependency.
+  thestage_apple_sdk:
+    path: ../../plugin/thestage_apple_sdk
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

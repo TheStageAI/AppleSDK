@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
-import 'voice_chat_screen.dart';
-import 'settings_model.dart';
+import 'backend/settings_model.dart';
+import 'ui/voice_chat_screen.dart';
 
 // Secrets are injected at build/run time via:
 //   flutter run --dart-define-from-file=../secrets.json

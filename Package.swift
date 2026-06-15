@@ -8,6 +8,9 @@ let package = Package(
         .macOS(.v15),
     ],
     products: [
+        // The one product apps depend on: bundles the precompiled binary
+        // plus its MLX / ZipArchive link-time deps. `import TheStageSDK`
+        // re-exports everything (it does `@_exported import TheStageCore`).
         .library(
             name: "TheStageSDK",
             targets: ["TheStageSDK"]

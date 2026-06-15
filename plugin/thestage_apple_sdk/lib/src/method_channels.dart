@@ -28,6 +28,8 @@ class MethodRoute {
   static const String unloadComponents = 'unload_components';
   static const String bundledEnginePath = 'get_bundled_engine_path';
 
+  static const String memoryFootprint = 'memory_footprint';
+
   static const String infer = 'infer';
   static const String startStream = 'start_stream';
   static const String send = 'send';

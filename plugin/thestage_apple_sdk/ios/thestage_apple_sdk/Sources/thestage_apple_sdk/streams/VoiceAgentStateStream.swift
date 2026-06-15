@@ -104,12 +104,16 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     func update_interrupt_config(
         min_speech_ms: Int?,
         min_playback_ms: Int?,
-        mode: InterruptTrigger?
+        mode: InterruptTrigger?,
+        onset_ms: Int? = nil,
+        threshold: Double? = nil
     ) async {
         await __agent?.update_interrupt_config(
             min_speech_ms: min_speech_ms,
             min_playback_ms: min_playback_ms,
-            mode: mode
+            mode: mode,
+            onset_ms: onset_ms,
+            threshold: threshold
         )
     }
 
@@ -161,8 +165,11 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         if let v = dict["vad_threshold"] as? Double {
             config.vad_threshold = v
         }
+        if let v = dict["interrupt_threshold"] as? Double {
+            config.interrupt_threshold = v
+        }
         if let v = dict["silence_timeout_ms"] as? Int {
-            config.silence_timeout_frames = max(1, v / 32)
+            config.silence_timeout_ms = v
         }
         if let v = dict["allow_interruptions"] as? Bool {
             config.allow_interruptions = v
@@ -177,11 +184,35 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         if let v = dict["interrupt_min_speech_ms"] as? Int {
             config.interrupt_min_speech_ms = v
         }
+        if let v = dict["interrupt_onset_ms"] as? Int {
+            config.interrupt_onset_ms = v
+        }
+        if let v = dict["interrupt_min_playback_ms"] as? Int {
+            config.interrupt_min_playback_ms = v
+        }
+        if let v = dict["interrupt_initial_lockout_ms"] as? Int {
+            config.interrupt_initial_lockout_ms = v
+        }
+        if let v = dict["interrupt_thinking_lockout_ms"] as? Int {
+            config.interrupt_thinking_lockout_ms = v
+        }
         if let v = dict["pre_roll_ms"] as? Int {
             config.pre_roll_ms = v
         }
+        if let v = dict["vad_onset_ms"] as? Int {
+            config.vad_onset_ms = v
+        }
+        if let v = dict["max_accumulation_ms"] as? Int {
+            config.max_accumulation_ms = v
+        }
         if let v = dict["aec_enabled"] as? Bool {
             config.aec_enabled = v
+        }
+        if let v = dict["aec_warmup_ms"] as? Int {
+            config.aec_warmup_ms = v
+        }
+        if let v = dict["aec_playback_gate_tail_ms"] as? Int {
+            config.aec_playback_gate_tail_ms = v
         }
         if let v = dict["speculative_whisper"] as? Bool {
             config.speculative_whisper = v
@@ -220,6 +251,59 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         }
         if let v = dict["tts_revision"] as? String {
             config.tts_revision = v
+        }
+
+        // Turn detection (end-of-turn). `.dnn` requires `turn_detector`.
+        if let v = dict["turn_detection_mode"] as? String, v == "dnn" {
+            config.turn_detection_mode = .dnn
+        }
+        if let v = dict["turn_detector"] as? String {
+            config.turn_detector = v
+        }
+        if let v = dict["turn_detector_device"] as? String {
+            config.turn_detector_device = v
+        }
+        if let v = dict["turn_detector_revision"] as? String {
+            config.turn_detector_revision = v
+        }
+        if let v = dict["turn_eot_threshold"] as? Double {
+            config.turn_eot_threshold = v
+        }
+        if let v = dict["turn_eot_confirm_count"] as? Int {
+            config.turn_eot_confirm_count = v
+        }
+        if let v = dict["turn_eot_high_confidence"] as? Double {
+            config.turn_eot_high_confidence = v
+        }
+        if let v = dict["turn_pause_trigger_ms"] as? Int {
+            config.turn_pause_trigger_ms = v
+        }
+        if let v = dict["turn_reeval_interval_ms"] as? Int {
+            config.turn_reeval_interval_ms = v
+        }
+        if let v = dict["turn_max_silence_ms"] as? Int {
+            config.turn_max_silence_ms = v
+        }
+        if let v = dict["turn_window_ms"] as? Int {
+            config.turn_window_ms = v
+        }
+        if let v = dict["turn_min_speech_ms"] as? Int {
+            config.turn_min_speech_ms = v
+        }
+        if let v = dict["turn_asr_silence_hangover_ms"] as? Int {
+            config.turn_asr_silence_hangover_ms = v
+        }
+
+        // Streaming ASR toggles live caption partials; the authoritative
+        // end-of-turn transcript is identical either way.
+        if let v = dict["asr_streaming"] as? Bool {
+            config.asr_streaming = v
+        }
+        if let v = dict["asr_partial_interval_ms"] as? Int {
+            config.asr_partial_interval_ms = v
+        }
+        if let v = dict["debug_timeline"] as? Bool {
+            config.debug_timeline = v
         }
 
         return config

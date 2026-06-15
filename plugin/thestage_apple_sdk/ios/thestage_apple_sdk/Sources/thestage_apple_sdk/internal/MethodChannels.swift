@@ -29,6 +29,8 @@ enum MethodRoute {
     static let unloadComponents = "unload_components"
     static let bundledEnginePath = "get_bundled_engine_path"
 
+    static let memoryFootprint = "memory_footprint"
+
     static let infer = "infer"
     static let startStream = "start_stream"
     static let send = "send"

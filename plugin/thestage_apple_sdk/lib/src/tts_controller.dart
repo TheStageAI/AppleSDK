@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
@@ -12,7 +13,16 @@ class TTSStreamStats {
   final double? totalTime;
   final double audioDuration;
   final double? tokensPerSecond;
+
+  /// Process `phys_footprint` in MB — the metric iOS jetsam terminates against
+  /// and the one Xcode's memory gauge shows (counts compressed + IOKit/ANE
+  /// memory). This is the headline "Memory" number.
   final double? memoryMB;
+
+  /// Resident set size (RSS) in MB — pages currently in physical RAM,
+  /// excluding compressed/IOKit memory. Always <= [memoryMB]; kept as a
+  /// secondary diagnostic only (it is NOT the termination metric).
+  final double? residentMB;
 
   const TTSStreamStats({
     required this.generatedTokens,
@@ -21,6 +31,7 @@ class TTSStreamStats {
     required this.audioDuration,
     this.tokensPerSecond,
     this.memoryMB,
+    this.residentMB,
   });
 
   double? get rtf =>
@@ -66,6 +77,12 @@ class TTSController extends ChangeNotifier {
   double _downloadProgress = 0.0;
   String? _loadPhase;
   TTSStreamStats? _stats;
+
+  // Latest memory sample (phys_footprint + RSS), refreshed asynchronously
+  // during streaming since the native call is async and stats are built
+  // synchronously per chunk.
+  double? _footprintMB;
+  double? _residentMB;
 
   StreamSubscription<Map<String, dynamic>>? _streamSub;
 
@@ -164,6 +181,9 @@ class TTSController extends ChangeNotifier {
     if (_player.isPlaying) await _player.stop();
     await _player.start();
 
+    // Prime a memory sample so the first chunk has a value to show.
+    unawaited(_refreshMemory());
+
     _streamSub = TheStageFlutterSDK.infer_stream(
       model_name: modelName,
       input_json: {'text': text},
@@ -188,8 +208,16 @@ class TTSController extends ChangeNotifier {
           audioDuration: _computeAudioDuration(chunk),
           tokensPerSecond:
               (chunk['tokens_per_second'] as num?)?.toDouble(),
+          // Memory is `phys_footprint` (the metric iOS jetsam kills against),
+          // sampled asynchronously via the plugin. RSS is kept as a secondary
+          // diagnostic. Values lag by at most one chunk since the native read
+          // is async and stats are built synchronously here.
+          memoryMB: _footprintMB,
+          residentMB: _residentMB,
         );
         notifyListeners();
+        // Refresh the sample for the next chunk (fire-and-forget).
+        unawaited(_refreshMemory());
 
         if (isFinal) {
           _player.drain().then((_) {
@@ -242,6 +270,35 @@ class TTSController extends ChangeNotifier {
       config: {'voice_id': voiceId},
     );
     _loadedVoice = voiceId;
+  }
+
+  /// Sample process memory via the plugin's native `task_vm_info` reader and
+  /// cache it. `phys_footprint` (the iOS termination metric) becomes the
+  /// headline number; RSS is kept as a secondary diagnostic. Falls back to
+  /// Dart's `ProcessInfo.currentRss` (RSS only) if the native call is
+  /// unavailable.
+  Future<void> _refreshMemory() async {
+    try {
+      final mem = await TheStageFlutterSDK.memory_footprint();
+      if (mem != null) {
+        _footprintMB = mem['footprint_mb'];
+        _residentMB = mem['resident_mb'];
+        return;
+      }
+    } catch (_) {
+      // Fall through to the RSS-only fallback below.
+    }
+    try {
+      final rss = ProcessInfo.currentRss;
+      if (rss > 0) {
+        _residentMB = rss / (1024 * 1024);
+        // No footprint available; surface RSS as the memory number so the
+        // UI isn't blank, but it under-reports vs the kill metric.
+        _footprintMB ??= _residentMB;
+      }
+    } catch (_) {
+      // Leave the last known values in place.
+    }
   }
 
   double _computeAudioDuration(Map<String, dynamic> chunk) {

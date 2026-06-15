@@ -245,7 +245,10 @@ class _StatsCard extends StatelessWidget {
           if (stats.tokensPerSecond != null)
             _row('Tok/s', stats.tokensPerSecond!.toStringAsFixed(1)),
           if (stats.memoryMB != null)
-            _row('Memory', '${stats.memoryMB!.toStringAsFixed(0)} MB'),
+            _row('Memory (footprint)',
+                '${stats.memoryMB!.toStringAsFixed(0)} MB'),
+          if (stats.residentMB != null)
+            _row('  └ RSS', '${stats.residentMB!.toStringAsFixed(0)} MB'),
         ]),
       ),
     );

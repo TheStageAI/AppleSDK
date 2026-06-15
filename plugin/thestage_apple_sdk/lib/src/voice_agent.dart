@@ -195,10 +195,16 @@ class TheStageVoiceAgentFlutter {
   /// - `interruptMinPlaybackMs`: AEC-converge grace at the start of every
   ///   TTS turn during which barge-in detection is suppressed.
   /// - `interruptMode`: `'none'` | `'speech_only'` | `'wake_word'`.
+  /// - `interruptOnsetMs`: sustained positive-VAD duration (ms) required to
+  ///   fire barge-in. When `> 0` it overrides `interruptMinSpeechMs`.
+  /// - `interruptThreshold`: VAD probability threshold for barge-in detection,
+  ///   independent of the capture (`vad_threshold`) threshold.
   Future<void> updateInterruptConfig({
     int? interruptMinSpeechMs,
     int? interruptMinPlaybackMs,
     String? interruptMode,
+    int? interruptOnsetMs,
+    double? interruptThreshold,
   }) async {
     final args = <String, dynamic>{};
     if (interruptMinSpeechMs != null) {
@@ -209,6 +215,12 @@ class TheStageVoiceAgentFlutter {
     }
     if (interruptMode != null) {
       args['interrupt_mode'] = interruptMode;
+    }
+    if (interruptOnsetMs != null) {
+      args['interrupt_onset_ms'] = interruptOnsetMs;
+    }
+    if (interruptThreshold != null) {
+      args['interrupt_threshold'] = interruptThreshold;
     }
     if (args.isEmpty) return;
     await _channel.invokeMethod(

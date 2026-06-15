@@ -135,6 +135,8 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
             __handle_unload_components(call, result: result)
         case MethodRoute.bundledEnginePath:
             __handle_bundled_engine_path(call, result: result)
+        case MethodRoute.memoryFootprint:
+            __handle_memory_footprint(call, result: result)
 
         case MethodRoute.infer:
             __handle_infer(call, result: result)

@@ -95,6 +95,8 @@ extension TheStageFlutterPlugin {
         let args = call.arguments as? [String: Any] ?? [:]
         let min_speech_ms = args["interrupt_min_speech_ms"] as? Int
         let min_playback_ms = args["interrupt_min_playback_ms"] as? Int
+        let onset_ms = args["interrupt_onset_ms"] as? Int
+        let threshold = args["interrupt_threshold"] as? Double
         let mode_str = args["interrupt_mode"] as? String
         let mode: InterruptTrigger?
         switch mode_str {
@@ -107,7 +109,9 @@ extension TheStageFlutterPlugin {
             await self?.__voice_agent_handler?.update_interrupt_config(
                 min_speech_ms: min_speech_ms,
                 min_playback_ms: min_playback_ms,
-                mode: mode
+                mode: mode,
+                onset_ms: onset_ms,
+                threshold: threshold
             )
             result(nil)
         }

@@ -230,6 +230,25 @@ class TheStageFlutterSDK {
     );
   }
 
+  /// Process memory as iOS accounts it. `footprint_mb` is `phys_footprint`
+  /// (the metric the jetsam killer and Xcode's gauge use — counts compressed
+  /// and IOKit/ANE memory); `resident_mb` is RSS (smaller, diagnostic only).
+  /// Returns `null` on platforms that can't report it.
+  static Future<Map<String, double>?> memory_footprint() async {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      MethodRoute.memoryFootprint,
+    );
+    if (result == null) return null;
+    final map = _asMap(result);
+    final footprint = (map['footprint_mb'] as num?)?.toDouble();
+    final resident = (map['resident_mb'] as num?)?.toDouble();
+    if (footprint == null || footprint < 0) return null;
+    return {
+      'footprint_mb': footprint,
+      if (resident != null && resident >= 0) 'resident_mb': resident,
+    };
+  }
+
   static String _makeStreamId(String model_name) {
     _nextStreamOrdinal++;
     return '${model_name}_${DateTime.now().microsecondsSinceEpoch}_'

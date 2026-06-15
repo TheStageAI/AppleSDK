@@ -1,0 +1,1581 @@
+// swift-interface-format-version: 1.0
+// swift-compiler-version: Apple Swift version 6.2.4 effective-5.10 (swiftlang-6.2.4.1.4 clang-1700.6.4.2)
+// swift-module-flags: -target arm64-apple-ios18.0 -enable-objc-interop -enable-library-evolution -swift-version 5 -O -module-name TheStageCore
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface -formal-cxx-interoperability-mode=off -interface-compiler-version 6.2.4
+import AVFoundation
+import Accelerate
+import CoreAudio
+import CoreGraphics
+import CoreImage
+import CoreML
+import CoreVideo
+import CryptoKit
+import Darwin
+import Foundation
+import ImageIO
+import Darwin.Mach
+import NaturalLanguage
+import Security
+import Swift
+import UIKit
+import _Concurrency
+import _StringProcessing
+import _SwiftConcurrencyShims
+import os
+public struct AudioInputConfig : Swift.Sendable {
+  public var sample_rate: Swift.Double
+  public var channels: Swift.UInt32
+  public var buffer_size: Swift.UInt32
+  public var voice_processing: Swift.Bool
+  public var category: AVFAudio.AVAudioSession.Category
+  public var mode: AVFAudio.AVAudioSession.Mode
+  public init(sample_rate: Swift.Double = 16000, channels: Swift.UInt32 = 1, buffer_size: Swift.UInt32 = 512, voice_processing: Swift.Bool = true)
+}
+final public class AudioInputEngine : @unchecked Swift.Sendable {
+  final public let stream: _Concurrency.AsyncStream<[Swift.Float]>
+  final public var engine: AVFAudio.AVAudioEngine {
+    get
+  }
+  final public var config: TheStageCore.AudioInputConfig {
+    get
+  }
+  final public var is_running: Swift.Bool {
+    get
+  }
+  public init(config: TheStageCore.AudioInputConfig = AudioInputConfig(), engine: AVFAudio.AVAudioEngine? = nil)
+  @objc deinit
+  final public func start() throws
+  final public func stop()
+}
+public enum AudioInputError : Swift.Error, Swift.Sendable {
+  case format_error(Swift.String)
+  case permission_denied
+}
+public struct AudioStreamConfig : Swift.Sendable {
+  public var sample_rate: Swift.Double
+  public var channels: Swift.UInt32
+  public var buffer_size: Swift.UInt32
+  public var voice_processing: Swift.Bool
+  public var category: AVFAudio.AVAudioSession.Category
+  public var mode: AVFAudio.AVAudioSession.Mode
+  public init(sample_rate: Swift.Double = 24000, channels: Swift.UInt32 = 1, buffer_size: Swift.UInt32 = 512, voice_processing: Swift.Bool = false)
+  public init(sample_rate: Swift.Double = 24000, channels: Swift.UInt32 = 1, buffer_size: Swift.UInt32 = 512, voice_processing: Swift.Bool = false, category: AVFAudio.AVAudioSession.Category = .playback, mode: AVFAudio.AVAudioSession.Mode = .default)
+}
+final public class AudioStreamPlayer : @unchecked Swift.Sendable {
+  final public var is_playing: Swift.Bool {
+    get
+  }
+  final public var pending_buffers: Swift.Int {
+    get
+  }
+  final public var config: TheStageCore.AudioStreamConfig {
+    get
+  }
+  final public var engine: AVFAudio.AVAudioEngine {
+    get
+  }
+  public init(config: TheStageCore.AudioStreamConfig = AudioStreamConfig(), engine: AVFAudio.AVAudioEngine? = nil)
+  convenience public init(sample_rate: Swift.Double)
+  @objc deinit
+  final public func start()
+  final public func enqueue(_ samples: [Swift.Double])
+  final public func enqueue(_ samples: [Swift.Float])
+  final public func pause()
+  final public func resume()
+  final public func drain() async
+  final public func drain(completion: @escaping @Sendable () -> Swift.Void)
+  final public func stop()
+  final public func flush()
+}
+public struct TTSSessionMetrics : Swift.Sendable {
+  public let time_to_first_audio: Swift.Double?
+  public let total_seconds: Swift.Double?
+  public let tokens_per_second: Swift.Double?
+  public let generated_tokens: Swift.Int
+  public let audio_duration: Swift.Double
+}
+final public class TTSSession : @unchecked Swift.Sendable {
+  final public var is_active: Swift.Bool {
+    get
+  }
+  final public var metrics: TheStageCore.TTSSessionMetrics? {
+    get
+  }
+  final public var player: TheStageCore.AudioStreamPlayer {
+    get
+  }
+  public init(pipeline: TheStageCore.TheStageTTSPipeline, voice: TheStageCore.TTSVoiceRef, player: TheStageCore.AudioStreamPlayer? = nil, stream_config: TheStageCore.TTSStreamConfig = TTSStreamConfig(), generation_config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter())
+  @objc deinit
+  final public func start_stream()
+  final public func send(_ text: Swift.String)
+  final public func stop_stream()
+  final public func cancel()
+  final public func drain() async
+  final public func stop_player()
+}
+@_hasMissingDesignatedInitializers public class QlipModel {
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers final public class DebugLog : @unchecked Swift.Sendable {
+  public struct LoadedModel : Swift.Sendable {
+    public let model_name: Swift.String
+    public let model_type: Swift.String
+    public let engines_path: Swift.String
+    public let device: Swift.String?
+    public let devices: [Swift.String : Swift.String]?
+    public let loaded_at: Foundation.Date
+  }
+  public struct TTSChunkMetric : Swift.Sendable {
+    public let chunk_index: Swift.Int
+    public let samples: Swift.Int
+    public let sample_rate: Swift.Int
+    public let decode_ms: Swift.Double
+    public let since_prev_ms: Swift.Double
+  }
+  public struct TTSTurnReport : Swift.Sendable {
+    public let model_name: Swift.String
+    public let text: Swift.String
+    public let started_at: Foundation.Date
+    public var ended_at: Foundation.Date?
+    public var ttfb_ms: Swift.Double?
+    public var prefill_ms: Swift.Double?
+    public var decode_ms: Swift.Double?
+    public var generated_tokens: Swift.Int?
+    public var audio_duration_s: Swift.Double?
+    public var rtf: Swift.Double?
+    public var tokens_per_second: Swift.Double?
+    public var chunks: [TheStageCore.DebugLog.TTSChunkMetric]
+  }
+  public struct SystemSnapshot : Swift.Sendable {
+    public let thermal_state: Swift.String
+    public let low_power_mode: Swift.Bool
+    public let resident_mb: Swift.Double
+    public let phys_footprint_mb: Swift.Double
+    public let available_mb: Swift.Double
+    public let cpu_seconds: Swift.Double
+    public let battery_level: Swift.Float?
+    public let battery_state: Swift.String
+    public let sampled_at: Foundation.Date
+  }
+  public struct ComputePlanSummary : Swift.Sendable {
+    public let model_name: Swift.String
+    public let engine_name: Swift.String
+    public let total_ops: Swift.Int
+    public let ane_ops: Swift.Int
+    public let gpu_ops: Swift.Int
+    public let cpu_ops: Swift.Int
+    public let cpu_fallback_examples: [Swift.String]
+    public let measured_at: Foundation.Date
+  }
+  public static let shared: TheStageCore.DebugLog
+  final public func event(_ category: Swift.String, _ message: Swift.String)
+  final public func record_model_loaded(model_name: Swift.String, model_type: Swift.String, engines_path: Swift.String, device: Swift.String?, devices: [Swift.String : Swift.String]?)
+  final public func record_model_unloaded(model_name: Swift.String)
+  final public func begin_tts_turn(model_name: Swift.String, text: Swift.String)
+  final public func record_tts_chunk(_ chunk: TheStageCore.DebugLog.TTSChunkMetric)
+  final public func end_tts_turn(prefill_seconds: Swift.Double?, decode_seconds: Swift.Double?, generated_tokens: Swift.Int?, audio_duration: Swift.Double?, tokens_per_second: Swift.Double? = nil)
+  final public func loaded_models() -> [TheStageCore.DebugLog.LoadedModel]
+  final public func recent_turns() -> [TheStageCore.DebugLog.TTSTurnReport]
+  final public func recent_events() -> [(Foundation.Date, Swift.String, Swift.String)]
+  final public func reset()
+  final public func render_report(app_header: Swift.String? = nil) -> Swift.String
+  public static func system_snapshot() -> TheStageCore.DebugLog.SystemSnapshot
+  @objc deinit
+}
+public struct TheStageDebugInfo<M> : Swift.Codable, Swift.Sendable where M : TheStageCore.TheStageMetrics {
+  public let correlation_id: Swift.String
+  public let started_at_iso: Swift.String
+  public let ended_at_iso: Swift.String
+  public let model_name: Swift.String
+  public let metrics: M
+  public let log_lines: [Swift.String]
+  public init(correlation_id: Swift.String, started_at_iso: Swift.String, ended_at_iso: Swift.String, model_name: Swift.String, metrics: M, log_lines: [Swift.String])
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public typealias TTSDebugInfo = TheStageCore.TheStageDebugInfo<TheStageCore.TTSDebugMetrics>
+public typealias ASRDebugInfo = TheStageCore.TheStageDebugInfo<TheStageCore.ASRDebugMetrics>
+public typealias LLMDebugInfo = TheStageCore.TheStageDebugInfo<TheStageCore.LLMMetrics>
+final public class TheStageDebugLogger : @unchecked Swift.Sendable {
+  public struct Phase {
+  }
+  final public let correlation_id: Swift.String
+  final public let model_name: Swift.String
+  final public let capture: Swift.Bool
+  public init(model_name: Swift.String, capture: Swift.Bool = false, subsystem: Swift.String = "Qlip.SDK", category: Swift.String? = nil, correlation_id: Swift.String? = nil)
+  final public func phase(_ name: Swift.String) -> TheStageCore.TheStageDebugLogger.Phase
+  final public func end(_ phase: TheStageCore.TheStageDebugLogger.Phase)
+  final public func around<T>(_ name: Swift.String, _ body: () throws -> T) rethrows -> T
+  final public func note(_ category: Swift.String, _ message: Swift.String)
+  final public func log(level: os.OSLogType, _ message: Swift.String)
+  final public func snapshot() -> (stages: [TheStageCore.TheStageStageTime], log_lines: [Swift.String])
+  final public var started_at_iso: Swift.String {
+    get
+  }
+  final public var elapsed_seconds: Swift.Double {
+    get
+  }
+  @objc deinit
+}
+public struct TheStageStageTime : Swift.Codable, Swift.Sendable, Swift.Equatable {
+  public let name: Swift.String
+  public let started_at_ms: Swift.Double
+  public let elapsed_ms: Swift.Double
+  public init(name: Swift.String, started_at_ms: Swift.Double, elapsed_ms: Swift.Double)
+  public static func == (a: TheStageCore.TheStageStageTime, b: TheStageCore.TheStageStageTime) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct TheStageDecoderMetrics : Swift.Codable, Swift.Sendable, Swift.Equatable {
+  public let backend: Swift.String
+  public let device: Swift.String
+  public let prompt_tokens: Swift.Int
+  public let generated_tokens: Swift.Int
+  public let prefill_seconds: Swift.Double
+  public let decode_seconds: Swift.Double
+  public let time_to_first_token: Swift.Double
+  public let tokens_per_second: Swift.Double
+  public init(backend: Swift.String, device: Swift.String, prompt_tokens: Swift.Int, generated_tokens: Swift.Int, prefill_seconds: Swift.Double, decode_seconds: Swift.Double, time_to_first_token: Swift.Double? = nil, tokens_per_second: Swift.Double? = nil)
+  public static func == (a: TheStageCore.TheStageDecoderMetrics, b: TheStageCore.TheStageDecoderMetrics) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public protocol TheStageMetrics : Swift.Decodable, Swift.Encodable, Swift.Sendable {
+  var pipeline: Swift.String { get }
+  var total_seconds: Swift.Double { get }
+  var stages: [TheStageCore.TheStageStageTime] { get }
+  var decoder: TheStageCore.TheStageDecoderMetrics? { get }
+}
+public struct TTSDebugMetrics : TheStageCore.TheStageMetrics, Swift.Equatable {
+  public let pipeline: Swift.String
+  public let total_seconds: Swift.Double
+  public let stages: [TheStageCore.TheStageStageTime]
+  public let decoder: TheStageCore.TheStageDecoderMetrics?
+  public let phonemize_seconds: Swift.Double
+  public let normalize_seconds: Swift.Double
+  public let tokenize_seconds: Swift.Double
+  public let codec_seconds: Swift.Double
+  public let audio_convert_seconds: Swift.Double
+  public let audio_duration_seconds: Swift.Double
+  public let sample_rate: Swift.Int
+  public let rtf: Swift.Double
+  public let voice_id: Swift.String?
+  public let language: Swift.String?
+  public let variant: Swift.String?
+  public init(total_seconds: Swift.Double, stages: [TheStageCore.TheStageStageTime], decoder: TheStageCore.TheStageDecoderMetrics?, normalize_seconds: Swift.Double, phonemize_seconds: Swift.Double, tokenize_seconds: Swift.Double, codec_seconds: Swift.Double, audio_convert_seconds: Swift.Double, audio_duration_seconds: Swift.Double, sample_rate: Swift.Int, voice_id: Swift.String?, language: Swift.String?, variant: Swift.String?)
+  public static func == (a: TheStageCore.TTSDebugMetrics, b: TheStageCore.TTSDebugMetrics) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ASRDebugMetrics : TheStageCore.TheStageMetrics, Swift.Equatable {
+  public let pipeline: Swift.String
+  public let total_seconds: Swift.Double
+  public let stages: [TheStageCore.TheStageStageTime]
+  public let decoder: TheStageCore.TheStageDecoderMetrics?
+  public let vad_seconds: Swift.Double
+  public let mel_seconds: Swift.Double
+  public let encoder_seconds: Swift.Double
+  public let decoder_seconds: Swift.Double
+  public let detokenize_seconds: Swift.Double
+  public let segments_count: Swift.Int
+  public let audio_duration_seconds: Swift.Double
+  public let sample_rate: Swift.Int
+  public let language: Swift.String?
+  public let rtf: Swift.Double
+  public init(total_seconds: Swift.Double, stages: [TheStageCore.TheStageStageTime], decoder: TheStageCore.TheStageDecoderMetrics?, vad_seconds: Swift.Double, mel_seconds: Swift.Double, encoder_seconds: Swift.Double, decoder_seconds: Swift.Double, detokenize_seconds: Swift.Double, segments_count: Swift.Int, audio_duration_seconds: Swift.Double, sample_rate: Swift.Int, language: Swift.String?)
+  public static func == (a: TheStageCore.ASRDebugMetrics, b: TheStageCore.ASRDebugMetrics) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct LLMMetrics : TheStageCore.TheStageMetrics, Swift.Equatable {
+  public let pipeline: Swift.String
+  public let total_seconds: Swift.Double
+  public let stages: [TheStageCore.TheStageStageTime]
+  public let decoder: TheStageCore.TheStageDecoderMetrics?
+  public let stop_reason: Swift.String
+  public init(total_seconds: Swift.Double, stages: [TheStageCore.TheStageStageTime], decoder: TheStageCore.TheStageDecoderMetrics?, stop_reason: Swift.String)
+  public static func == (a: TheStageCore.LLMMetrics, b: TheStageCore.LLMMetrics) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct InferenceStreamChunk : Swift.Sendable {
+  public var kind: Swift.String
+  public var index: Swift.Int
+  public var is_final: Swift.Bool
+  public var delta: Swift.String?
+  public var audio: [Swift.Float]?
+  public var sample_rate: Swift.Int?
+  public var time_to_first_token: Swift.Double?
+  public var prompt_tokens: Swift.Int?
+  public var generated_tokens: Swift.Int?
+  public var tokens_per_second: Swift.Double?
+  public var total_seconds: Swift.Double?
+}
+public struct ModelComponentStatus : Swift.Codable, Swift.Sendable {
+  public let id: Swift.String
+  public let kind: Swift.String
+  public let loaded: Swift.Bool
+  public let dependencies: [Swift.String]
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public enum ModelManagerError : Swift.Error {
+  case unknownModel(Swift.String)
+  case unknownModelType(Swift.String)
+  case missingEnginesPath
+  case tokenValidationFailed(Swift.String)
+}
+extension TheStageCore.ModelManagerError : Foundation.LocalizedError {
+  public var errorDescription: Swift.String? {
+    get
+  }
+}
+public struct ModelStatus : Swift.Codable, Swift.Sendable {
+  public let model_name: Swift.String
+  public let model_type: Swift.String
+  public let status: Swift.String
+  public init(model_name: Swift.String, model_type: Swift.String, status: Swift.String)
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+final public class ModelManager : @unchecked Swift.Sendable {
+  public init(apiToken: Swift.String)
+  public init()
+  @objc deinit
+  final public func validateToken() async throws
+  final public func prefetch_engines(repo_id: Swift.String, model_type: Swift.String? = nil, revision: Swift.String = "main", config: [Swift.String : Any]? = nil, on_progress: (@Sendable (Swift.Double) -> Swift.Void)? = nil) async throws -> Swift.String
+  final public func start(model_type: Swift.String? = nil, model_name: Swift.String, engines_path: Swift.String, device: Swift.String = "gpu", devices: [Swift.String : Swift.String]? = nil, config: [Swift.String : Any]? = nil, phonemizer: (any TheStageCore.Phonemizer)? = nil, normaliser: (any TheStageCore.TextNormaliser)? = nil, revision: Swift.String = "main", on_progress: (@Sendable (Swift.Double) -> Swift.Void)? = nil) async throws -> TheStageCore.ModelStatus
+  final public func stop(model_name: Swift.String) throws -> TheStageCore.ModelStatus
+  final public func infer(model_name: Swift.String, input_json: [Swift.String : Any]) throws -> [[Swift.String : Any]]
+  final public func infer_stream(model_name: Swift.String, input_json: [Swift.String : Any]) throws -> _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
+  final public func open_tts_streamer(model_name: Swift.String, generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig = TTSStreamConfig()) throws -> TheStageCore.TTSStreamer
+  final public func list_components(model_name: Swift.String) throws -> [TheStageCore.ModelComponentStatus]
+  final public func load_components(model_name: Swift.String, ids: [Swift.String]) throws -> [TheStageCore.ModelComponentStatus]
+  final public func unload_components(model_name: Swift.String, ids: [Swift.String]) throws -> [TheStageCore.ModelComponentStatus]
+}
+@_hasMissingDesignatedInitializers final public class TheStageASRPipeline : @unchecked Swift.Sendable {
+  @objc deinit
+}
+public protocol ASRPreprocessor : Swift.Sendable {
+  var sample_rate: Swift.Int { get }
+  var chunk_seconds: Swift.Int { get }
+  func compute_features(audio: [Swift.Float]) -> CoreML.MLMultiArray
+}
+public protocol ASRPostprocessor : Swift.Sendable {
+  func decode_tokens(_ tokens: [Swift.Int]) -> Swift.String
+  func make_initial_tokens(language: Swift.String) -> [Swift.Int]
+}
+extension TheStageCore.ASRPostprocessor {
+  public static func remove_repeated_tokens(_ tokens: [Swift.Int]) -> [Swift.Int]
+  public static func remove_repeated_phrases(_ text: Swift.String) -> Swift.String
+}
+public typealias ASRTranscribe = @Sendable ([Swift.Float], Swift.String) async -> Swift.String?
+public struct ASRStreamConfig : Swift.Sendable {
+  public var language: Swift.String
+  public var partial_interval_ms: Swift.Int
+  public var sample_rate: Swift.Int
+  public var sentence_flush: Swift.Bool
+  public var min_pause_ms: Swift.Int
+  public var max_segment_seconds: Swift.Double
+  public init(language: Swift.String = "en", partial_interval_ms: Swift.Int = 600, sample_rate: Swift.Int = 16000, sentence_flush: Swift.Bool = true, min_pause_ms: Swift.Int = 200, max_segment_seconds: Swift.Double = 12.0)
+}
+public enum LocalAgreement {
+  public static func common_prefix_length(_ a: [Swift.String], _ b: [Swift.String]) -> Swift.Int
+  public static func words(_ text: Swift.String) -> [Swift.String]
+  public static func commit(prev: [Swift.String], hyp: [Swift.String], committed: [Swift.String]) -> (committed: [Swift.String], emit: Swift.Bool)
+}
+public enum SentenceGate {
+  public static func ends_sentence(_ text: Swift.String) -> Swift.Bool
+  public static func complete_sentences(_ text: Swift.String) -> (done: [Swift.String], tail: Swift.String)
+}
+final public class ASRStreamer : @unchecked Swift.Sendable {
+  final public let partials: _Concurrency.AsyncStream<Swift.String>
+  public init(config: TheStageCore.ASRStreamConfig, transcribe: @escaping TheStageCore.ASRTranscribe)
+  final public func send(_ audio: [Swift.Float])
+  final public func mark_endpoint()
+  final public func flush()
+  final public func finish() async -> Swift.String
+  final public func cancel()
+  @objc deinit
+}
+public struct ASRConfig : Swift.Sendable {
+  public var max_new_tokens: Swift.Int?
+  public var return_tokens: Swift.Bool
+  public init(max_new_tokens: Swift.Int? = nil, return_tokens: Swift.Bool = false)
+}
+public struct ASRMetrics : Swift.Sendable {
+  public let preprocess_seconds: Swift.Double
+  public let encode_seconds: Swift.Double
+  public let decode_seconds: Swift.Double
+  public let last_prefill_seconds: Swift.Double
+  public let total_seconds: Swift.Double
+  public let audio_seconds: Swift.Double
+  public let rtfx: Swift.Double
+  public let tokens_per_second: Swift.Double
+  public let chunk_count: Swift.Int
+  public let token_count: Swift.Int
+  public init(preprocess_seconds: Swift.Double, encode_seconds: Swift.Double, decode_seconds: Swift.Double, last_prefill_seconds: Swift.Double, total_seconds: Swift.Double, audio_seconds: Swift.Double, rtfx: Swift.Double, tokens_per_second: Swift.Double, chunk_count: Swift.Int, token_count: Swift.Int)
+  public static let zero: TheStageCore.ASRMetrics
+}
+public struct ASRResult : Swift.Sendable {
+  public let text: Swift.String
+  public let tokens: [Swift.Int]?
+  public let token_count: Swift.Int
+  public let decode_seconds: Swift.Double
+  public let metrics: TheStageCore.ASRMetrics
+  public init(text: Swift.String, tokens: [Swift.Int]?, token_count: Swift.Int, decode_seconds: Swift.Double, metrics: TheStageCore.ASRMetrics)
+}
+public struct ASRTokenConfig : Swift.Sendable {
+  public let sot_token: Swift.Int
+  public let eot_token: Swift.Int
+  public let transcribe_token: Swift.Int
+  public let notimestamps_token: Swift.Int
+  public let lang_base_token: Swift.Int
+  public let suppress_tokens: [Swift.Int]?
+  public let begin_suppress_tokens: [Swift.Int]?
+  public let max_decode_length: Swift.Int
+  public let lang_offsets: [Swift.String : Swift.Int]
+  public init(sot_token: Swift.Int, eot_token: Swift.Int, transcribe_token: Swift.Int, notimestamps_token: Swift.Int, lang_base_token: Swift.Int, suppress_tokens: [Swift.Int]?, begin_suppress_tokens: [Swift.Int]?, max_decode_length: Swift.Int, lang_offsets: [Swift.String : Swift.Int])
+}
+@_hasMissingDesignatedInitializers final public class EmbeddingGemma : TheStageCore.QlipModel {
+  final public var EMBEDDING_DIM: Swift.Int {
+    get
+  }
+  final public var MAX_SEQ_LENGTH: Swift.Int {
+    get
+  }
+  final public var SLIDING_WINDOW: Swift.Int {
+    get
+  }
+  public init(engines_path: Swift.String, device: Swift.String = "gpu") throws
+  public init(engines_path: Swift.String, devices: [Swift.String : Swift.String]) throws
+  @objc deinit
+  final public func infer(token_ids: [Swift.Int]) -> [Swift.Float]
+}
+@_hasMissingDesignatedInitializers final public class QlipPhonemizer : TheStageCore.QlipModel, TheStageCore.Phonemizer, @unchecked Swift.Sendable {
+  final public var BATCH_SIZE: Swift.Int {
+    get
+  }
+  public init(engines_path: Swift.String, device: Swift.String = "gpu") throws
+  public init(engines_path: Swift.String, device: Swift.String = "gpu", batch_size: Swift.Int = 16) throws
+  @objc deinit
+  final public func phonemize(_ text: Swift.String) -> Swift.String
+}
+public protocol Phonemizer : AnyObject, Swift.Sendable {
+  func phonemize(_ text: Swift.String) -> Swift.String
+}
+public enum ChatTemplate : Swift.String, Swift.Codable, Swift.Sendable, Swift.CaseIterable {
+  case raw
+  case qwen2
+  case gemma3
+  public func render(prompt: Swift.String, system: Swift.String?) -> Swift.String
+  public var default_system_prompt: Swift.String {
+    get
+  }
+  public init?(rawValue: Swift.String)
+  public typealias AllCases = [TheStageCore.ChatTemplate]
+  public typealias RawValue = Swift.String
+  nonisolated public static var allCases: [TheStageCore.ChatTemplate] {
+    get
+  }
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public struct LLMHostConfig : Swift.Codable, Swift.Sendable {
+  public var chat_template: TheStageCore.ChatTemplate
+  public var default_system_prompt: Swift.String?
+  public var stop_token_ids: [Swift.Int]?
+  public init(chat_template: TheStageCore.ChatTemplate = .raw, default_system_prompt: Swift.String? = nil, stop_token_ids: [Swift.Int]? = nil)
+  public static func load(from engines_dir: Swift.String, filename: Swift.String = "llm_host.json") -> TheStageCore.LLMHostConfig?
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct LLMResult : Swift.Sendable {
+  public let text: Swift.String
+  public let prompt_tokens: Swift.Int
+  public let generated_tokens: Swift.Int
+  public let prefill_seconds: Swift.Double
+  public let decode_seconds: Swift.Double
+  public let stop_reason: Swift.String
+  public var tokens_per_second: Swift.Double {
+    get
+  }
+  public var time_to_first_token: Swift.Double {
+    get
+  }
+  public var total_seconds: Swift.Double {
+    get
+  }
+}
+public struct LLMStreamChunk : Swift.Sendable {
+  public let text: Swift.String
+  public let token_index: Swift.Int
+  public let is_final: Swift.Bool
+  public let time_to_first_token: Swift.Double
+  public let prompt_tokens: Swift.Int?
+  public let generated_tokens: Swift.Int?
+  public let tokens_per_second: Swift.Double?
+  public let total_seconds: Swift.Double?
+  public let stop_reason: Swift.String?
+}
+final public class TheStageLLM : @unchecked Swift.Sendable {
+  final public let chat_template: TheStageCore.ChatTemplate
+  final public let default_system_prompt: Swift.String
+  final public let stop_token_ids: [Swift.Int]
+  final public var engines_path: Swift.String {
+    get
+  }
+  final public var eos_token_id: Swift.Int? {
+    get
+  }
+  final public var architecture: Swift.String {
+    get
+  }
+  final public var decoder_spec: TheStageCore.Seq2SeqDecoderSpec {
+    get
+  }
+  final public func release()
+  final public var last_prefill_seconds: Swift.Double {
+    get
+  }
+  final public var last_decode_seconds: Swift.Double {
+    get
+  }
+  public init(engines_path: Swift.String, device: Swift.String = "gpu", max_context_size: Swift.Int = 2048, chat_template: TheStageCore.ChatTemplate? = nil, default_system_prompt: Swift.String? = nil, eos_token_id: Swift.Int? = nil, revision: Swift.String = "main", on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
+  @objc deinit
+  final public func reset()
+  final public func infer(prompt: Swift.String, system_prompt: Swift.String? = nil, max_new_tokens: Swift.Int = 512, temperature: Swift.Float = 0.7, top_k: Swift.Int = 20, seed: Swift.UInt64? = nil) -> TheStageCore.LLMResult
+  final public func infer_stream(prompt: Swift.String, system_prompt: Swift.String? = nil, max_new_tokens: Swift.Int = 512, temperature: Swift.Float = 0.7, top_k: Swift.Int = 20, seed: Swift.UInt64? = nil) -> _Concurrency.AsyncStream<TheStageCore.LLMStreamChunk>
+}
+@_hasMissingDesignatedInitializers final public class NeuCodec : TheStageCore.AudioDecoder, @unchecked Swift.Sendable {
+  override final public var sample_rate: Swift.Int {
+    get
+  }
+  override final public var token_rate: Swift.Int {
+    get
+  }
+  override final public var samples_per_frame: Swift.Int {
+    get
+  }
+  override final public var speech_token_start_id: Swift.Int? {
+    get
+  }
+  override final public var speech_token_count: Swift.Int? {
+    get
+  }
+  public init(engines_path: Swift.String, device: Swift.String = "gpu") throws
+  public init(engines_path: Swift.String, devices: [Swift.String : Swift.String]) throws
+  @objc deinit
+  override final public func infer(codes: [Swift.Int]) -> [Swift.Float]
+}
+final public class NeuTTSMultilingualPipeline : @unchecked Swift.Sendable, TheStageCore.TTSStreamingAPI {
+  public init(engines_path: Swift.String, voice_id: Swift.String = "paul", language: Swift.String? = "english", device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, decoder: (any TheStageCore.Seq2SeqDecoding)? = nil, normaliser: (any TheStageCore.TextNormaliser)? = nil, revision: Swift.String = "main", on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
+  final public var sample_rate: Swift.Int {
+    get
+  }
+  final public func infer(text: Swift.String, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig()) -> TheStageCore.TTSResult
+  final public func infer_stream(text: Swift.String, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), stream_config: TheStageCore.TTSStreamConfig = TTSStreamConfig()) -> _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
+  final public func open_streamer(generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig = TTSStreamConfig()) -> TheStageCore.TTSStreamer
+  @objc deinit
+}
+final public class NeuTTSNanoPipeline : @unchecked Swift.Sendable, TheStageCore.TTSStreamingAPI {
+  public init(engines_path: Swift.String, voice_id: Swift.String = "dave", device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, decoder: (any TheStageCore.Seq2SeqDecoding)? = nil, phonemizer: (any TheStageCore.Phonemizer)? = nil, normaliser: (any TheStageCore.TextNormaliser)? = nil, revision: Swift.String = "main", on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
+  final public var sample_rate: Swift.Int {
+    get
+  }
+  final public func infer(text: Swift.String, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig()) -> TheStageCore.TTSResult
+  final public func infer_stream(text: Swift.String, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), stream_config: TheStageCore.TTSStreamConfig = TTSStreamConfig()) -> _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
+  final public func open_streamer(generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig = TTSStreamConfig()) -> TheStageCore.TTSStreamer
+  @objc deinit
+}
+public enum Seq2SeqDecoderFactory {
+  public static func load(path: Swift.String, device: Swift.String = "npu") async throws -> any TheStageCore.Seq2SeqDecoding
+}
+final public class CoreMLSampler : TheStageCore.Seq2SeqTokenSampler, @unchecked Swift.Sendable {
+  final public var temperature: Swift.Float
+  final public let top_k: Swift.Int
+  final public var suppress_tokens: Swift.Set<Swift.Int>
+  final public var last_greedy_token_id: Swift.Int {
+    get
+  }
+  public init(temperature: Swift.Float = 1.0, top_k: Swift.Int = 50, suppress_tokens: Swift.Set<Swift.Int> = [])
+  final public func sample(logits: TheStageCore.Seq2SeqLogits) -> Swift.Int
+  @objc deinit
+}
+@available(*, deprecated, renamed: "CoreMLSampler")
+public typealias CoreMLTopKSampler = TheStageCore.CoreMLSampler
+@available(*, deprecated, renamed: "CoreMLSampler")
+public typealias WhisperTopKSampler = TheStageCore.CoreMLSampler
+public protocol Seq2SeqDecoding : AnyObject {
+  var spec: TheStageCore.Seq2SeqDecoderSpec { get }
+  var eos_token_id: Swift.Int? { get }
+  var last_prefill_seconds: Swift.Double { get }
+  var last_decode_seconds: Swift.Double { get }
+  var last_decode_step_count: Swift.Int { get }
+  var last_stream_decode_seconds: Swift.Double { get }
+  var last_stream_step_count: Swift.Int { get }
+  func reset()
+  func release()
+  func encode(encoder_input: Any) -> Any
+  func generate(prompt_ids: [Swift.Int], max_length: Swift.Int, eos_token_id: Swift.Int?, min_new_tokens: Swift.Int, temperature: Swift.Float, top_k: Swift.Int, encoder_states: Any?, debug: TheStageCore.TheStageDebugLogger?) -> [Swift.Int]
+  func generate_stream(prompt_ids: [Swift.Int], max_length: Swift.Int, eos_token_id: Swift.Int?, min_new_tokens: Swift.Int, temperature: Swift.Float, top_k: Swift.Int, encoder_states: Any?, debug: TheStageCore.TheStageDebugLogger?) -> _Concurrency.AsyncStream<Swift.Int>
+}
+extension TheStageCore.Seq2SeqDecoding {
+  public func generate(prompt_ids: [Swift.Int], max_length: Swift.Int, eos_token_id: Swift.Int?, min_new_tokens: Swift.Int = 0, temperature: Swift.Float = 1.0, top_k: Swift.Int = 50, encoder_states: Any? = nil, debug: TheStageCore.TheStageDebugLogger? = nil) -> [Swift.Int]
+  public func generate_stream(prompt_ids: [Swift.Int], max_length: Swift.Int, eos_token_id: Swift.Int?, min_new_tokens: Swift.Int = 0, temperature: Swift.Float = 1.0, top_k: Swift.Int = 50, encoder_states: Any? = nil, debug: TheStageCore.TheStageDebugLogger? = nil) -> _Concurrency.AsyncStream<Swift.Int>
+}
+public protocol Seq2SeqTokenSampler : Swift.Sendable {
+  func sample(logits: TheStageCore.Seq2SeqLogits) -> Swift.Int
+}
+public enum Seq2SeqLogits : @unchecked Swift.Sendable {
+  case mlxArray(_: Swift.AnyObject)
+  case mlMultiArray(_: Swift.AnyObject)
+  case other(_: Swift.AnyObject)
+}
+public enum Seq2SeqBackend : Swift.String, Swift.Codable, Swift.Sendable {
+  case mlx
+  case coreml
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum Seq2SeqKVCacheKind : Swift.String, Swift.Codable, Swift.Sendable {
+  case external
+  case internalState
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum Seq2SeqCrossKVStrategy : Swift.String, Swift.Codable, Swift.Sendable {
+  case none
+  case perStep
+  case precomputed
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public struct Seq2SeqInputNames : Swift.Codable, Swift.Sendable {
+  public var input_ids: Swift.String?
+  public var position_ids: Swift.String?
+  public var causal_mask: Swift.String?
+  public var current_pos: Swift.String?
+  public var encoder_states: Swift.String?
+  public var key_cache: Swift.String?
+  public var value_cache: Swift.String?
+  public var kv_cache_update_mask: Swift.String?
+  public var decoder_key_padding_mask: Swift.String?
+  public var cache_length: Swift.String?
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct Seq2SeqDecoderSpec : Swift.Codable, Swift.Sendable {
+  public var version: Swift.Int
+  public var backend: TheStageCore.Seq2SeqBackend
+  public var architecture: Swift.String
+  public var context_length: Swift.Int?
+  public var vocab_size: Swift.Int?
+  public var num_hidden_layers: Swift.Int?
+  public var num_attention_heads: Swift.Int?
+  public var num_key_value_heads: Swift.Int?
+  public var head_dim: Swift.Int?
+  public var hidden_size: Swift.Int?
+  public var intermediate_size: Swift.Int?
+  public var rope_theta: Swift.Double?
+  public var rope_scaling_factor: Swift.Double?
+  public var rope_scaling_kind: Swift.String?
+  public var partial_rotary_factor: Swift.Double?
+  public var tie_word_embeddings: Swift.Bool?
+  public var pos_embedding_type: Swift.String?
+  public var rope_inside_pre_attn: Swift.Bool?
+  public var prefill_shapes: [Swift.Int]?
+  public var decode_shape: Swift.Int?
+  public var compute_dtype: Swift.String?
+  public var kv_cache: TheStageCore.Seq2SeqKVCacheKind
+  public var cross_kv_strategy: TheStageCore.Seq2SeqCrossKVStrategy
+  public var encoder_seq_len: Swift.Int?
+  public var kv_cache_embed_dim: Swift.Int?
+  public var prefill_function: Swift.String?
+  public var infer_function: Swift.String?
+  public var input_names: TheStageCore.Seq2SeqInputNames?
+  public var prefill_batch_size: Swift.Int?
+  public var split_lm_head: Swift.Int?
+  public var lm_head_chunk_size: Swift.Int?
+  public var top_k_in_model: Swift.Int?
+  public var eos_token_id: Swift.Int?
+  public var pad_token_id: Swift.Int?
+  public static let DEFAULT_FILENAME: Swift.String
+  public static func load(from engines_dir: Swift.String, filename: Swift.String = DEFAULT_FILENAME) -> TheStageCore.Seq2SeqDecoderSpec?
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+@_hasMissingDesignatedInitializers final public class SileroVAD : TheStageCore.QlipModel {
+  final public var SAMPLE_RATE: Swift.Int {
+    get
+  }
+  final public var CHUNK_SIZE: Swift.Int {
+    get
+  }
+  final public var CONTEXT_SIZE: Swift.Int {
+    get
+  }
+  final public var HIDDEN_SIZE: Swift.Int {
+    get
+  }
+  public init(engines_path: Swift.String, device: Swift.String = "npu") throws
+  public init(engines_path: Swift.String, devices: [Swift.String : Swift.String]) throws
+  @objc deinit
+  final public func reset_state()
+  final public func infer(samples: [Swift.Float]) -> Swift.Float
+}
+public protocol TextNormaliser : AnyObject, Swift.Sendable {
+  func normalise(_ text: Swift.String) -> Swift.String
+}
+public typealias Message = [Swift.String : any Swift.Sendable]
+public typealias ToolSpec = [Swift.String : any Swift.Sendable]
+public enum ChatTemplateArgument {
+  case literal(Swift.String)
+  case name(Swift.String)
+}
+public protocol Tokenizer : Swift.Sendable {
+  func tokenize(text: Swift.String) -> [Swift.String]
+  func encode(text: Swift.String) -> [Swift.Int]
+  func encode(text: Swift.String, addSpecialTokens: Swift.Bool) -> [Swift.Int]
+  func callAsFunction(_ text: Swift.String, addSpecialTokens: Swift.Bool) -> [Swift.Int]
+  func decode(tokens: [Swift.Int]) -> Swift.String
+  func decode(tokens: [Swift.Int], skipSpecialTokens: Swift.Bool) -> Swift.String
+  func convertTokenToId(_ token: Swift.String) -> Swift.Int?
+  func convertTokensToIds(_ tokens: [Swift.String]) -> [Swift.Int?]
+  func convertIdToToken(_ id: Swift.Int) -> Swift.String?
+  func convertIdsToTokens(_ ids: [Swift.Int]) -> [Swift.String?]
+  var bosToken: Swift.String? { get }
+  var bosTokenId: Swift.Int? { get }
+  var eosToken: Swift.String? { get }
+  var eosTokenId: Swift.Int? { get }
+  var unknownToken: Swift.String? { get }
+  var unknownTokenId: Swift.Int? { get }
+  var hasChatTemplate: Swift.Bool { get }
+  func applyChatTemplate(messages: [TheStageCore.Message]) throws -> [Swift.Int]
+  func applyChatTemplate(messages: [TheStageCore.Message], tools: [TheStageCore.ToolSpec]?) throws -> [Swift.Int]
+  func applyChatTemplate(messages: [TheStageCore.Message], tools: [TheStageCore.ToolSpec]?, additionalContext: [Swift.String : any Swift.Sendable]?) throws -> [Swift.Int]
+  func applyChatTemplate(messages: [TheStageCore.Message], chatTemplate: TheStageCore.ChatTemplateArgument) throws -> [Swift.Int]
+  func applyChatTemplate(messages: [TheStageCore.Message], chatTemplate: Swift.String) throws -> [Swift.Int]
+  func applyChatTemplate(messages: [TheStageCore.Message], chatTemplate: TheStageCore.ChatTemplateArgument?, addGenerationPrompt: Swift.Bool, truncation: Swift.Bool, maxLength: Swift.Int?, tools: [TheStageCore.ToolSpec]?) throws -> [Swift.Int]
+  func applyChatTemplate(messages: [TheStageCore.Message], chatTemplate: TheStageCore.ChatTemplateArgument?, addGenerationPrompt: Swift.Bool, truncation: Swift.Bool, maxLength: Swift.Int?, tools: [TheStageCore.ToolSpec]?, additionalContext: [Swift.String : any Swift.Sendable]?) throws -> [Swift.Int]
+}
+public enum AutoTokenizer {
+}
+extension TheStageCore.AutoTokenizer {
+  public static func from(folder: Foundation.URL, strict: Swift.Bool = true) throws -> any TheStageCore.Tokenizer
+}
+@_inheritsConvenienceInitializers @_hasMissingDesignatedInitializers public class AudioDecoder : TheStageCore.QlipModel, @unchecked Swift.Sendable {
+  public var sample_rate: Swift.Int {
+    get
+  }
+  public var token_rate: Swift.Int {
+    get
+  }
+  public var samples_per_frame: Swift.Int {
+    get
+  }
+  public var speech_token_start_id: Swift.Int? {
+    get
+  }
+  public var speech_token_count: Swift.Int? {
+    get
+  }
+  public func infer(codes: [Swift.Int]) -> [Swift.Float]
+  @objc deinit
+}
+public struct TTSGenerationConfig : Swift.Sendable {
+  public var temperature: Swift.Double?
+  public var top_k: Swift.Int?
+  public var min_new_tokens: Swift.Int?
+  public var max_context_length: Swift.Int?
+  public var seed: Swift.UInt64?
+  public var return_debug_info: Swift.Bool
+  public init(temperature: Swift.Double? = nil, top_k: Swift.Int? = nil, min_new_tokens: Swift.Int? = nil, max_context_length: Swift.Int? = nil, seed: Swift.UInt64? = nil, return_debug_info: Swift.Bool = false)
+}
+public struct TTSStreamConfig : Swift.Sendable {
+  public var frames_per_chunk: Swift.Int
+  public var first_frames_per_chunk: Swift.Int?
+  public var lookforward: Swift.Int
+  public var lookback: Swift.Int
+  public var overlap_frames: Swift.Int
+  public init(frames_per_chunk: Swift.Int = 25, first_frames_per_chunk: Swift.Int? = 25, lookforward: Swift.Int = 5, lookback: Swift.Int = 50, overlap_frames: Swift.Int = 1)
+}
+public struct TTSResult : Swift.Sendable {
+  public let samples: [Swift.Float]
+  public let sample_rate: Swift.Int
+  public let duration: Swift.Double
+  public let rtf: Swift.Double
+  public let tokens_per_second: Swift.Double
+  public let prompt_tokens: Swift.Int
+  public let generated_tokens: Swift.Int
+  public let prefill_seconds: Swift.Double
+  public let decode_seconds: Swift.Double
+  public let codec_seconds: Swift.Double
+  public let debug_info: TheStageCore.TTSDebugInfo?
+}
+public struct TTSTokenConfig : Swift.Sendable {
+  public let speech_token_offset: Swift.Int
+  public let speech_token_count: Swift.Int
+  public let eos_token_id: Swift.Int
+  public init(speech_token_offset: Swift.Int, speech_token_count: Swift.Int, eos_token_id: Swift.Int)
+  public func extract_speech_codes(from ids: [Swift.Int]) -> [Swift.Int]
+}
+final public class TheStageTTSPipeline : @unchecked Swift.Sendable {
+  public init(preprocessor: any TheStageCore.TTSPreprocessor, decoder: any TheStageCore.Seq2SeqDecoding, codec: TheStageCore.AudioDecoder, token_config: TheStageCore.TTSTokenConfig, default_temperature: Swift.Float = 1.0, default_top_k: Swift.Int = 50, default_min_new_tokens: Swift.Int = 0, default_max_length: Swift.Int = 2048) throws
+  final public var sample_rate: Swift.Int {
+    get
+  }
+  final public func infer(text: Swift.String, voice: TheStageCore.TTSVoiceRef, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig()) throws -> TheStageCore.TTSResult
+  @objc deinit
+}
+public enum TTSPreprocessorError : Swift.Error, Swift.CustomStringConvertible, Swift.Sendable {
+  case missingSpecialTokens([Swift.String])
+  public var description: Swift.String {
+    get
+  }
+}
+public struct TTSVoiceRef : Swift.Sendable {
+  public let ref_text: Swift.String
+  public let ref_codes: [Swift.Int]
+  public let language: Swift.String?
+  public init(ref_text: Swift.String, ref_codes: [Swift.Int], language: Swift.String? = nil)
+}
+public protocol TTSPreprocessor : Swift.Sendable {
+  func prepare_prompt(text: Swift.String, voice: TheStageCore.TTSVoiceRef) -> [Swift.Int]
+}
+public protocol TTSTextSplitter : Swift.Sendable {
+  func split(text: Swift.String, language: Swift.String?) -> [Swift.String]
+}
+final public class NLSentenceSplitter : TheStageCore.TTSTextSplitter, @unchecked Swift.Sendable {
+  public init(min_words: Swift.Int = 8, max_words: Swift.Int = 40)
+  final public func split(text: Swift.String, language: Swift.String?) -> [Swift.String]
+  @objc deinit
+}
+public protocol TTSStreamingAPI : AnyObject {
+  func open_streamer(generation: TheStageCore.TTSGenerationConfig, splitter: any TheStageCore.TTSTextSplitter, config: TheStageCore.TTSStreamConfig) -> TheStageCore.TTSStreamer
+}
+extension TheStageCore.TTSStreamingAPI {
+  public func open_streamer(generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter()) -> TheStageCore.TTSStreamer
+}
+final public class TTSStreamer : @unchecked Swift.Sendable {
+  final public let pipeline: TheStageCore.TheStageTTSPipeline
+  final public let splitter: any TheStageCore.TTSTextSplitter
+  final public let config: TheStageCore.TTSStreamConfig
+  final public let voice: TheStageCore.TTSVoiceRef
+  final public let output: _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
+  final public var sample_rate: Swift.Int {
+    get
+  }
+  public init(_ pipeline: TheStageCore.TheStageTTSPipeline, voice: TheStageCore.TTSVoiceRef, config: TheStageCore.TTSStreamConfig = TTSStreamConfig(), generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter()) throws
+  @objc deinit
+  final public func send(_ text: Swift.String)
+  final public func stop_stream()
+  final public func cancel()
+  final public func stream(text: Swift.String, generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig()) -> _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
+}
+@_hasMissingDesignatedInitializers final public class TurnDetector : TheStageCore.QlipModel {
+  final public var SAMPLE_RATE: Swift.Int {
+    get
+  }
+  final public var WINDOW_SAMPLES: Swift.Int {
+    get
+  }
+  final public var N_MELS: Swift.Int {
+    get
+  }
+  final public var N_FRAMES: Swift.Int {
+    get
+  }
+  public init(engines_path: Swift.String, device: Swift.String = "npu") throws
+  public init(engines_path: Swift.String, devices: [Swift.String : Swift.String]) throws
+  @objc deinit
+  final public func predict(samples: [Swift.Float]) -> Swift.Float
+}
+@_hasMissingDesignatedInitializers final public class WakeWord : TheStageCore.QlipModel {
+  final public var SAMPLE_RATE: Swift.Int {
+    get
+  }
+  final public var CHUNK_SIZE: Swift.Int {
+    get
+  }
+  final public var MEL_CONTEXT: Swift.Int {
+    get
+  }
+  final public var EMBEDDING_DIM: Swift.Int {
+    get
+  }
+  final public var WINDOW_SIZE: Swift.Int {
+    get
+  }
+  final public var MEL_WINDOW: Swift.Int {
+    get
+  }
+  final public var MEL_STEP: Swift.Int {
+    get
+  }
+  final public var MEL_FEATURES: Swift.Int {
+    get
+  }
+  public init(engines_path: Swift.String, device: Swift.String = "gpu") throws
+  public init(engines_path: Swift.String, devices: [Swift.String : Swift.String]) throws
+  @objc deinit
+  final public func reset_state()
+  final public func infer(samples: [Swift.Float]) -> Swift.Float
+}
+final public class WhisperPipeline : @unchecked Swift.Sendable {
+  final public var sample_rate: Swift.Int {
+    get
+  }
+  final public var chunk_seconds: Swift.Int {
+    get
+  }
+  final public var overlap_seconds: Swift.Double {
+    get
+  }
+  final public var last_token_count: Swift.Int {
+    get
+  }
+  final public var last_decode_seconds: Swift.Double {
+    get
+  }
+  final public var last_metrics: TheStageCore.ASRMetrics {
+    get
+  }
+  public init(engines_path: Swift.String, device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, overlap_seconds: Swift.Double = 0, use_internal_vad: Swift.Bool = true, revision: Swift.String = "main", on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
+  final public func infer(audio: [Swift.Float], language: Swift.String = "en", config: TheStageCore.ASRConfig = ASRConfig()) -> TheStageCore.ASRResult
+  final public func open_streamer(language: Swift.String = "en", partial_interval_ms: Swift.Int = 600) -> TheStageCore.ASRStreamer
+  public static func split_audio(audio: [Swift.Float], chunk_samples: Swift.Int, overlap_samples: Swift.Int = 0) -> [[Swift.Float]]
+  public static func stitch_tokens(_ sequences: [[Swift.Int]]) -> [Swift.Int]
+  @objc deinit
+}
+@_hasMissingDesignatedInitializers @_Concurrency.MainActor final public class TheStageAI {
+  nonisolated public static let shared: TheStageCore.TheStageAI
+  nonisolated final public var is_initialized: Swift.Bool {
+    get
+  }
+  @_Concurrency.MainActor final public func initialize(apiToken: Swift.String) async throws
+  @objc deinit
+  @_Concurrency.MainActor public static func handleBackgroundURLSession(completionHandler: @escaping () -> Swift.Void)
+  @_Concurrency.MainActor final public func start_model(model_name: Swift.String, engines_path: Swift.String, model_type: Swift.String? = nil, device: Swift.String = "gpu", devices: [Swift.String : Swift.String]? = nil, config: [Swift.String : Any]? = nil, phonemizer: (any TheStageCore.Phonemizer)? = nil, normaliser: (any TheStageCore.TextNormaliser)? = nil, revision: Swift.String = "main", on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws -> TheStageCore.ModelStatus
+  @_Concurrency.MainActor final public func prefetch_engines(repo_id: Swift.String, model_type: Swift.String? = nil, revision: Swift.String = "main", config: [Swift.String : Any]? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws -> Swift.String
+  @_Concurrency.MainActor final public func stop_model(model_name: Swift.String) throws -> TheStageCore.ModelStatus
+  @_Concurrency.MainActor final public func list_components(model_name: Swift.String) throws -> [TheStageCore.ModelComponentStatus]
+  @_Concurrency.MainActor final public func load_components(model_name: Swift.String, ids: [Swift.String]) throws -> [TheStageCore.ModelComponentStatus]
+  @_Concurrency.MainActor final public func unload_components(model_name: Swift.String, ids: [Swift.String]) throws -> [TheStageCore.ModelComponentStatus]
+  nonisolated final public func infer(model_name: Swift.String, input_json: [Swift.String : Any]) throws -> [[Swift.String : Any]]
+  nonisolated final public func infer_stream(model_name: Swift.String, input_json: [Swift.String : Any]) throws -> _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
+  nonisolated final public func open_tts_streamer(model_name: Swift.String, generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig = TTSStreamConfig()) throws -> TheStageCore.TTSStreamer
+  @_Concurrency.MainActor public static func debugReport(app_header: Swift.String? = nil) async -> Swift.String
+  @_Concurrency.MainActor public static func resetDebugLog()
+}
+public enum TheStageSDKError : Swift.Error, Foundation.LocalizedError, Swift.Sendable {
+  case notInitialized
+  public var errorDescription: Swift.String? {
+    get
+  }
+  public static func == (a: TheStageCore.TheStageSDKError, b: TheStageCore.TheStageSDKError) -> Swift.Bool
+  public func hash(into hasher: inout Swift.Hasher)
+  public var hashValue: Swift.Int {
+    get
+  }
+}
+public struct LoadProgress : Swift.Sendable, Swift.Equatable {
+  public enum Phase : Swift.String, Swift.Sendable, Swift.Equatable {
+    case downloading
+    case extracting
+    case loading
+    case ready
+    public init?(rawValue: Swift.String)
+    public typealias RawValue = Swift.String
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public let phase: TheStageCore.LoadProgress.Phase
+  public let fraction: Swift.Double
+  public let model: Swift.String
+  public init(phase: TheStageCore.LoadProgress.Phase, fraction: Swift.Double, model: Swift.String)
+  public static func == (a: TheStageCore.LoadProgress, b: TheStageCore.LoadProgress) -> Swift.Bool
+}
+public typealias LoadProgressHandler = @Sendable (TheStageCore.LoadProgress) -> Swift.Void
+public protocol AudioSource : Swift.Sendable {
+  var stream: _Concurrency.AsyncStream<[Swift.Float]> { get }
+  var sample_rate: Swift.Double { get }
+  func start() throws
+  func stop()
+}
+public protocol AudioSink : Swift.Sendable {
+  var sample_rate: Swift.Double { get }
+  func start()
+  func enqueue(_ samples: [Swift.Float])
+  func drain() async
+  func flush()
+  func stop()
+}
+extension TheStageCore.AudioSink {
+  public func flush()
+}
+final public class MicAudioSource : TheStageCore.AudioSource, @unchecked Swift.Sendable {
+  final public let sample_rate: Swift.Double
+  final public var stream: _Concurrency.AsyncStream<[Swift.Float]> {
+    get
+  }
+  final public var engine: AVFAudio.AVAudioEngine {
+    get
+  }
+  public init(sample_rate: Swift.Double = 16000, voice_processing: Swift.Bool = true, engine: AVFAudio.AVAudioEngine? = nil)
+  final public func start() throws
+  final public func stop()
+  @objc deinit
+}
+final public class SpeakerAudioSink : TheStageCore.AudioSink, @unchecked Swift.Sendable {
+  final public let sample_rate: Swift.Double
+  public init(sample_rate: Swift.Double = 24000, voice_processing: Swift.Bool = true, engine: AVFAudio.AVAudioEngine? = nil)
+  final public func start()
+  final public func enqueue(_ samples: [Swift.Float])
+  final public func drain() async
+  final public func flush()
+  final public func stop()
+  @objc deinit
+}
+final public class FileAudioSource : TheStageCore.AudioSource, @unchecked Swift.Sendable {
+  final public let sample_rate: Swift.Double
+  final public let stream: _Concurrency.AsyncStream<[Swift.Float]>
+  public init(path: Swift.String, sample_rate: Swift.Double = 16000, chunk_size: Swift.Int = 512, realtime: Swift.Bool = true)
+  final public func start() throws
+  final public func stop()
+  @objc deinit
+}
+final public class DiskAudioSink : TheStageCore.AudioSink, @unchecked Swift.Sendable {
+  final public let sample_rate: Swift.Double
+  public init(path: Swift.String, sample_rate: Swift.Double = 24000)
+  final public func start()
+  final public func enqueue(_ samples: [Swift.Float])
+  final public func drain() async
+  final public func stop()
+  @objc deinit
+}
+final public class TeeAudioSink : TheStageCore.AudioSink, @unchecked Swift.Sendable {
+  final public var sample_rate: Swift.Double {
+    get
+  }
+  public init(sinks: [any TheStageCore.AudioSink])
+  final public func start()
+  final public func enqueue(_ samples: [Swift.Float])
+  final public func drain() async
+  final public func flush()
+  final public func stop()
+  @objc deinit
+}
+public protocol TheStageChatMemory : Swift.Sendable {
+  mutating func append(_ message: TheStageCore.AgentMessage)
+  func messages(system_prompt: Swift.String) -> [TheStageCore.AgentMessage]
+  mutating func clear()
+  var count: Swift.Int { get }
+}
+public struct TheStageSlidingWindowMemory : TheStageCore.TheStageChatMemory, Swift.Sendable {
+  public var max_turns: Swift.Int
+  public init(max_turns: Swift.Int = 10)
+  public var count: Swift.Int {
+    get
+  }
+  public mutating func append(_ message: TheStageCore.AgentMessage)
+  public func messages(system_prompt: Swift.String) -> [TheStageCore.AgentMessage]
+  public mutating func clear()
+}
+final public class AgentChannel<Element> : @unchecked Swift.Sendable where Element : Swift.Sendable {
+  public init()
+  final public func send(_ value: Element)
+  final public var has_receivers: Swift.Bool {
+    get
+  }
+  final public func recv() -> _Concurrency.AsyncStream<Element>
+  final public func close()
+  @objc deinit
+}
+public struct AgentLink : Swift.Sendable {
+  public func disconnect()
+}
+final public class AgentConnector<Element> : @unchecked Swift.Sendable where Element : Swift.Sendable {
+  public init(from channel: TheStageCore.AgentChannel<Element>, handler: @escaping @Sendable (Element) -> Swift.Void)
+  final public func disconnect()
+  @objc deinit
+}
+public enum EndReason : Swift.String, Swift.Sendable {
+  case completed
+  case interrupted
+  case error
+  case empty
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum RequestSource : Swift.String, Swift.Sendable {
+  case speech
+  case text
+  case system
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum AgentEvent : Swift.Sendable {
+  case SPEECH_STARTED(prob: Swift.Double)
+  case SPEECH_ENDED(silence_ms: Swift.Int)
+  case BARGE_IN(prob: Swift.Double, audio: [Swift.Float])
+  case WAKE_WORD_DETECTED(prob: Swift.Double)
+  case USER_REQUEST_PARTIAL(Swift.String)
+  case USER_REQUEST(text: Swift.String, source: TheStageCore.RequestSource)
+  case RESPONSE_STARTED
+  case RESPONSE_DONE(text: Swift.String, reason: TheStageCore.EndReason)
+  case SYNTHESIS_DONE(reason: TheStageCore.EndReason)
+  case PLAYBACK_STARTED
+  case PLAYBACK_ENDED(reason: TheStageCore.EndReason)
+  case STATE(TheStageCore.TheStageAgentState)
+  case ERROR(Swift.String)
+}
+public enum VoiceChunk : Swift.Sendable {
+  case frame([Swift.Float])
+  case speculate
+  case end_of_turn
+}
+public struct VADFrame : Swift.Sendable {
+  public let samples: [Swift.Float]
+  public let prob: Swift.Double
+  public let sample_rate: Swift.Double
+  public init(samples: [Swift.Float], prob: Swift.Double, sample_rate: Swift.Double)
+}
+public struct AgentOrchestratorConfig : Swift.Sendable {
+  public var requires_wake_word: Swift.Bool
+  public var responds: Swift.Bool
+  public var initial_state: TheStageCore.TheStageAgentState
+  public init()
+}
+final public class AgentOrchestrator : @unchecked Swift.Sendable {
+  public init(config: TheStageCore.AgentOrchestratorConfig = AgentOrchestratorConfig())
+  final public var state: TheStageCore.TheStageAgentState {
+    get
+  }
+  nonisolated final public func publish(_ event: TheStageCore.AgentEvent)
+  nonisolated final public func subscribe() -> _Concurrency.AsyncStream<TheStageCore.AgentEvent>
+  @discardableResult
+  nonisolated final public func connect<E>(from upstream: TheStageCore.AgentChannel<E>, to downstream: TheStageCore.AgentChannel<E>) -> TheStageCore.AgentLink where E : Swift.Sendable
+  nonisolated final public func start()
+  nonisolated final public func stop()
+  @objc deinit
+}
+public protocol VADAgent : Swift.Sendable {
+  var frame_samples: Swift.Int { get }
+  var sample_rate: Swift.Double { get }
+  func detect(_ frame: [Swift.Float]) async -> Swift.Double
+  func reset()
+}
+public protocol TurnDetectorAgent : Swift.Sendable {
+  var sample_rate: Swift.Double { get }
+  func predict_end_of_turn(_ audio: [Swift.Float]) async -> Swift.Double
+}
+public protocol ASRAgent : Swift.Sendable {
+  var sample_rate: Swift.Double { get }
+  func transcribe(_ audio: [Swift.Float], language: Swift.String) async -> Swift.String?
+}
+public protocol ASRStreamingSession : Swift.Sendable {
+  var partials: _Concurrency.AsyncStream<Swift.String> { get }
+  func send(_ audio: [Swift.Float])
+  func mark_endpoint()
+  func flush()
+  func finish() async -> Swift.String
+  func cancel()
+}
+public protocol TTSStreamingSession : Swift.Sendable {
+  var output: _Concurrency.AsyncStream<[Swift.Float]> { get }
+  func send(_ text: Swift.String)
+  func finish()
+  func cancel()
+}
+public protocol TTSAgent : Swift.Sendable {
+  var sample_rate: Swift.Double { get }
+  func open() -> any TheStageCore.TTSStreamingSession
+}
+public protocol WakeWordAgent : Swift.Sendable {
+  var chunk_samples: Swift.Int { get }
+  var sample_rate: Swift.Double { get }
+  func classify(_ chunk: [Swift.Float]) async -> Swift.Double
+  func reset()
+}
+final public class TheStageWakeWordAgent : TheStageCore.WakeWordAgent, @unchecked Swift.Sendable {
+  final public let chunk_samples: Swift.Int
+  final public let sample_rate: Swift.Double
+  public init(model_name: Swift.String = "wake_word", chunk_samples: Swift.Int = 1280, sample_rate: Swift.Double = 16000)
+  final public func classify(_ chunk: [Swift.Float]) async -> Swift.Double
+  final public func reset()
+  @objc deinit
+}
+final public class TheStageVADAgent : TheStageCore.VADAgent, @unchecked Swift.Sendable {
+  final public let frame_samples: Swift.Int
+  final public let sample_rate: Swift.Double
+  public init(model_name: Swift.String = "vad", frame_samples: Swift.Int = 512, sample_rate: Swift.Double = 16000)
+  final public func detect(_ frame: [Swift.Float]) async -> Swift.Double
+  final public func reset()
+  @objc deinit
+}
+final public class TheStageTurnDetectorAgent : TheStageCore.TurnDetectorAgent, @unchecked Swift.Sendable {
+  final public let sample_rate: Swift.Double
+  public init(model_name: Swift.String = "turn_detector", sample_rate: Swift.Double = 16000)
+  final public func predict_end_of_turn(_ audio: [Swift.Float]) async -> Swift.Double
+  @objc deinit
+}
+final public class TheStageASRAgent : TheStageCore.ASRAgent, @unchecked Swift.Sendable {
+  final public let sample_rate: Swift.Double
+  public init(model_name: Swift.String = "stt", sample_rate: Swift.Double = 16000)
+  final public func transcribe(_ audio: [Swift.Float], language: Swift.String) async -> Swift.String?
+  @objc deinit
+}
+final public class TheStageTTSAgent : TheStageCore.TTSAgent, @unchecked Swift.Sendable {
+  final public let sample_rate: Swift.Double
+  public init(model_name: Swift.String = "tts", sample_rate: Swift.Double = 24000)
+  final public func open() -> any TheStageCore.TTSStreamingSession
+  @objc deinit
+}
+public struct ASRNodeConfig : Swift.Sendable {
+  public var language: Swift.String
+  public var streaming: Swift.Bool
+  public var partial_interval_ms: Swift.Int
+  public var speculative: Swift.Bool
+  public var speculative_max_drift_samples: Swift.Int
+  public init()
+}
+public struct AudioEngineConfig : Swift.Sendable {
+  public var sample_rate_in: Swift.Double
+  public var sample_rate_out: Swift.Double
+  public var voice_processing: Swift.Bool
+  public var aec_warmup_ms: Swift.Int
+  public var post_drain_grace_ms: Swift.Int
+  public var mute_mic_during_playback: Swift.Bool
+  public var barge_in_drop_ms: Swift.Int
+  public init()
+}
+public struct DNNTurnConfig : Swift.Sendable {
+  public var threshold: Swift.Double
+  public var onset_ms: Swift.Int
+  public var pre_roll_ms: Swift.Int
+  public var post_speak_grace_ms: Swift.Int
+  public var max_accumulation_ms: Swift.Int
+  public var eot_threshold: Swift.Double
+  public var eot_confirm_count: Swift.Int
+  public var eot_high_confidence: Swift.Double
+  public var pause_trigger_ms: Swift.Int
+  public var reeval_interval_ms: Swift.Int
+  public var max_silence_ms: Swift.Int
+  public var window_ms: Swift.Int
+  public var min_speech_ms: Swift.Int
+  public var asr_silence_hangover_ms: Swift.Int
+  public init()
+}
+public enum VADInterruptMode : Swift.Sendable {
+  case none
+  case speech_only
+  case wake_word
+  public static func == (a: TheStageCore.VADInterruptMode, b: TheStageCore.VADInterruptMode) -> Swift.Bool
+  public func hash(into hasher: inout Swift.Hasher)
+  public var hashValue: Swift.Int {
+    get
+  }
+}
+public struct InterruptConfig : Swift.Sendable {
+  public var threshold: Swift.Double
+  public var interrupt_mode: TheStageCore.VADInterruptMode
+  public var interrupt_min_playback_ms: Swift.Int
+  public var interrupt_initial_lockout_ms: Swift.Int
+  public var interrupt_thinking_lockout_ms: Swift.Int
+  public var interrupt_min_speech_ms: Swift.Int
+  public var interrupt_onset_ms: Swift.Int
+  public var pre_roll_ms: Swift.Int
+  public var silence_hangover_ms: Swift.Int
+  public init()
+}
+public struct LLMNodeConfig : Swift.Sendable {
+  public var system_prompt: Swift.String
+  public var max_tokens: Swift.Int
+  public var temperature: Swift.Double
+  public init()
+}
+public struct TTSNodeConfig : Swift.Sendable {
+  public init()
+}
+public struct VADConfig : Swift.Sendable {
+  public var log_every_n_frames: Swift.Int
+  public init()
+}
+public struct TurnConfig : Swift.Sendable {
+  public var threshold: Swift.Double
+  public var onset_ms: Swift.Int
+  public var silence_timeout_ms: Swift.Int
+  public var max_accumulation_ms: Swift.Int
+  public var pre_roll_ms: Swift.Int
+  public var post_speak_grace_ms: Swift.Int
+  public var continuous: Swift.Bool
+  public var continuous_hangover_ms: Swift.Int
+  public init()
+}
+public struct WakeWordNodeConfig : Swift.Sendable {
+  public var threshold: Swift.Double
+  public var refractory_ms: Swift.Int
+  public var log_every_n_chunks: Swift.Int
+  public init()
+}
+public struct AgentMessage : Swift.Sendable {
+  public enum Role : Swift.String, Swift.Sendable {
+    case system
+    case user
+    case assistant
+    public init?(rawValue: Swift.String)
+    public typealias RawValue = Swift.String
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public let role: TheStageCore.AgentMessage.Role
+  public let content: Swift.String
+  public init(role: TheStageCore.AgentMessage.Role, content: Swift.String)
+}
+public struct LLMRequestConfig : Swift.Sendable {
+  public var system_prompt: Swift.String
+  public var max_tokens: Swift.Int
+  public var temperature: Swift.Double
+  public init(system_prompt: Swift.String = "You are a helpful assistant.", max_tokens: Swift.Int = 256, temperature: Swift.Double = 0.7)
+}
+public protocol TheStageLLMProvider : Swift.Sendable {
+  func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<Swift.String>
+}
+final public class TheStageLocalLLMProvider : TheStageCore.TheStageLLMProvider, @unchecked Swift.Sendable {
+  public init(model_path: Swift.String, model_type: Swift.String? = nil, revision: Swift.String = "main")
+  final public func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<Swift.String>
+  @objc deinit
+}
+final public class TheStageOpenAICompatibleProvider : TheStageCore.TheStageLLMProvider, @unchecked Swift.Sendable {
+  public init(endpoint: Swift.String = "https://api.openai.com/v1/chat/completions", api_key: Swift.String, model: Swift.String = "gpt-4o-mini")
+  final public func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<Swift.String>
+  @objc deinit
+}
+public enum TimelineLog {
+  nonisolated(unsafe) public static var enabled: Swift.Bool
+  public static func mark(_ node: Swift.String, _ event: Swift.String, _ kv: Swift.String = "")
+}
+public enum TheStageAgentState : Swift.String, Swift.Sendable {
+  case idle
+  case loading
+  case sleeping
+  case listening
+  case thinking
+  case speaking
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum InterruptTrigger : Swift.String, Swift.Sendable {
+  case none
+  case speech_only
+  case wake_word
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum TurnDetectionMode : Swift.String, Swift.Sendable {
+  case none
+  case vad
+  case dnn
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum TheStageAgentConfigError : Swift.Error, Swift.CustomStringConvertible {
+  case noneTurnWithLLM
+  public var description: Swift.String {
+    get
+  }
+  public static func == (a: TheStageCore.TheStageAgentConfigError, b: TheStageCore.TheStageAgentConfigError) -> Swift.Bool
+  public func hash(into hasher: inout Swift.Hasher)
+  public var hashValue: Swift.Int {
+    get
+  }
+}
+public struct TheStageAgentEvent : @unchecked Swift.Sendable {
+  public enum Kind : Swift.String, Swift.Sendable {
+    case state_changed
+    case user_request_partial
+    case user_request
+    case response_delta
+    case response_done
+    case playback_started
+    case playback_ended
+    case error
+    case metrics
+    public init?(rawValue: Swift.String)
+    public typealias RawValue = Swift.String
+    public var rawValue: Swift.String {
+      get
+    }
+  }
+  public let kind: TheStageCore.TheStageAgentEvent.Kind
+  public let data: [Swift.String : Any]
+  public init(kind: TheStageCore.TheStageAgentEvent.Kind, data: [Swift.String : Any])
+}
+public struct TheStageAgentConfig : @unchecked Swift.Sendable {
+  public var vad: Swift.String
+  public var stt: Swift.String
+  public var tts: Swift.String?
+  public var wake_word: Swift.String?
+  public var llm: (any TheStageCore.TheStageLLMProvider)?
+  public var stt_revision: Swift.String
+  public var stt_device: Swift.String
+  public var stt_devices: [Swift.String : Swift.String]?
+  public var tts_voice: Swift.String
+  public var tts_revision: Swift.String
+  public var tts_device: Swift.String
+  public var tts_devices: [Swift.String : Swift.String]?
+  public var vad_device: Swift.String
+  public var ww_device: Swift.String
+  public var system_prompt: Swift.String
+  public var max_tokens: Swift.Int
+  public var temperature: Swift.Double
+  public var chat_memory: any TheStageCore.TheStageChatMemory
+  public var vad_threshold: Swift.Double
+  public var vad_onset_ms: Swift.Int
+  public var silence_timeout_ms: Swift.Int
+  public var max_accumulation_ms: Swift.Int
+  public var pre_roll_ms: Swift.Int
+  public var turn_detection_mode: TheStageCore.TurnDetectionMode
+  public var turn_detector: Swift.String?
+  public var turn_detector_revision: Swift.String
+  public var turn_detector_device: Swift.String
+  public var turn_detector_agent: (any TheStageCore.TurnDetectorAgent)?
+  public var turn_eot_threshold: Swift.Double
+  public var turn_eot_confirm_count: Swift.Int
+  public var turn_eot_high_confidence: Swift.Double
+  public var turn_pause_trigger_ms: Swift.Int
+  public var turn_reeval_interval_ms: Swift.Int
+  public var turn_max_silence_ms: Swift.Int
+  public var turn_window_ms: Swift.Int
+  public var turn_min_speech_ms: Swift.Int
+  public var turn_asr_silence_hangover_ms: Swift.Int
+  public var asr_streaming: Swift.Bool
+  public var asr_partial_interval_ms: Swift.Int
+  public var debug_timeline: Swift.Bool
+  public var asr_sentence_flush: Swift.Bool
+  public var asr_max_segment_seconds: Swift.Double
+  public var speculative_whisper: Swift.Bool
+  public var interrupt_mode: TheStageCore.InterruptTrigger
+  public var interrupt_min_speech_ms: Swift.Int
+  public var interrupt_onset_ms: Swift.Int
+  public var interrupt_threshold: Swift.Double
+  public var allow_interruptions: Swift.Bool {
+    get
+    set
+  }
+  public var ww_threshold: Swift.Double
+  public var conversation_timeout_sec: Swift.Int
+  public var aec_enabled: Swift.Bool
+  public var aec_playback_gate_tail_ms: Swift.Int
+  public var aec_warmup_ms: Swift.Int
+  public var interrupt_min_playback_ms: Swift.Int
+  public var interrupt_initial_lockout_ms: Swift.Int
+  public var interrupt_thinking_lockout_ms: Swift.Int
+  public var stt_language: Swift.String
+  public var audio_source: (any TheStageCore.AudioSource)?
+  public var audio_sink: (any TheStageCore.AudioSink)?
+  public var vad_agent: (any TheStageCore.VADAgent)?
+  public var asr_agent: (any TheStageCore.ASRAgent)?
+  public var tts_agent: (any TheStageCore.TTSAgent)?
+  public var wake_word_agent: (any TheStageCore.WakeWordAgent)?
+  public var ww_threshold_score: Swift.Double
+  public init(vad: Swift.String, stt: Swift.String, tts: Swift.String? = nil, llm: (any TheStageCore.TheStageLLMProvider)? = nil, wake_word: Swift.String? = nil)
+  public var responds: Swift.Bool {
+    get
+  }
+  public var speaks: Swift.Bool {
+    get
+  }
+}
+final public class TheStageVoiceAgent : @unchecked Swift.Sendable {
+  final public var state: TheStageCore.TheStageAgentState {
+    get
+  }
+  final public let events: _Concurrency.AsyncStream<TheStageCore.TheStageAgentEvent>
+  final public let llm_deltas: TheStageCore.AgentChannel<Swift.String>
+  final public let transcripts: TheStageCore.AgentChannel<Swift.String>
+  final public let partial_transcripts: TheStageCore.AgentChannel<Swift.String>
+  final public let vad_probabilities: TheStageCore.AgentChannel<Swift.Double>
+  public init(config: TheStageCore.TheStageAgentConfig)
+  @objc deinit
+  @_Concurrency.MainActor final public func start() async throws
+  @_Concurrency.MainActor final public func stop() async
+  final public func interrupt()
+  final public func say(_ text: Swift.String)
+  final public func send_request(_ text: Swift.String)
+  @_Concurrency.MainActor final public func set_voice(_ voice: Swift.String) async
+  final public func history() async -> [TheStageCore.AgentMessage]
+  final public func clear_history() async
+  final public func update_interrupt_config(min_speech_ms: Swift.Int? = nil, min_playback_ms: Swift.Int? = nil, mode: TheStageCore.InterruptTrigger? = nil, onset_ms: Swift.Int? = nil, threshold: Swift.Double? = nil) async
+  final public func update_turn_config(eot_threshold: Swift.Double? = nil, pause_trigger_ms: Swift.Int? = nil, reeval_interval_ms: Swift.Int? = nil, max_silence_ms: Swift.Int? = nil) async
+}
+extension TheStageCore.ChatTemplate : Swift.Equatable {}
+extension TheStageCore.ChatTemplate : Swift.Hashable {}
+extension TheStageCore.ChatTemplate : Swift.RawRepresentable {}
+extension TheStageCore.Seq2SeqBackend : Swift.Equatable {}
+extension TheStageCore.Seq2SeqBackend : Swift.Hashable {}
+extension TheStageCore.Seq2SeqBackend : Swift.RawRepresentable {}
+extension TheStageCore.Seq2SeqKVCacheKind : Swift.Equatable {}
+extension TheStageCore.Seq2SeqKVCacheKind : Swift.Hashable {}
+extension TheStageCore.Seq2SeqKVCacheKind : Swift.RawRepresentable {}
+extension TheStageCore.Seq2SeqCrossKVStrategy : Swift.Equatable {}
+extension TheStageCore.Seq2SeqCrossKVStrategy : Swift.Hashable {}
+extension TheStageCore.Seq2SeqCrossKVStrategy : Swift.RawRepresentable {}
+extension TheStageCore.TheStageAI : Swift.Sendable {}
+extension TheStageCore.TheStageSDKError : Swift.Equatable {}
+extension TheStageCore.TheStageSDKError : Swift.Hashable {}
+extension TheStageCore.LoadProgress.Phase : Swift.Hashable {}
+extension TheStageCore.LoadProgress.Phase : Swift.RawRepresentable {}
+extension TheStageCore.EndReason : Swift.Equatable {}
+extension TheStageCore.EndReason : Swift.Hashable {}
+extension TheStageCore.EndReason : Swift.RawRepresentable {}
+extension TheStageCore.RequestSource : Swift.Equatable {}
+extension TheStageCore.RequestSource : Swift.Hashable {}
+extension TheStageCore.RequestSource : Swift.RawRepresentable {}
+extension TheStageCore.VADInterruptMode : Swift.Equatable {}
+extension TheStageCore.VADInterruptMode : Swift.Hashable {}
+extension TheStageCore.AgentMessage.Role : Swift.Equatable {}
+extension TheStageCore.AgentMessage.Role : Swift.Hashable {}
+extension TheStageCore.AgentMessage.Role : Swift.RawRepresentable {}
+extension TheStageCore.TheStageAgentState : Swift.Equatable {}
+extension TheStageCore.TheStageAgentState : Swift.Hashable {}
+extension TheStageCore.TheStageAgentState : Swift.RawRepresentable {}
+extension TheStageCore.InterruptTrigger : Swift.Equatable {}
+extension TheStageCore.InterruptTrigger : Swift.Hashable {}
+extension TheStageCore.InterruptTrigger : Swift.RawRepresentable {}
+extension TheStageCore.TurnDetectionMode : Swift.Equatable {}
+extension TheStageCore.TurnDetectionMode : Swift.Hashable {}
+extension TheStageCore.TurnDetectionMode : Swift.RawRepresentable {}
+extension TheStageCore.TheStageAgentConfigError : Swift.Equatable {}
+extension TheStageCore.TheStageAgentConfigError : Swift.Hashable {}
+extension TheStageCore.TheStageAgentEvent.Kind : Swift.Equatable {}
+extension TheStageCore.TheStageAgentEvent.Kind : Swift.Hashable {}
+extension TheStageCore.TheStageAgentEvent.Kind : Swift.RawRepresentable {}

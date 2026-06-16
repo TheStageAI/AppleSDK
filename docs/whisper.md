@@ -83,6 +83,54 @@ print(result[0]['transcription']);
 See [Audio I/O Contract](./README.md#audio-io-contract) for the
 shared format used across VAD / ASR / TTS.
 
+## Streaming (live transcription)
+
+`open_streamer` turns the pipeline into a push-based live transcriber that
+mirrors the TTS streamer: push audio as it arrives with `send(_:)`, read
+stable, monotonically-growing partials off `partials`, then `finish()` for
+the authoritative end-of-turn transcript. A single serial worker re-decodes
+the growing buffer and commits stable text via LocalAgreement, so it is safe
+to drive straight from a real-time microphone capture.
+
+```swift
+// One streamer per turn (utterance). 16 kHz mono Float, same as `infer`.
+let streamer = stt.open_streamer(language: "en")
+
+// Drain partials concurrently with sending audio.
+let captions = Task {
+    for await text in streamer.partials {
+        print("partial: \(text)")   // committed-so-far, grows monotonically
+    }
+}
+
+// Feed mic frames as they arrive (any frame size; e.g. 100 ms blocks).
+for await frame in microphone_frames {          // [Float] @ 16 kHz mono
+    streamer.send(frame)
+    // At a VAD pause, finalize the settled segment and trim the buffer so
+    // later passes stay fast on long turns (optional but recommended):
+    if vad_detected_pause { streamer.flush() }
+}
+
+// End of turn → authoritative transcript (also closes `partials`).
+let final_text = await streamer.finish()
+await captions.value
+print("final: \(final_text)")
+```
+
+Behavior and knobs:
+
+- `partials` is **cosmetic/live**; `finish()` is the **trusted** result and
+  always covers the complete audio (including the last word).
+- `flush()` at VAD pauses keeps per-pass latency flat over long turns: it
+  commits settled text and decodes only the uncommitted tail afterward.
+- `cancel()` aborts the turn and closes `partials` without a final decode
+  (use it for barge-in).
+- `partial_interval_ms` (default `600`) bounds how often partial passes run.
+- Convert mic input to 16 kHz mono Float32 first — input is **not** resampled.
+- Streaming transcription is a **Swift-direct** API on `WhisperPipeline`.
+  For live speech-to-text on Flutter, use the Voice Agent
+  ([voice_agent.md](./voice_agent.md)), which runs streaming ASR internally.
+
 ## Internal VAD Chunking
 
 `WhisperPipeline` includes a Silero-VAD pre-pass that finds speech

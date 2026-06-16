@@ -1,6 +1,6 @@
 # Streaming
 
-Real-time streaming inference for TTS and LLM pipelines.
+Real-time streaming inference for TTS, LLM, and ASR pipelines.
 
 ---
 
@@ -223,6 +223,62 @@ await for (final chunk in llmStream) {
 await player.drain();
 await player.stop();
 ```
+
+---
+
+## Streaming ASR (Speech-to-Text)
+
+The inverse direction: push microphone audio in, read transcripts out.
+`WhisperPipeline.open_streamer()` returns an `ASRStreamer` that mirrors the
+TTS streamer's shape — `send(_:)` audio, drain stable partials off
+`partials`, `finish()` for the authoritative transcript. A single serial
+worker re-decodes the growing buffer and commits stable text via
+LocalAgreement, so it is safe to drive from a live capture.
+
+### Swift — Producer / Consumer
+
+```swift
+import TheStageSDK
+
+let ai = TheStageAI.shared
+try await ai.initialize(apiToken: "your_api_token")
+
+let stt = try await WhisperPipeline(
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo",
+    revision: "main"
+)
+
+// One streamer per turn. Audio is 16 kHz mono Float (same as `infer`).
+let streamer = stt.open_streamer(language: "en", partial_interval_ms: 600)
+
+// Consume partials concurrently with sending audio.
+let captions = Task {
+    for await text in streamer.partials {
+        print("partial: \(text)")   // committed-so-far, grows monotonically
+    }
+}
+
+// Push mic frames as they arrive (any size; e.g. 100 ms blocks).
+for await frame in microphone_frames {          // [Float] @ 16 kHz mono
+    streamer.send(frame)
+    if vad_detected_pause { streamer.flush() }   // finalize segment + trim
+}
+
+let final_text = await streamer.finish()         // closes `partials`
+await captions.value
+print("final: \(final_text)")
+```
+
+`partials` is the live/cosmetic caption; `finish()` is the trusted result and
+always covers the complete utterance (including the last word). Call
+`flush()` at VAD pauses to keep per-pass latency flat on long turns, and
+`cancel()` to abort a turn (barge-in) without a final decode. Convert mic
+input to 16 kHz mono Float32 first — it is **not** resampled.
+
+> Streaming ASR is a **Swift-direct** API on `WhisperPipeline` — there is no
+> singleton/JSON or Flutter streaming-ASR entry point. For live speech-to-text
+> on Flutter, use the Voice Agent ([voice_agent.md](./voice_agent.md)), which
+> runs the same streaming ASR internally.
 
 ---
 

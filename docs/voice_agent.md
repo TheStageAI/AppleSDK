@@ -1,8 +1,9 @@
 # Voice Agent
 
 End-to-end on-device voice assistant: VAD → STT → LLM → TTS, with
-interruption handling, streaming transcription (live partial captions),
-and sentence-level streaming for sub-second time-to-first-audio.
+neural end-of-turn detection (the **smart-turn-v3** model), interruption
+handling, streaming transcription (live partial captions), and
+sentence-level streaming for sub-second time-to-first-audio.
 
 ## Quick Start (Swift)
 

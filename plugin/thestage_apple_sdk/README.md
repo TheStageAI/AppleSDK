@@ -19,7 +19,7 @@ nothing to build or link by hand — add the dependency and go.
        git:
          url: https://github.com/TheStageAI/AppleSDK.git
          path: plugin/thestage_apple_sdk
-         ref: v1.0.0
+         ref: 1.1.0
    ```
 
 2. **Enable SwiftPM** (the plugin ships as a Swift package):
@@ -49,7 +49,7 @@ vendored inside the plugin.
 ```dart
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
-// Validate the token once (then the SDK runs offline).
+// Validate the token once per process (online required).
 await TheStageFlutterSDK.initialize(api_token: 'th_…');
 
 // Load a model straight from a HuggingFace repo id (cached after the
@@ -75,9 +75,8 @@ Other pipelines follow the same shape — pass `model_type` for TTS/VAD/STT:
 
 ```dart
 await TheStageFlutterSDK.start_model(
-  model_type: 'neutts',
   model_name: 'tts',
-  engines_path: 'TheStageAI/neutts-multilingual',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
 );
 ```
 
@@ -85,13 +84,12 @@ For multi-module models, route each module to a compute device:
 
 ```dart
 await TheStageFlutterSDK.start_model(
-  model_type: 'wake_word',
-  model_name: 'wake-word',
-  engines_path: 'TheStageAI/wake-word',
+  model_name: 'asr',
+  engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
   devices: {
-    'melspectrogram': 'cpu',
-    'embedding':      'npu',
-    'wake_word':      'npu',
+    'melspec':  'npu',
+    'encoder':  'npu',
+    'decoder':  'npu',
   },
 );
 ```
@@ -111,9 +109,10 @@ await player.stop();
 
 ## API token
 
-The SDK validates the token once on first model start, then runs
-offline (7-day grace if the device briefly loses connectivity). Generate
-yours at [app.thestage.ai](https://app.thestage.ai). Never hardcode it —
+Call `initialize` while online — the SDK validates the token then
+(once per app process). Offline initialize fails; after init succeeds,
+inference runs fully on-device. Generate yours at
+[app.thestage.ai](https://app.thestage.ai). Never hardcode it —
 inject it at build time (see the example apps' `secrets.json` flow).
 
 ## Voice agent

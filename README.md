@@ -1,39 +1,111 @@
 # TheStage Apple SDK
 
-On-device speech, language and audio inference for **iOS and macOS**
-on Apple Silicon. The SDK ships compiled CoreML and MLX engines
-through HuggingFace, auto-detects the best backend per device
-(ANE / GPU / CPU), and exposes a unified `infer` / `infer_stream`
-API for every pipeline. No server in the hot path.
+**On-device** speech, language, and audio inference for **iOS and macOS** on
+Apple Silicon. Engines ship as CoreML / MLX bundles from Hugging Face; the
+SDK picks ANE / GPU / CPU per device. After `initialize`, **inference never
+leaves the device** — there is no server in the hot path.
+
+| | |
+| --- | --- |
+| Version | **`1.1.0`** (pin this tag / SwiftPM `exact:`) |
+| Platforms | iOS **18+**, macOS **15+**, Apple Silicon only |
+| Surfaces | Native Swift (`TheStageSDK`) · Flutter plugin (iOS) |
+| Engines | Hugging Face `TheStageAI/*` @ **`v1.1`** |
+| Token | [app.thestage.ai](https://app.thestage.ai) — online `initialize` required |
+
+> **Not supported:** iOS Simulator, Intel Macs, Android, server-side inference.
+
+---
+
+## Read this first
+
+**Humans** — do the [60-second Mac quick start](#quick-start), then pick
+Swift or Flutter under [Integrate](#integrate). Dive into contracts only
+when something breaks.
+
+**Agents / coding assistants** — treat this file as the index, then open
+[`docs/llms.txt`](./docs/llms.txt) and the linked page for the pipeline you
+touch. Hard rules:
+
+1. Always `initialize` **before** any pipeline / `start_model`.
+2. Pin the SDK to tag **`1.1.0`** (do not float `from:`).
+3. Pass HF repo ids like `"TheStageAI/Qwen3-0.6B"` — omit `revision` unless
+   you intentionally override (defaults track this SDK line).
+4. Audio is **mono `Float` / `Float32List` in `[-1.0, 1.0]`** — never
+   `Float64` / Int16 without converting.
+5. Do **not** invent device IDs, seat accounting, or crypto details — see
+   [licensing](./docs/licensing.md).
+
+```text
+initialize (online) ──► start_model / Pipeline(...) ──► infer / infer_stream
+        │                         │
+        │                         ▼
+        │              HF download + cache (first time)
+        ▼
+   process session OK     inference fully on-device
+```
+
+---
+
+## Table of contents
+
+1. [What's in this repo](#whats-in-this-repo)
+2. [Capabilities & model fleet](#capabilities--model-fleet)
+3. [Quick start](#quick-start)
+4. [Prerequisites](#prerequisites)
+5. [Integrate](#integrate)
+6. [Mental model](#mental-model)
+7. [Contracts](#contracts) (audio · progress · Swift↔Flutter)
+8. [Documentation map](#documentation-map)
+9. [Troubleshooting](#troubleshooting)
+10. [Secrets & license](#secrets--license)
+
+---
 
 ## What's in this repo
 
-- `TheStageCore.xcframework/` — pre-built SDK binary (`ios-arm64` +
-  `macos-arm64` slices).
-- `Package.swift` + `Sources/TheStageSDK/` — SwiftPM entry point for
-  native Swift apps on iOS **and** macOS. `import TheStageSDK`.
-- `examples/macos_swift_tts/` — minimal native-Swift streaming-TTS
-  command-line demo (macOS, no Xcode). **Start here.**
-- `examples/tts_front_stream/` — streaming neural TTS demo (Flutter,
-  iPhone).
-- `examples/voice_agent/` — full voice-assistant loop, mic → VAD →
-  STT → LLM → streaming TTS (Flutter, iPhone).
-- `plugin/thestage_apple_sdk/` — Flutter plugin over platform
-  channels. **iOS only** for now.
-- `docs/` — per-pipeline reference guides (LLM, Whisper, TTS, VAD,
-  Streaming, Voice Agent, Speaker Embedding, Licensing, Logging,
-  Benchmarks).
-- `scripts/setup.sh` — one-time host setup (only needed for the
-  Flutter examples).
+| Path | Role |
+| --- | --- |
+| `TheStageCore.xcframework/` | Pre-built binary (`ios-arm64` + `macos-arm64`) |
+| `Package.swift` + `Sources/TheStageSDK/` | SwiftPM entry — `import TheStageSDK` |
+| `plugin/thestage_apple_sdk/` | Flutter plugin (iOS only); vendors the xcframework |
+| `examples/macos_swift_tts/` | **Start here** — native Swift streaming TTS on Mac (no Xcode) |
+| `examples/tts_front_stream/` | Flutter streaming TTS on a physical iPhone |
+| `examples/voice_agent/` | Flutter mic → VAD → STT → LLM → TTS with barge-in |
+| `docs/` | Per-pipeline guides + [`llms.txt`](./docs/llms.txt) agent index |
+| `scripts/setup.sh` | One-time host setup for Flutter examples |
+
+---
+
+## Capabilities & model fleet
+
+Everything below is the **production `@v1.1`**
+fleet. Pass the HF id as `engines_path` (or construct the typed pipeline
+with the same string).
+
+| Task | HF engines | Swift entry | Notes |
+| --- | --- | --- | --- |
+| Chat LLM | `TheStageAI/Qwen3-0.6B` | `TheStageLLM` | Also Gemma3-1B, LFM2.5-230M / 350M |
+| ASR | `TheStageAI/thewhisper-large-v3-turbo` | `WhisperPipeline` | Also `Qwen3-ASR-0.6B` |
+| TTS | `TheStageAI/neutts-nano-multilingual` | `NeuTTSMultilingualPipeline` | Prefer nano for voice agents |
+| TTS | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | `Qwen3TTSPipeline` | Auto-routed from bundle layout |
+| VAD | `TheStageAI/silero-vad` | `SileroVAD` | 512-sample chunks @ 16 kHz |
+| Turn detect | `TheStageAI/smart-turn-v3` | via `TheStageVoiceAgent` | DNN end-of-turn |
+| Speaker ID | `TheStageAI/redimnet2` | `SpeakerEmbedding` | 192-d embedding, 2 s window |
+| Full agent | compose above | `TheStageVoiceAgent` | See [voice_agent.md](./docs/voice_agent.md) |
+
+**Out of this release (do not pin in new apps):** full
+`neutts-multilingual`, English espeak `neutts` / `NeuTTSNanoPipeline`,
+wake-word, VLM / YOLO.
+
+Model cards (contracts + acknowledgments):
+[huggingface.co/TheStageAI](https://huggingface.co/TheStageAI).
 
 ---
 
 ## Quick start
 
-### Fastest: hear it work on your Mac (no Xcode, no device)
-
-A tiny native-Swift program that streams TTS straight to your
-speakers:
+### 60 seconds on Mac (no Xcode, no device)
 
 ```bash
 cd examples/macos_swift_tts
@@ -41,27 +113,21 @@ export TS_API_TOKEN=th_…          # from app.thestage.ai
 swift run
 ```
 
-The first run downloads the NeuTTS engines from HuggingFace and caches
-them; subsequent runs start instantly. Output-only playback needs no
-microphone permission or entitlements. See
+First run downloads NeuTTS engines and caches them; later runs start cold
+from disk. Playback-only — no mic permission. Details:
 [examples/macos_swift_tts/README.md](./examples/macos_swift_tts/README.md).
 
-### On a physical iPhone: the Flutter examples
+### Physical iPhone (Flutter)
 
 ```bash
-# 1. One-time host setup (xcframework symlink + secrets bootstrap).
-#    Idempotent — safe to re-run. (espeak is opt-in: --espeak, nano apps only.)
-./scripts/setup.sh
-
-# 2. Drop your API keys into the example you want to run.
+./scripts/setup.sh                # idempotent; espeak only if you need nano-EN
 cp examples/tts_front_stream/secrets.example.json \
    examples/tts_front_stream/secrets.json
-$EDITOR examples/tts_front_stream/secrets.json
+# edit secrets.json → TS_API_TOKEN
 ```
 
-Open `examples/tts_front_stream/ios/Runner.xcodeproj` in Xcode, select
-the **Runner** target, and under **Signing & Capabilities** set your
-**Team** and a unique **Bundle Identifier**. Then run on a device:
+In Xcode (`examples/tts_front_stream/ios/Runner.xcodeproj`): set **Team** +
+unique **Bundle Identifier**, then:
 
 ```bash
 cd examples/tts_front_stream
@@ -71,44 +137,36 @@ flutter run --release \
     -d <YOUR_IPHONE_DEVICE_ID>
 ```
 
-`flutter devices` lists attached devices. `examples/voice_agent`
-follows the same recipe (it additionally needs `OPENAI_API_KEY` in its
-`secrets.json`). See each example's `README.md` for app-specific notes.
+`examples/voice_agent` is the same recipe (+ `OPENAI_API_KEY` if you use
+the cloud LLM provider).
 
 ---
 
 ## Prerequisites
 
-| Requirement | Minimum | Tested with |
-|-------------|---------|-------------|
-| macOS | 15.0 | 15.6 |
-| iOS | 18.0 | 18.6 |
-| Xcode | 16.0 | 26.1 |
-| Swift | 6.0 | 6.2.1 |
-| Flutter (only for the Flutter examples) | 3.24 | 3.38.7 |
-| Dart | 3.5 | 3.10.7 |
-| Hardware | Apple Silicon Mac **or** physical iPhone / iPad | — |
+| Requirement | Minimum | Notes |
+| --- | --- | --- |
+| macOS | 15.0 | Apple Silicon Mac |
+| iOS | 18.0 | Physical iPhone / iPad |
+| Xcode | 16.0 | For device signing / iOS apps |
+| Swift | 6.0 | SwiftPM |
+| Flutter / Dart | 3.24 / 3.5 | Flutter examples + plugin only |
+| Network | once per process | Required for `initialize` and first engine download |
 
-The Simulator is **not** supported — MLX requires Metal on real
-hardware. The Flutter plugin and the two Flutter example apps are
-iOS-only; native Swift via SwiftPM runs on both iOS and macOS.
-
-You'll need a TheStage API token from
-[app.thestage.ai](https://app.thestage.ai). Call
-`initialize` while online — the token is validated then (once per app
-process). Offline initialize fails; after a successful init, inference
-runs fully on-device. For the Flutter path you also need a Flutter
-toolchain (`brew install flutter`, then `flutter config
---enable-swift-package-manager`).
+```bash
+# Flutter path only
+brew install flutter
+flutter config --enable-swift-package-manager
+```
 
 ---
 
-## Use the SDK in your own app
+## Integrate
 
-### Native Swift (SwiftPM) — iOS and macOS
+### Native Swift (iOS + macOS)
 
-In Xcode: **File → Add Package Dependencies…**, paste this repo's URL,
-and add the `TheStageSDK` product to your target. Or in `Package.swift`:
+Xcode → **File → Add Package Dependencies…** → this repo URL → product
+`TheStageSDK`. Or:
 
 ```swift
 .package(
@@ -117,16 +175,12 @@ and add the `TheStageSDK` product to your target. Or in `Package.swift`:
 )
 ```
 
-Then:
-
 ```swift
 import TheStageSDK
 
 let ai = TheStageAI.shared
 try await ai.initialize(apiToken: "th_…")
 
-// Construct any pipeline directly from an HF repo or local path.
-// The same `on_load_progress` contract applies to all of them.
 let llm = try await TheStageLLM(
     engines_path: "TheStageAI/Qwen3-0.6B",
     on_load_progress: { p in
@@ -141,21 +195,14 @@ let result = llm.infer(
 print(result.text)
 ```
 
-Every pipeline (`TheStageLLM`, `WhisperPipeline`,
-`NeuTTSMultilingualPipeline`, `NeuTTSNanoPipeline`) shares the same
-constructor shape. Prefer the singleton
-`TheStageAI.shared.start_model(...)` / `infer(model_name:input_json:)`
-flow when you want lifecycle and JSON dispatch (e.g. driving the SDK
-from Flutter). Both flows share the same on-disk cache and the same
-`LoadProgress` events.
+Two ways to drive models (same cache, same progress events):
+
+| Style | When to use |
+| --- | --- |
+| Typed pipelines (`TheStageLLM(...)`, `WhisperPipeline(...)`, …) | Native Swift apps — compile-time APIs |
+| `TheStageAI.shared.start_model` / `infer` / `infer_stream` | JSON lifecycle, Flutter, dynamic model sets |
 
 ### Flutter (iOS)
-
-The plugin bundles the native framework — nothing to build or link.
-Three steps:
-
-**1. Add the `git:` dependency** in your app's `pubspec.yaml`, pinned to
-a tag:
 
 ```yaml
 dependencies:
@@ -166,15 +213,10 @@ dependencies:
       ref: 1.1.0
 ```
 
-**2. Configure the iOS project once:** enable SwiftPM and set the
-deployment target to iOS 18.0+:
-
 ```bash
 flutter config --enable-swift-package-manager
-# then in Xcode: Runner target → General → Minimum Deployments → iOS 18.0
+# Xcode → Runner → Minimum Deployments → iOS 18.0
 ```
-
-**3. Use it** (`flutter pub get`, then run on a physical device):
 
 ```dart
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
@@ -196,106 +238,127 @@ final result = await TheStageFlutterSDK.infer(
 print(result[0]['text']);
 ```
 
-Full install notes, the voice-agent API and the audio player live in the
-[plugin README](./plugin/thestage_apple_sdk/README.md). The fastest way
-to see a real app is to copy one of the `examples/` apps.
+More: [plugin README](./plugin/thestage_apple_sdk/README.md). Fastest
+path to a working UI: copy an `examples/` app.
 
 ---
 
-## Documentation
+## Mental model
 
-Full API reference, with parallel Swift and Flutter examples for every
-pipeline, lives under [`docs/`](./docs/):
+### Lifecycle
 
-- [LLM](./docs/llm.md) — `TheStageLLM`: Qwen3 / Gemma3 / LFM2.5 chat
-  with streaming, KV cache, chat-template auto-detect.
-- [Whisper ASR](./docs/whisper.md) — speech-to-text with automatic VAD
-  chunking and long-audio stitching.
-- [TTS](./docs/tts.md) — NeuTTS (multilingual + Nano) and Qwen3-TTS,
-  batch + push-based streaming.
-- [VAD](./docs/vad.md) — `SileroVAD`: stateful per-chunk speech
-  detection.
-- [Streaming](./docs/streaming.md) — TTS / LLM streaming patterns,
-  back-pressure, sentence segmentation.
-- [Voice Agent](./docs/voice_agent.md) — `TheStageVoiceAgent`:
-  end-to-end voice assistant with barge-in.
-- [Speaker Embedding](./docs/speaker_embedding.md) — enroll / verify.
-- [Licensing](./docs/licensing.md) — API token init and Device Seats.
-- [Logging](./docs/logging.md) — session log and support breadcrumbs.
-- [Benchmarks](./docs/benchmarks.md) — metric definitions and numbers.
-- [Product Terms](./docs/product_terms.md) — commercial / legal pointer.
+1. **`initialize(apiToken:)`** — online token check + device seat
+   registration. Fails offline / on network errors. Once per process
+   when reachable; after success, **inference is on-device** for that
+   process.
+2. **Load** — `Pipeline(engines_path:)` or `start_model(...)`. First hit
+   downloads the HF revision for this SDK line into Application Support
+   (not purged by iOS, excluded from iCloud backup).
+3. **Infer** — batch `infer` or streaming `infer_stream` / TTS streamer.
+4. **Stop** — `stop_model` / drop pipeline references to free memory.
+
+### Revisions
+
+Omit `revision:` in normal apps. This build resolves HF tags via an
+internal map aligned with SDK **`1.1.0`** → fleet
+**`v1.1`**. Override only when
+you intentionally pin an older engine tag.
+
+### Init & seats (product)
+
+- Seat = `(apiToken, deviceId)` — see [licensing.md](./docs/licensing.md).
+- Pricing / plans: Service Request at
+  [app.thestage.ai/contact](https://app.thestage.ai/contact).
+- Do not document or depend on how `deviceId` is derived.
 
 ---
 
-## Reference
+## Contracts
 
-### Swift ↔ Flutter parity
+### Audio I/O
 
-The Swift singleton (`TheStageAI.shared`) and the Flutter
-`TheStageFlutterSDK` mirror each other one-to-one. Pipeline
-constructors (`TheStageLLM(...)`, `WhisperPipeline(...)`, etc.) are
-Swift-only — Dart consumers always go through the JSON path.
+All public audio is **PCM mono**, samples in **`[-1.0, 1.0]`**.
 
-| Operation | Swift | Flutter (Dart) |
-|---|---|---|
-| Initialize | `try await TheStageAI.shared.initialize(apiToken: "...")` | `await TheStageFlutterSDK.initialize(api_token: '...')` |
-| Start a model | `try await ai.start_model(model_name:engines_path:config:on_load_progress:)` | `await TheStageFlutterSDK.start_model(model_name:, engines_path:, config:)` |
-| Stop a model | `_ = try ai.stop_model(model_name: "llm")` | `await TheStageFlutterSDK.stop_model(model_name: 'llm')` |
-| Single-shot inference | `try ai.infer(model_name:input_json:) -> [[String: Any]]` | `await TheStageFlutterSDK.infer(model_name:, input_json:) -> List<Map<String, dynamic>>` |
-| Streaming inference | `try ai.infer_stream(model_name:input_json:) -> AsyncStream<InferenceStreamChunk>` | `TheStageFlutterSDK.infer_stream(model_name:, input_json:, stream_id:?) -> Stream<Map<String, dynamic>>` |
-| Push text into a TTS stream | `streamer.send(text); streamer.stop_stream()` | `await TheStageFlutterSDK.send(stream_id:, text:); await TheStageFlutterSDK.finish_stream(stream_id:)` |
-| Cancel a running stream | `streamer.stop_stream()` | `await TheStageFlutterSDK.stop_stream(stream_id:)` |
-| Load progress | `on_load_progress: LoadProgressHandler?` on `start_model` / constructors | Global stream `TheStageFlutterSDK.on_progress` (`{model_name, phase, progress}`) |
-| Audio buffer type | `[Float]` | `Float32List` (never `Float64List`) |
+| Pipeline | Direction | Rate | Framing |
+| --- | --- | --- | --- |
+| `SileroVAD` | in | **16 kHz** | exactly **512** samples / call (stateful) |
+| `WhisperPipeline` / Qwen3-ASR | in | **16 kHz** | any length; SDK windows long audio |
+| NeuTTS / Qwen3-TTS | out | **24 kHz** | streamer = chunks; batch = one buffer |
+| `SpeakerEmbedding` | in | **16 kHz** | **2.0 s** window (pad/trim) |
 
-Note the one asymmetry that bites people: the Swift initializer is
-`initialize(apiToken:)` (camelCase), while the Flutter call is
-`initialize(api_token:)` (snake_case).
+Prefer `tts.sample_rate` over hardcoding. Mic path for agents is 16 kHz;
+TTS playback is 24 kHz — resample at the edge if you mix them.
+
+Swift: `[Float]` · Flutter: **`Float32List` only**.
 
 ### Load progress
 
-All public loaders accept an optional `on_load_progress:
-LoadProgressHandler` that fires through four phases with a monotonic
-fraction in `0...1`:
+Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
+(Flutter). Phases are monotonic `0...1`:
 
-| Phase | Fraction band | Notes |
-|---|---|---|
-| `downloading` | 0.00 – 0.70 | HuggingFace repo download (skipped on cache hit) |
-| `extracting` | 0.70 – 0.85 | Bundle unpack to local cache (skipped on cache hit) |
+| Phase | Band | Notes |
+| --- | --- | --- |
+| `downloading` | 0.00 – 0.70 | HF fetch (skipped on cache hit) |
+| `extracting` | 0.70 – 0.85 | Unpack (skipped on cache hit) |
 | `loading` | 0.85 – 0.99 | Pipeline construction |
-| `ready` | 1.00 (terminal) | Emitted on success only |
+| `ready` | 1.00 | Success only |
 
-The phase strings, fraction bands and terminal contract are identical
-on both surfaces. See [docs/llm.md](./docs/llm.md#load-progress) for the
-full event contract.
+### Swift ↔ Flutter parity
 
-### Audio I/O contract
+| Operation | Swift | Flutter |
+| --- | --- | --- |
+| Initialize | `TheStageAI.shared.initialize(apiToken:)` | `TheStageFlutterSDK.initialize(api_token:)` |
+| Start | `ai.start_model(...)` | `start_model(...)` |
+| Stop | `ai.stop_model(model_name:)` | `stop_model(model_name:)` |
+| Batch | `ai.infer(model_name:input_json:)` | `infer(...)` |
+| Stream | `ai.infer_stream(...)` → `AsyncStream` | `infer_stream(...)` → `Stream` |
+| TTS push | `streamer.send` / `stop_stream` | `send` / `finish_stream` / `stop_stream` |
+| Progress | per-call `on_load_progress` | global `on_progress` |
+| Typed pipelines | yes | no — JSON path only |
 
-All audio crossing the public SDK surface uses **PCM `[Float]`, mono,
-samples normalized to `[-1.0, 1.0]`**. Sample rate depends on the
-pipeline:
-
-| Pipeline | Direction | Sample rate | Frame / chunking |
-|---|---|---|---|
-| `SileroVAD` | input | **16 000 Hz** | exactly **512 samples** per `infer` (32 ms); stateful |
-| `WhisperPipeline` | input | **16 000 Hz** | any length; auto-split into 10 s windows |
-| `NeuTTSMultilingualPipeline` / `NeuTTSNanoPipeline` | output | **24 000 Hz** | streamer emits per-sentence chunks; batch emits one full `[Float]` |
-
-The mic stack runs at 16 kHz mono for VAD/ASR; TTS output is always
-24 kHz. Rather than hardcoding it, read the rate from the pipeline
-(`tts.sample_rate`) — see `examples/macos_swift_tts`.
+**Naming trap:** Swift `apiToken:` vs Flutter `api_token:`.
 
 ---
 
-## Secrets
+## Documentation map
 
-The Flutter example apps read tokens at build time via
-`String.fromEnvironment(...)` and `--dart-define-from-file=secrets.json`.
-Each ships a `secrets.example.json` template — copy it to `secrets.json`
-and fill in your keys. `secrets.json` is covered by `.gitignore`; real
-keys never belong in source. The macOS example reads `TS_API_TOKEN`
-from the environment instead.
+| Doc | Open when you need… |
+| --- | --- |
+| [`docs/llms.txt`](./docs/llms.txt) | Agent-oriented symbol + page index |
+| [llm.md](./docs/llm.md) | Chat, streaming tokens, sampling, KV |
+| [whisper.md](./docs/whisper.md) | ASR, VAD chunking, languages |
+| [tts.md](./docs/tts.md) | NeuTTS + Qwen3-TTS, voices, streaming |
+| [vad.md](./docs/vad.md) | Silero chunk contract |
+| [streaming.md](./docs/streaming.md) | Back-pressure, sentence segmentation |
+| [voice_agent.md](./docs/voice_agent.md) | Full loop, barge-in, smart-turn knobs |
+| [speaker_embedding.md](./docs/speaker_embedding.md) | Enroll / verify |
+| [licensing.md](./docs/licensing.md) | Token, seats, offline rules |
+| [logging.md](./docs/logging.md) | Support breadcrumbs |
+| [benchmarks.md](./docs/benchmarks.md) | Metric definitions |
+| [product_terms.md](./docs/product_terms.md) | Commercial / legal pointer |
 
-## License
+---
 
-See [LICENSE](LICENSE).
+## Troubleshooting
+
+| Symptom | Likely cause | Fix |
+| --- | --- | --- |
+| `notInitialized` / pipelines throw at construct | Forgot `initialize` | Call it once at app start (online) |
+| Init fails offline / flaky network | Online validation required | Reconnect; retry `initialize` |
+| Simulator build / Metal errors | Simulator unsupported | Use a physical device or Apple Silicon Mac |
+| First infer very slow | HF download | Wait for `ready`; later runs use cache |
+| Flutter audio glitches / NaNs | `Float64List` or wrong rate | Use `Float32List`; match table above |
+| TTS / ASR “wrong” model type | Bundle auto-route | Pass the correct HF repo; see tts.md |
+| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.1.0` |
+| Voice agent never commits turn | Thresholds / mode | See smart-turn knobs in voice_agent.md |
+
+---
+
+## Secrets & license
+
+Flutter examples load tokens via `--dart-define-from-file=secrets.json`
+(from `secrets.example.json`). Keep real keys out of git. The macOS
+example uses `TS_API_TOKEN` in the environment.
+
+License: [LICENSE](LICENSE). Commercial terms:
+[product_terms.md](./docs/product_terms.md).

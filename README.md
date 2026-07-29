@@ -20,8 +20,9 @@ API for every pipeline. No server in the hot path.
   STT → LLM → streaming TTS (Flutter, iPhone).
 - `plugin/thestage_apple_sdk/` — Flutter plugin over platform
   channels. **iOS only** for now.
-- `docs/` — per-pipeline reference guides (LLM, Whisper, NeuTTS, VAD,
-  Streaming, Voice Agent).
+- `docs/` — per-pipeline reference guides (LLM, Whisper, TTS, VAD,
+  Streaming, Voice Agent, Speaker Embedding, Licensing, Logging,
+  Benchmarks).
 - `scripts/setup.sh` — one-time host setup (only needed for the
   Flutter examples).
 
@@ -93,9 +94,10 @@ hardware. The Flutter plugin and the two Flutter example apps are
 iOS-only; native Swift via SwiftPM runs on both iOS and macOS.
 
 You'll need a TheStage API token from
-[app.thestage.ai](https://app.thestage.ai). It's validated once on
-first model start, then runs offline (7-day grace window if the device
-is briefly disconnected). For the Flutter path you also need a Flutter
+[app.thestage.ai](https://app.thestage.ai). Call
+`initialize` while online — the token is validated then (once per app
+process). Offline initialize fails; after a successful init, inference
+runs fully on-device. For the Flutter path you also need a Flutter
 toolchain (`brew install flutter`, then `flutter config
 --enable-swift-package-manager`).
 
@@ -109,7 +111,10 @@ In Xcode: **File → Add Package Dependencies…**, paste this repo's URL,
 and add the `TheStageSDK` product to your target. Or in `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/TheStageAI/AppleSDK.git", from: "1.0.0")
+.package(
+    url: "https://github.com/TheStageAI/AppleSDK.git",
+    exact: Version(1, 1, 0)
+)
 ```
 
 Then:
@@ -158,7 +163,7 @@ dependencies:
     git:
       url: https://github.com/TheStageAI/AppleSDK.git
       path: plugin/thestage_apple_sdk
-      ref: v1.0.0
+      ref: 1.1.0
 ```
 
 **2. Configure the iOS project once:** enable SwiftPM and set the
@@ -202,18 +207,23 @@ to see a real app is to copy one of the `examples/` apps.
 Full API reference, with parallel Swift and Flutter examples for every
 pipeline, lives under [`docs/`](./docs/):
 
-- [LLM](./docs/llm.md) — `TheStageLLM`: Qwen2 / Qwen3 / Gemma3 chat
+- [LLM](./docs/llm.md) — `TheStageLLM`: Qwen3 / Gemma3 / LFM2.5 chat
   with streaming, KV cache, chat-template auto-detect.
 - [Whisper ASR](./docs/whisper.md) — speech-to-text with automatic VAD
   chunking and long-audio stitching.
-- [NeuTTS](./docs/tts.md) — multilingual + Nano TTS, batch +
-  push-based streaming.
+- [TTS](./docs/tts.md) — NeuTTS (multilingual + Nano) and Qwen3-TTS,
+  batch + push-based streaming.
 - [VAD](./docs/vad.md) — `SileroVAD`: stateful per-chunk speech
   detection.
 - [Streaming](./docs/streaming.md) — TTS / LLM streaming patterns,
   back-pressure, sentence segmentation.
 - [Voice Agent](./docs/voice_agent.md) — `TheStageVoiceAgent`:
   end-to-end voice assistant with barge-in.
+- [Speaker Embedding](./docs/speaker_embedding.md) — enroll / verify.
+- [Licensing](./docs/licensing.md) — API token init and Device Seats.
+- [Logging](./docs/logging.md) — session log and support breadcrumbs.
+- [Benchmarks](./docs/benchmarks.md) — metric definitions and numbers.
+- [Product Terms](./docs/product_terms.md) — commercial / legal pointer.
 
 ---
 

@@ -242,7 +242,7 @@ await for (final chunk in stream) {
 | Model | HF repo | Parameters | Chat template |
 |-------|---------|-----------:|---------------|
 | Qwen3-0.6B | `TheStageAI/Qwen3-0.6B` | 0.6B | Qwen3 |
-| Gemma3-1B | `TheStageAI/Gemma3-1B` | 1B | Gemma3 |
+| Gemma3-1B | `TheStageAI/gemma-3-1b-it` | 1B | Gemma3 |
 | LFM2.5-230M | `TheStageAI/LFM2.5-230M` | 230M | LFM2 |
 | LFM2.5-350M | `TheStageAI/LFM2.5-350M` | 350M | LFM2 |
 

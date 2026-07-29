@@ -89,7 +89,9 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 | `TheStageCore.xcframework/` | Pre-built binary (`ios-arm64` + `macos-arm64`) |
 | `Package.swift` + `Sources/TheStageSDK/` | SwiftPM entry — `import TheStageSDK` |
 | `plugin/thestage_apple_sdk/` | Flutter plugin (iOS only); vendors the xcframework |
+| `examples/` | Demos pinned to this SDK version — see [`examples/README.md`](./examples/README.md) |
 | `examples/macos_swift_tts/` | **Start here** — native Swift streaming TTS on Mac (no Xcode) |
+| `examples/engine_bench/` | iPhone LLM / TTS / ASR benches (Hugging Face engines) |
 | `examples/tts_front_stream/` | Flutter streaming TTS on a physical iPhone |
 | `examples/voice_agent/` | Flutter mic → VAD → STT → LLM → TTS with barge-in |
 | `docs/` | Per-pipeline guides + [`llms.txt`](./docs/llms.txt) agent index |
@@ -105,7 +107,7 @@ with the same string).
 
 | Task | HF engines | Swift entry | Notes |
 | --- | --- | --- | --- |
-| Chat LLM | `TheStageAI/Qwen3-0.6B` | `TheStageLLM` | Also Gemma3-1B, LFM2.5-230M / 350M |
+| Chat LLM | `TheStageAI/Qwen3-0.6B` | `TheStageLLM` | Also `gemma-3-1b-it`, LFM2.5-230M / 350M |
 | ASR | `TheStageAI/thewhisper-large-v3-turbo` | `WhisperPipeline` | Also `Qwen3-ASR-0.6B` |
 | TTS | `TheStageAI/neutts-nano-multilingual` | `NeuTTSMultilingualPipeline` | Prefer nano for voice agents |
 | TTS | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | `Qwen3TTSPipeline` | Auto-routed from bundle layout |

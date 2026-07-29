@@ -47,7 +47,7 @@ size (small → medium → long suite prompts).
 | Model | HF repo | tok/s (medium) | TTFT small → long (s) | mem (MB, medium) |
 |---|---|---:|---:|---:|
 | Qwen3-0.6B | `TheStageAI/Qwen3-0.6B` | 58.5 | 0.063 → 0.158 | 271 |
-| Gemma3-1B | `TheStageAI/Gemma3-1B` | 83.1 | 0.058 → 0.112 | 163 |
+| Gemma3-1B | `TheStageAI/gemma-3-1b-it` | 83.1 | 0.058 → 0.112 | 163 |
 | LFM2.5-230M | `TheStageAI/LFM2.5-230M` | 252 | 0.039 → 0.053 | 52 |
 | LFM2.5-350M | `TheStageAI/LFM2.5-350M` | 178 | 0.038 → 0.060 | 61 |
 

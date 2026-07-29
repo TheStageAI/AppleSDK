@@ -1,0 +1,8 @@
+# Local overrides with a real token — prefer editing the shipped empty
+# Secrets.xcconfig in place and never commit a filled token.
+build/
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+.swiftpm/
+.DS_Store

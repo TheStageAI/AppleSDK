@@ -52804,6 +52804,82 @@
           },
           {
             "kind": "Var",
+            "name": "repoAliases",
+            "printedName": "repoAliases",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Dictionary",
+                "printedName": "[Swift.String : Swift.String]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "usr": "s:SD"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore16ModelRevisionMapO11repoAliasesSDyS2SGvpZ",
+            "mangledName": "$s12TheStageCore16ModelRevisionMapO11repoAliasesSDyS2SGvpZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Dictionary",
+                    "printedName": "[Swift.String : Swift.String]",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:SD"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16ModelRevisionMapO11repoAliasesSDyS2SGvgZ",
+                "mangledName": "$s12TheStageCore16ModelRevisionMapO11repoAliasesSDyS2SGvgZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "byRepo",
             "printedName": "byRepo",
             "children": [
@@ -52877,6 +52953,35 @@
                 "accessorKind": "get"
               }
             ]
+          },
+          {
+            "kind": "Function",
+            "name": "canonicalRepoId",
+            "printedName": "canonicalRepoId(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16ModelRevisionMapO15canonicalRepoIdyS2SFZ",
+            "mangledName": "$s12TheStageCore16ModelRevisionMapO15canonicalRepoIdyS2SFZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
           },
           {
             "kind": "Function",
@@ -84623,7 +84728,7 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 8233,
+      "offset": 8327,
       "length": 5,
       "value": "\"npu\""
     },
@@ -94094,9 +94199,16 @@
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 1659,
-      "length": 1069,
-      "value": "[(\"TheStageAI\/Qwen3-0.6B\", \"v1.1\"), (\"TheStageAI\/gemma-3-1b-it\", \"v1.1\"), (\"TheStageAI\/Gemma3-1B\", \"v1.1\"), (\"TheStageAI\/LFM2.5-230M\", \"v1.1\"), (\"TheStageAI\/LFM2.5-350M\", \"v1.1\"), (\"TheStageAI\/thewhisper-large-v3-turbo\", \"v1.1\"), (\"TheStageAI\/Qwen3-ASR-0.6B\", \"v1.1\"), (\"TheStageAI\/neutts-nano-multilingual\", \"v1.1\"), (\"TheStageAI\/Qwen3-TTS-12Hz-0.6B-Base\", \"v1.1\"), (\"TheStageAI\/silero-vad\", \"v1.1\"), (\"TheStageAI\/smart-turn-v3\", \"v1.1\"), (\"TheStageAI\/redimnet2\", \"v1.1\"), (\"TheStageAI\/speaker-segmentation\", \"v1.1\")]"
+      "offset": 1807,
+      "length": 139,
+      "value": "[(\"TheStageAI\/Gemma3-1B\", \"TheStageAI\/gemma-3-1b-it\")]"
+    },
+    {
+      "filePath": "",
+      "kind": "Dictionary",
+      "offset": 2129,
+      "length": 1029,
+      "value": "[(\"TheStageAI\/Qwen3-0.6B\", \"v1.1\"), (\"TheStageAI\/gemma-3-1b-it\", \"v1.1\"), (\"TheStageAI\/LFM2.5-230M\", \"v1.1\"), (\"TheStageAI\/LFM2.5-350M\", \"v1.1\"), (\"TheStageAI\/thewhisper-large-v3-turbo\", \"v1.1\"), (\"TheStageAI\/Qwen3-ASR-0.6B\", \"v1.1\"), (\"TheStageAI\/neutts-nano-multilingual\", \"v1.1\"), (\"TheStageAI\/Qwen3-TTS-12Hz-0.6B-Base\", \"v1.1\"), (\"TheStageAI\/silero-vad\", \"v1.1\"), (\"TheStageAI\/smart-turn-v3\", \"v1.1\"), (\"TheStageAI\/redimnet2\", \"v1.1\"), (\"TheStageAI\/speaker-segmentation\", \"v1.1\")]"
     },
     {
       "filePath": "",
@@ -96698,42 +96810,42 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 5375,
+      "offset": 5506,
       "length": 12,
       "value": "\"TheStageAI\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 5399,
+      "offset": 5530,
       "length": 18,
       "value": "\"LocalLLMProvider\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 5921,
+      "offset": 6052,
       "length": 12,
       "value": "\"TheStageAI\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 5945,
+      "offset": 6076,
       "length": 16,
       "value": "\"OpenAIProvider\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 6115,
+      "offset": 6246,
       "length": 44,
       "value": "\"https:\/\/api.openai.com\/v1\/chat\/completions\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 6210,
+      "offset": 6341,
       "length": 13,
       "value": "\"gpt-4o-mini\""
     },

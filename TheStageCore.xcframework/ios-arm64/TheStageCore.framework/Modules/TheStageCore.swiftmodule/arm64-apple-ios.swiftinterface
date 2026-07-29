@@ -1273,7 +1273,9 @@ public enum ModelRevisionMap {
   public static var defaultRevision: Swift.String {
     get
   }
+  public static let repoAliases: [Swift.String : Swift.String]
   public static let byRepo: [Swift.String : Swift.String]
+  public static func canonicalRepoId(_ repoId: Swift.String) -> Swift.String
   public static func resolve(repoId: Swift.String, override: Swift.String? = nil) -> Swift.String
 }
 @_hasMissingDesignatedInitializers @_Concurrency.MainActor final public class TheStageAI {

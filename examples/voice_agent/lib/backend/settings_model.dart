@@ -40,7 +40,7 @@ class VoiceAgentSettings extends ChangeNotifier {
     'TheStageAI/LFM2.5-350M',
     'TheStageAI/LFM2.5-230M',
     'TheStageAI/Qwen3-0.6B',
-    'TheStageAI/Gemma3-1B',
+    'TheStageAI/gemma-3-1b-it',
   ];
 
   /// Shipping HF ASR repos.

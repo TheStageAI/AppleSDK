@@ -1,3 +1,16 @@
-Copyright (c) TheStage AI
+Copyright (c) The Stage AI, Inc.
 
-License terms TBD. Do not redistribute without authorization.
+TheStage Apple SDK
+==================
+
+Use of the TheStage Apple SDK (Swift package, Flutter plugin, documentation,
+samples, and TheStage-provided on-device engine bundles) is governed by the
+TheStage Apple SDK Product Terms and the applicable Platform master agreement
+with The Stage AI, Inc.
+
+Product Terms (documentation site):
+  https://docs.thestage.ai/ (Apple SDK → Product Terms)
+
+Pricing, Device Seats, and commercial orders are by arrangement — open a
+Service Request at https://app.thestage.ai/contact. Do not redistribute the
+SDK or engine bundles except as permitted by those terms.

@@ -20,7 +20,6 @@ try await ai.start_model(
     model_name: "tts",
     engines_path: "TheStageAI/neutts-multilingual",
     config: ["voice_id": "dave"],
-    revision: "develop"
 )
 
 let stream = try ai.infer_stream(
@@ -245,7 +244,6 @@ try await ai.initialize(apiToken: "your_api_token")
 
 let stt = try await WhisperPipeline(
     engines_path: "TheStageAI/thewhisper-large-v3-turbo",
-    revision: "main"
 )
 
 // One streamer per turn. Audio is 16 kHz mono Float (same as `infer`).
@@ -325,8 +323,7 @@ await TheStageFlutterSDK.initialize(api_token: 'your_token');
 await TheStageFlutterSDK.start_model(
   model_name: 'tts',
   engines_path: 'TheStageAI/neutts-multilingual',
-  model_type: 'neutts-multilingual',
-  revision: 'develop',
+  // model_type optional — omit or use 'thestage_tts' (bundle auto-routes)
   config: {'voice_id': 'dave'},
 );
 
@@ -468,3 +465,9 @@ final stream = TheStageFlutterSDK.infer_stream(
 
 See [NeuTTS — Streaming Hyperparameters](./tts.md#streaming-hyperparameters)
 for the full field reference.
+
+## Agent checklist
+
+- TTS: drain stream concurrently with `send` / `finish_stream`.
+- LLM: consume token chunks until final / stop reason.
+- Flutter: never use `Float64List` for PCM — always `Float32List`.

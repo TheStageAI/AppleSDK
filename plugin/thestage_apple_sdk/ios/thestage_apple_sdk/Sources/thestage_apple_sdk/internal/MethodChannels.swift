@@ -14,6 +14,9 @@ enum MethodChannels {
         "thestage_apple_sdk/voice_agent_transcripts"
     static let voiceAgentVADProbabilities =
         "thestage_apple_sdk/voice_agent_vad_probabilities"
+    static let voiceAgentPorts = "thestage_apple_sdk/voice_agent_ports"
+    static let voiceAgentNodes = "thestage_apple_sdk/voice_agent_nodes"
+    static let logs = "thestage_apple_sdk/logs"
 }
 
 // --------------------------------------------------------------------------------------
@@ -45,6 +48,7 @@ enum MethodRoute {
     static let audioStop = "audio_stop"
 
     static let voiceAgentStart = "voice_agent.start"
+    static let voiceAgentBeginListening = "voice_agent.begin_listening"
     static let voiceAgentStop = "voice_agent.stop"
     static let voiceAgentInterrupt = "voice_agent.interrupt"
     static let voiceAgentSay = "voice_agent.say"
@@ -52,4 +56,6 @@ enum MethodRoute {
     static let voiceAgentClearHistory = "voice_agent.clear_history"
     static let voiceAgentUpdateInterruptConfig =
         "voice_agent.update_interrupt_config"
+    static let voiceAgentEnrollSpeaker = "voice_agent.enroll_speaker"
+    static let voiceAgentSendNodePort = "voice_agent.send_node_port"
 }

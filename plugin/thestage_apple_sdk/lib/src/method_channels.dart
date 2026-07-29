@@ -13,6 +13,11 @@ class MethodChannels {
       'thestage_apple_sdk/voice_agent_transcripts';
   static const String voiceAgentVADProbabilities =
       'thestage_apple_sdk/voice_agent_vad_probabilities';
+  static const String voiceAgentPorts =
+      'thestage_apple_sdk/voice_agent_ports';
+  static const String voiceAgentNodes =
+      'thestage_apple_sdk/voice_agent_nodes';
+  static const String logs = 'thestage_apple_sdk/logs';
 }
 
 // ---------------------------------------------------------------------------
@@ -44,6 +49,7 @@ class MethodRoute {
   static const String audioStop = 'audio_stop';
 
   static const String voiceAgentStart = 'voice_agent.start';
+  static const String voiceAgentBeginListening = 'voice_agent.begin_listening';
   static const String voiceAgentStop = 'voice_agent.stop';
   static const String voiceAgentInterrupt = 'voice_agent.interrupt';
   static const String voiceAgentSay = 'voice_agent.say';
@@ -52,4 +58,8 @@ class MethodRoute {
       'voice_agent.clear_history';
   static const String voiceAgentUpdateInterruptConfig =
       'voice_agent.update_interrupt_config';
+  static const String voiceAgentEnrollSpeaker =
+      'voice_agent.enroll_speaker';
+  static const String voiceAgentSendNodePort =
+      'voice_agent.send_node_port';
 }

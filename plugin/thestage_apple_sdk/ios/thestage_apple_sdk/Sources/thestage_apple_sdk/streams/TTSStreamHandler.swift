@@ -58,11 +58,17 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
         guard let events = __event_sink else { return }
 
         let text = (input_json["text"] as? String) ?? ""
+        let prompt = (input_json["prompt"] as? String) ?? ""
         let stream_config = __parse_tts_stream_config(
             input_json["stream_config"] as? [String: Any]
         )
 
-        if text.isEmpty {
+        // One-shot when the full input is already present: TTS `text` or
+        // LLM `prompt` -> generic `infer_stream`. The push streamer is only
+        // for incremental TTS where text is fed later via `send()`; routing
+        // an LLM (or one-shot TTS) there would hit `open_tts_streamer` and
+        // fail, so it must be reserved for the no-input-yet case alone.
+        if text.isEmpty && prompt.isEmpty {
             __start_push(
                 stream_id: stream_id,
                 model_name: model_name,

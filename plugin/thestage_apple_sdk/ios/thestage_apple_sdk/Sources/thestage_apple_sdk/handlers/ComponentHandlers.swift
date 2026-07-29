@@ -85,15 +85,35 @@ extension TheStageFlutterPlugin {
             result(nil)
             return
         }
+        let stem = filename
+            .replacingOccurrences(of: ".zip", with: "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+        // Prefer directory bundles under BundledModels/<name>/ (v2 prepare).
+        if let u = Bundle.main.url(
+            forResource: stem,
+            withExtension: nil,
+            subdirectory: "BundledModels"
+        ) {
+            result(u.path)
+            return
+        }
+        if let root = Bundle.main.resourceURL?
+            .appendingPathComponent("BundledModels", isDirectory: true)
+            .appendingPathComponent(stem, isDirectory: true),
+           FileManager.default.fileExists(atPath: root.path) {
+            result(root.path)
+            return
+        }
+
+        // Legacy: a zip sitting at the app-bundle root.
         if let path = Bundle.main.path(
-            forResource: filename.replacingOccurrences(
-                of: ".zip", with: ""
-            ),
+            forResource: stem,
             ofType: "zip"
         ) {
             result(path)
-        } else {
-            result(nil)
+            return
         }
+        result(nil)
     }
 }

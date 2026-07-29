@@ -38,11 +38,68 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 28),
         children: [
+          _sectionHeader('On-device models'),
+          _note(
+            s.useLocalBundles
+                ? 'BundledModels stack — restart the agent after changing models.'
+                : 'HuggingFace repos — revision from SDK ModelRevisionMap. '
+                    'Restart the agent after changing models.',
+          ),
+          if (s.useLocalBundles) ...[
+            _modelDropdown(
+              'LLM',
+              s.localLlmBundle,
+              VoiceAgentSettings.availableLocalLlms,
+              (v) => s.update((s) => s.localLlmBundle = v),
+            ),
+            _modelDropdown(
+              'ASR',
+              s.localSttBundle,
+              VoiceAgentSettings.availableLocalAsr,
+              (v) => s.update((s) => s.localSttBundle = v),
+            ),
+            _modelDropdown(
+              'TTS',
+              s.localTtsBundle,
+              VoiceAgentSettings.availableLocalTts,
+              (v) => s.update((s) => s.selectLocalTtsBundle(v)),
+            ),
+            _readonly(
+              'VAD / turn',
+              '${s.localVadBundle}  +  ${s.localTurnBundle}',
+            ),
+          ] else ...[
+            if (s.llmProvider == 'local')
+              _modelDropdown(
+                'LLM',
+                s.llmModel,
+                VoiceAgentSettings.availableHfLlms,
+                (v) => s.update((s) => s.llmModel = v),
+              )
+            else
+              _readonly('LLM', '${s.llmModel} @ ${s.llmEndpoint}'),
+            _modelDropdown(
+              'ASR',
+              s.sttRepo,
+              VoiceAgentSettings.availableHfAsr,
+              (v) => s.update((s) => s.sttRepo = v),
+            ),
+            _modelDropdown(
+              'TTS',
+              s.ttsRepo,
+              VoiceAgentSettings.availableHfTts,
+              (v) => s.update((s) => s.selectTtsRepo(v)),
+            ),
+            _readonly(
+              'VAD / turn',
+              'TheStageAI/silero-vad + TheStageAI/smart-turn-v3',
+            ),
+          ],
+
           _sectionHeader('Voice & Language'),
-          _dropdown('TTS Voice', s.ttsVoice,
-              VoiceAgentSettings.availableVoices, (v) {
+          _dropdown('TTS Voice', s.ttsVoice, s.voicesForSelectedTts, (v) {
             s.update((s) => s.ttsVoice = v);
           }),
           _dropdown('STT Language', s.sttLanguage,
@@ -52,23 +109,53 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _textField('System Prompt', s.systemPrompt, (v) {
             s.update((s) => s.systemPrompt = v);
           }, maxLines: 3),
+          _slider('Chat memory (turns)', s.chatMemoryMaxTurns.toDouble(), 2, 30,
+              (v) {
+            s.update((s) => s.chatMemoryMaxTurns = v.round());
+          }),
+          _note(
+            'Keeps the last N user+assistant turns. System prompt is prepended '
+            'every call (not trimmed). Local sampling comes from the LLM bundle '
+            'generation config, not the cloud sliders below.',
+          ),
 
           _sectionHeader('LLM Provider'),
-          _dropdown('Provider', s.llmProvider, ['openai_compatible'], (v) {
-            s.update((s) => s.llmProvider = v);
+          _dropdown('Provider', s.llmProvider, const ['local', 'openai_compatible'],
+              (v) {
+            s.update((s) {
+              s.llmProvider = v;
+              if (v == 'local') {
+                s.llmModel = s.useLocalBundles
+                    ? VoiceAgentSettings.localLlmHandle
+                    : (VoiceAgentSettings.availableHfLlms.contains(s.llmModel)
+                        ? s.llmModel
+                        : VoiceAgentSettings.hfLlmRepo);
+              }
+            });
           }),
-          _textField('Model', s.llmModel, (v) {
-            s.update((s) => s.llmModel = v);
-          }),
-          _textField('Endpoint', s.llmEndpoint, (v) {
-            s.update((s) => s.llmEndpoint = v);
-          }),
-          _slider('Max Tokens', s.maxTokens.toDouble(), 64, 1024, (v) {
-            s.update((s) => s.maxTokens = v.round());
-          }),
-          _slider('Temperature', s.temperature, 0.0, 1.5, (v) {
-            s.update((s) => s.temperature = v);
-          }, decimals: 2),
+          if (s.llmProvider == 'local') ...[
+            _note(
+              s.useLocalBundles
+                  ? 'On-device: ${s.localLlmBundle} (handle `${VoiceAgentSettings.localLlmHandle}`). '
+                      'Sampling from model_spec.arch.decoder.generation.'
+                  : 'On-device from HF: ${s.llmModel} '
+                      '(revision via ModelRevisionMap). '
+                      'Sampling from the LLM bundle generation config.',
+            ),
+          ] else ...[
+            _textField('Model', s.llmModel, (v) {
+              s.update((s) => s.llmModel = v);
+            }),
+            _textField('Endpoint', s.llmEndpoint, (v) {
+              s.update((s) => s.llmEndpoint = v);
+            }),
+            _slider('Max Tokens', s.maxTokens.toDouble(), 64, 1024, (v) {
+              s.update((s) => s.maxTokens = v.round());
+            }),
+            _slider('Temperature', s.temperature, 0.0, 1.5, (v) {
+              s.update((s) => s.temperature = v);
+            }, decimals: 2),
+          ],
 
           _sectionHeader('Endpointing'),
           // Capture (endpointing) threshold. Applied at agent start.
@@ -274,19 +361,81 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _dropdown(
       String label, String value, List<String> options, ValueChanged<String> onChanged) {
+    // DropdownButton asserts if [value] is not in [options] — fall back.
+    final effective =
+        options.contains(value) ? value : (options.isEmpty ? value : options.first);
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
           Expanded(child: Text(label)),
           DropdownButton<String>(
-            value: value,
+            value: effective,
             items: options
                 .map((o) => DropdownMenuItem(value: o, child: Text(o)))
                 .toList(),
             onChanged: (v) {
               if (v != null) onChanged(v);
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Dropdown for HF / BundledModels ids — shows the short stem, stores full id.
+  Widget _modelDropdown(
+    String label,
+    String value,
+    List<String> options,
+    ValueChanged<String> onChanged,
+  ) {
+    final effective =
+        options.contains(value) ? value : (options.isEmpty ? value : options.first);
+    String short(String id) {
+      final slash = id.lastIndexOf('/');
+      return slash >= 0 ? id.substring(slash + 1) : id;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 56,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+          Expanded(
+            child: DropdownButtonFormField<String>(
+              value: effective,
+              isExpanded: true,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding:
+                    EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              ),
+              items: options
+                  .map(
+                    (o) => DropdownMenuItem(
+                      value: o,
+                      child: Text(
+                        short(o),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) {
+                if (v != null) onChanged(v);
+              },
+            ),
           ),
         ],
       ),
@@ -332,6 +481,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
           fontStyle: FontStyle.italic,
           color: Theme.of(context).colorScheme.outline,
         ),
+      ),
+    );
+  }
+
+  Widget _readonly(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 96,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: Theme.of(context).colorScheme.outline,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

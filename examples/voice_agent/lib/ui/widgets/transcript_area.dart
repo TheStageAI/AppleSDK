@@ -1,25 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
 import '../../backend/voice_agent_controller.dart';
 import '../../models/chat_message.dart';
+import '../app_theme.dart';
 import 'agent_status.dart';
 import 'chat_bubble.dart';
 
 // ============================================================================
 // FRONTEND widget — the conversation area
-// ============================================================================
-// Shows, in priority order:
-//   1. the per-model loading checklist while models load,
-//   2. a hint when there's nothing to show yet,
-//   3. the chat transcript.
-//
-// The transcript draws, in conversation order:
-//   • controller.messages          — finalized user + assistant lines
-//   • controller.partialTranscript — the LIVE user bubble (streaming ASR)
-//   • controller.streamingResponse — the LIVE assistant bubble (streaming LLM)
-// The two live bubbles are appended after the finalized ones so the newest
-// content is always at the bottom.
 // ============================================================================
 class TranscriptArea extends StatelessWidget {
   const TranscriptArea({
@@ -33,39 +21,38 @@ class TranscriptArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
     final hasContent = controller.messages.isNotEmpty ||
         controller.streamingResponse.isNotEmpty ||
         controller.partialTranscript.isNotEmpty;
 
     if (!hasContent) {
-      if (controller.state == TheStageAgentState.loading) {
-        return Center(child: LoadingChecklist(controller: controller));
+      if (controller.isStartupLoading) {
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: LoadingChecklist(controller: controller),
+          ),
+        );
       }
-      return Center(
-        child: Text(
-          controller.isRunning ? 'Say something...' : 'Tap Start to begin',
-          style: TextStyle(color: colorScheme.onSurfaceVariant),
-        ),
+      return _EmptyState(
+        running: controller.isRunning,
+        color: scheme.onSurfaceVariant,
       );
     }
 
-    // Trailing LIVE bubbles, in conversation order: the user's streaming-ASR
-    // partial (what you're saying now), then the assistant's streaming reply.
     final showPartial = controller.partialTranscript.isNotEmpty;
     final showStreaming = controller.streamingResponse.isNotEmpty;
     final extra = (showPartial ? 1 : 0) + (showStreaming ? 1 : 0);
 
     return ListView.builder(
       controller: scrollController,
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: 12),
       itemCount: controller.messages.length + extra,
       itemBuilder: (context, index) {
-        // 1) Finalized lines first.
         if (index < controller.messages.length) {
           return MessageBubble(message: controller.messages[index]);
         }
-        // 2) Then the live USER partial (if any).
         var tail = index - controller.messages.length;
         if (showPartial) {
           if (tail == 0) {
@@ -79,7 +66,6 @@ class TranscriptArea extends StatelessWidget {
           }
           tail -= 1;
         }
-        // 3) Then the live ASSISTANT stream.
         return MessageBubble(
           message: ChatMessage(
             role: MessageRole.assistant,
@@ -92,11 +78,79 @@ class TranscriptArea extends StatelessWidget {
   }
 }
 
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.running, required this.color});
+
+  final bool running;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 76,
+              height: 76,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.18),
+                    Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: 0.06),
+                  ],
+                ),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                running ? Icons.mic_rounded : Icons.graphic_eq_rounded,
+                size: 34,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              running ? 'Listening' : 'Ready when you are',
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.8,
+                height: 1.1,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              running
+                  ? 'Say something — your transcript will appear here.'
+                  : 'Choose models below, then tap Start.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 16,
+                height: 1.35,
+                letterSpacing: -0.2,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ============================================================================
 // FRONTEND widget — startup model checklist
-// ============================================================================
-// Loaded models show a check; the one currently loading shows a spinner + its
-// phase. Makes it obvious which model is loading and how far along it is.
 // ============================================================================
 class LoadingChecklist extends StatelessWidget {
   const LoadingChecklist({super.key, required this.controller});
@@ -105,59 +159,115 @@ class LoadingChecklist extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final scheme = Theme.of(context).colorScheme;
 
     if (controller.loadingModels.isEmpty) {
-      return Text('Loading models...',
-          style: TextStyle(color: colorScheme.onSurfaceVariant));
+      return Text(
+        'Loading models…',
+        style: TextStyle(color: scheme.onSurfaceVariant),
+      );
     }
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final model in controller.loadingModels)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 6),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (model == controller.currentLoadingModel)
-                  SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: colorScheme.primary,
-                    ),
-                  )
-                else
-                  const Icon(Icons.check_circle, size: 18, color: Colors.green),
-                const SizedBox(width: 10),
-                Text(
-                  model,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: model == controller.currentLoadingModel
-                        ? FontWeight.w600
-                        : FontWeight.normal,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                if (model == controller.currentLoadingModel) ...[
-                  const SizedBox(width: 8),
-                  Text(
-                    agentPhaseLabel(controller),
-                    style: TextStyle(
-                      fontSize: 13,
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ],
+    String shortName(String id) {
+      final slash = id.lastIndexOf('/');
+      return slash >= 0 ? id.substring(slash + 1) : id;
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'Preparing on-device stack',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.3,
+                color: scheme.onSurface,
+              ),
             ),
-          ),
-      ],
+            const SizedBox(height: 4),
+            Text(
+              'Downloading and loading models',
+              style: TextStyle(
+                fontSize: 13,
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            const SizedBox(height: 16),
+            for (final model in controller.loadingModels)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        if (model == controller.currentLoadingModel)
+                          SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: scheme.primary,
+                            ),
+                          )
+                        else
+                          const Icon(
+                            Icons.check_circle_rounded,
+                            size: 18,
+                            color: AppColors.systemGreen,
+                          ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            shortName(model),
+                            style: TextStyle(
+                              fontSize: 15,
+                              letterSpacing: -0.2,
+                              fontWeight:
+                                  model == controller.currentLoadingModel
+                                      ? FontWeight.w600
+                                      : FontWeight.w400,
+                              color: scheme.onSurface,
+                            ),
+                          ),
+                        ),
+                        if (model == controller.currentLoadingModel)
+                          Text(
+                            agentPhaseLabel(controller),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: scheme.onSurfaceVariant,
+                            ),
+                          ),
+                      ],
+                    ),
+                    if (model == controller.currentLoadingModel) ...[
+                      const SizedBox(height: 8),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(100),
+                        child: LinearProgressIndicator(
+                          value: agentLoadProgressValue(controller),
+                          minHeight: 4,
+                          backgroundColor: scheme.surfaceContainerHighest,
+                          color: scheme.primary,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -28,14 +28,14 @@ guard let token = ProcessInfo.processInfo.environment["TS_API_TOKEN"],
 // 2. Initialize the SDK (validated once, then runs offline).
 try await TheStageAI.shared.initialize(apiToken: token)
 
-// 3. Load the multilingual NeuTTS model from HuggingFace. The handler
-//    fires through downloading -> extracting -> loading -> ready;
+// 3. Load NeuTTS nano-multilingual from HuggingFace. The handler fires
+//    through downloading -> extracting -> loading -> ready;
 //    downloading/extracting are skipped once the engines are cached.
+//    Omit revision → ModelRevisionMap for this SDK build.
 let tts = try await NeuTTSMultilingualPipeline(
-    engines_path: "TheStageAI/neutts-multilingual",
+    engines_path: "TheStageAI/neutts-nano-multilingual",
     voice_id: "paul",
     language: "english",
-    revision: "develop",
     on_load_progress: { draw_progress($0) }
 )
 print()  // finish the in-place progress line

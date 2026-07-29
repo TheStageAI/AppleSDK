@@ -40,6 +40,54 @@ func __normalize(_ value: Any) -> Any {
 // --------------------------------------------------------------------------------------
 // Argument Parsing
 // --------------------------------------------------------------------------------------
+func __parse_turn_start_mode(_ value: Any?) -> TurnStartMode? {
+    guard let raw = value as? String else { return nil }
+    switch raw {
+    case "vad":                        return .vad
+    case "vad_wake_word":              return .vad_wake_word
+    case "vad_speaker_id_wake_word":   return .vad_speaker_id_wake_word
+    default:                           return nil
+    }
+}
+
+func __parse_turn_end_mode(_ value: Any?) -> TurnEndMode? {
+    guard let raw = value as? String else { return nil }
+    switch raw {
+    case "none": return .none
+    case "vad":  return .vad
+    case "dnn":  return .dnn
+    default:     return nil
+    }
+}
+
+func __parse_interrupt_mode(_ value: Any?) -> InterruptMode? {
+    guard let raw = value as? String else { return nil }
+    switch raw {
+    case "none":                       return .none
+    case "vad", "speech_only":         return .vad
+    case "vad_wake_word", "wake_word": return .vad_wake_word
+    case "vad_speaker_id":             return .vad_speaker_id
+    case "vad_speaker_id_wake_word":   return .vad_speaker_id_wake_word
+    default:                           return nil
+    }
+}
+
+func __parse_agent_states(_ value: Any?) -> [TheStageAgentState] {
+    guard let raw = value as? [String] else { return [] }
+    return raw.compactMap { TheStageAgentState(rawValue: $0) }
+}
+
+func __parse_embedding(_ value: Any?) -> [Double]? {
+    if value is NSNull { return nil }
+    guard let raw = value as? [Any] else { return nil }
+    let parsed = raw.compactMap { element -> Double? in
+        if let n = element as? Double { return n }
+        if let n = element as? NSNumber { return n.doubleValue }
+        return nil
+    }
+    return parsed.isEmpty ? nil : parsed
+}
+
 func __parse_devices(
     _ value: Any?
 ) -> [String: String]? {
@@ -158,9 +206,7 @@ func __fail(
 }
 
 func __sanitize_error(_ error: Error) -> String {
-    #if DEBUG
-    return String(describing: error)
-    #else
-    return "TheStage SDK error."
-    #endif
+    // Keep the operational reason (e.g. which CoreML function failed);
+    // strip absolute paths so release builds don't leak device layout.
+    TheStageLog.redact_error_text(String(describing: error))
 }

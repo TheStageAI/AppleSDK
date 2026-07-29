@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'method_channels.dart';
@@ -15,9 +16,30 @@ class TheStageFlutterSDK {
   static const EventChannel _streamChannel = EventChannel(
     MethodChannels.ttsStream,
   );
+  static const EventChannel _logsChannel = EventChannel(MethodChannels.logs);
 
   static StreamController<Map<String, dynamic>>? _streamEvents;
+  static StreamSubscription<dynamic>? _logSubscription;
   static int _nextStreamOrdinal = 0;
+
+  /// Subscribe once so native ``TheStageLog`` lines appear in
+  /// `flutter run` via [debugPrint] (Unified Logging does not).
+  static void ensureDeveloperLogs() {
+    if (_logSubscription != null) return;
+    _logSubscription = _logsChannel.receiveBroadcastStream().listen(
+      (event) {
+        final map = (event as Map<Object?, Object?>).map(
+          (key, value) => MapEntry(key.toString(), value?.toString() ?? ''),
+        );
+        final level = map['level'] ?? '';
+        final category = map['category'] ?? '';
+        final code = map['event'] ?? '';
+        final message = map['message'] ?? '';
+        debugPrint('[TheStage] $level $category $code $message');
+      },
+      onError: (_) {},
+    );
+  }
 
   static void _ensureStreamChannel() {
     if (_streamEvents != null) return;
@@ -42,6 +64,7 @@ class TheStageFlutterSDK {
   // ---------------------------------------------------------------------------
 
   static Future<void> initialize({required String api_token}) async {
+    ensureDeveloperLogs();
     await _channel.invokeMethod(
       MethodRoute.initialize,
       {'api_token': api_token},
@@ -52,8 +75,9 @@ class TheStageFlutterSDK {
     required String model_name,
     required String engines_path,
     String? model_type,
-    String device = 'gpu',
-    String revision = 'main',
+    String device = 'npu',
+    /// HF revision override. `null` → SDK ``ModelRevisionMap`` for this build.
+    String? revision,
     Map<String, String>? devices,
     Map<String, dynamic>? config,
   }) async {
@@ -62,7 +86,7 @@ class TheStageFlutterSDK {
           'model_name': model_name,
           'engines_path': engines_path,
           'device': device,
-          'revision': revision,
+          if (revision != null) 'revision': revision,
           if (model_type != null) 'model_type': model_type,
           if (devices != null) 'devices': devices,
           if (config != null) 'config': config,

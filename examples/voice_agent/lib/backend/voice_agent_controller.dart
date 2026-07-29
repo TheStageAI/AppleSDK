@@ -93,36 +93,110 @@ class VoiceAgentController extends ChangeNotifier {
   /// Phase for [currentLoadingModel]: downloading / extracting / loading.
   String loadPhase = '';
 
+  /// When true, agent may already be `listening` but we still keep the
+  /// loading checklist up for a deferred model (local LFM after TTS).
+  bool _holdLoading = false;
+
+  TheStageAgentState? _agentStateWhileHeld;
+
   // ── Derived helpers the UI asks about ────────────────────────────────────
 
-  bool get isRunning => state != TheStageAgentState.idle;
+  bool get isRunning => state != TheStageAgentState.idle || _holdLoading;
+  bool get isStartupLoading =>
+      state == TheStageAgentState.loading || _holdLoading;
   bool get canInterrupt =>
       state == TheStageAgentState.thinking ||
       state == TheStageAgentState.speaking;
 
   // ── Commands (called by the UI) ──────────────────────────────────────────
 
+  /// Flip UI into loading *before* heavy pre-work (e.g. starting the local
+  /// LLM handle). Without this, Start looks dead for 10–15s while LFM loads.
+  void beginStartup({String? firstModel, bool holdForDeferredLlm = false}) {
+    error = null;
+    state = TheStageAgentState.loading;
+    _holdLoading = holdForDeferredLlm;
+    _agentStateWhileHeld = null;
+    loadingModels.clear();
+    currentLoadingModel = firstModel;
+    downloadProgress = 0.0;
+    loadPhase = firstModel == null ? '' : 'loading';
+    if (firstModel != null) loadingModels.add(firstModel);
+    notifyListeners();
+  }
+
+  /// Show [model] as the active row after VAD/STT/TTS finished (deferred LFM).
+  void beginDeferredModel(String model) {
+    _holdLoading = true;
+    if (!loadingModels.contains(model)) loadingModels.add(model);
+    currentLoadingModel = model;
+    downloadProgress = 0.0;
+    loadPhase = 'loading';
+    state = TheStageAgentState.loading;
+    notifyListeners();
+  }
+
+  /// Clear the deferred loader and restore the agent's real FSM state.
+  void finishDeferredLoad() {
+    _holdLoading = false;
+    _resetLoading();
+    if (_agentStateWhileHeld != null) {
+      state = _agentStateWhileHeld!;
+      _agentStateWhileHeld = null;
+    }
+    notifyListeners();
+  }
+
+  void failStartup(Object e) {
+    error = '$e';
+    _holdLoading = false;
+    _agentStateWhileHeld = null;
+    state = TheStageAgentState.idle;
+    _resetLoading();
+    notifyListeners();
+  }
+
   /// Start the agent with a fully-built config map (see `AgentConfig`/
-  /// `VoiceAgentSettings.toConfig`). The native side loads models, then begins
-  /// listening; progress arrives via the subscriptions above.
+  /// `VoiceAgentSettings.toConfig`). With `auto_listen: false` the native side
+  /// loads models only — call [beginListening] after deferred LFM is ready.
   Future<void> start(Map<String, dynamic> config) async {
     error = null;
+    if (state != TheStageAgentState.loading) {
+      state = TheStageAgentState.loading;
+    }
     notifyListeners();
     try {
       await _agent.start(config: config);
     } catch (e) {
       error = 'Failed to start: $e';
+      _holdLoading = false;
+      _agentStateWhileHeld = null;
+      state = TheStageAgentState.idle;
+      _resetLoading();
       notifyListeners();
+      rethrow;
     }
   }
 
-  /// Stop the agent and reset the live (non-finalized) state. Committed
-  /// [messages] are kept so the transcript stays on screen.
+  /// Open the mic after deferred models finish (pairs with `auto_listen: false`).
+  Future<void> beginListening() async {
+    await _agent.beginListening();
+  }
+
+  /// Stop the agent and reset conversation UI.
+  ///
+  /// Native [TheStageSlidingWindowMemory] is destroyed with the agent, so the
+  /// on-screen transcript must go too — otherwise follow-ups look like the
+  /// model "forgot" / got stupid while the UI still shows the old chat.
   Future<void> stop() async {
     await _agent.stop();
+    _holdLoading = false;
+    _agentStateWhileHeld = null;
     state = TheStageAgentState.idle;
+    messages.clear();
     partialTranscript = '';
     streamingResponse = '';
+    _resetLoading();
     notifyListeners();
   }
 
@@ -141,11 +215,19 @@ class VoiceAgentController extends ChangeNotifier {
   void _onEvent(Map<String, dynamic> event) {
     switch (event['kind']?.toString()) {
       case 'state_changed':
-        state = TheStageAgentState.fromString(
+        final next = TheStageAgentState.fromString(
           event['state']?.toString() ?? 'idle',
         );
-        // Leaving `loading` means startup finished — clear the loader state.
-        if (state != TheStageAgentState.loading) _resetLoading();
+        if (_holdLoading && next != TheStageAgentState.loading) {
+          // Agent finished VAD/STT/TTS and moved on, but LFM still loading —
+          // keep the checklist; stash the real FSM state for later.
+          _agentStateWhileHeld = next;
+          state = TheStageAgentState.loading;
+        } else {
+          state = next;
+          // Leaving `loading` means startup finished — clear the loader state.
+          if (state != TheStageAgentState.loading) _resetLoading();
+        }
 
       // ─── ASR path: what YOU said ───
       case 'user_request_partial':
@@ -193,7 +275,17 @@ class VoiceAgentController extends ChangeNotifier {
         //   • loading_model — name of the model about to load (startup only).
         final prob = (event['vad_prob'] as num?)?.toDouble();
         if (prob != null) vadLevel = prob;
-        final model = event['loading_model']?.toString();
+        var model = event['loading_model']?.toString();
+        // Remap pre-label-fix SDK strings until the rebuilt xcframework ships.
+        const legacy = {
+          'NeuTTS (TTS)': 'TTS (qwen3-tts-12hz-0.6b-base)',
+          'Whisper (STT)': 'STT (thewhisper-large-v3-turbo)',
+          'VAD': 'VAD (silero-vad)',
+          'Smart-Turn': 'Turn (smart-turn-v3)',
+        };
+        if (model != null && legacy.containsKey(model)) {
+          model = legacy[model];
+        }
         if (model != null && model != currentLoadingModel) {
           currentLoadingModel = model;
           if (!loadingModels.contains(model)) loadingModels.add(model);

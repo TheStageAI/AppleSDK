@@ -41,7 +41,9 @@ class _TTSStreamScreenState extends State<TTSStreamScreen> {
   //   flutter run --dart-define-from-file=secrets.json
   static const _apiToken = String.fromEnvironment('TS_API_TOKEN');
 
-  final _controller = TTSController(defaultVoice: 'paul', revision: 'develop');
+  // enginesPath defaults to TheStageAI/neutts-nano-multilingual;
+  // omit revision → SDK ModelRevisionMap.
+  final _controller = TTSController(defaultVoice: 'paul');
   final _textController = TextEditingController(
     text: "Hey — who's the prettiest one here? It's you. You're the best, "
         "you know it, and nobody can ever take that away from you. "

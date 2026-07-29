@@ -1,7 +1,8 @@
 # macos_swift_tts
 
 The fastest way to hear the SDK work: a tiny native-Swift command-line
-program that loads NeuTTS and streams two phrases to your Mac speakers.
+program that loads NeuTTS nano-multilingual and streams two phrases to
+your Mac speakers.
 No Xcode, no signing, no device — just `swift run`.
 
 ## What it exercises
@@ -31,9 +32,9 @@ entitlements are needed.
 
 ## Notes
 
-- The first run downloads the NeuTTS engines from HuggingFace (~hundreds
-  of MB) and caches them under your home directory; subsequent runs start
-  instantly.
+- The first run downloads `TheStageAI/neutts-nano-multilingual` from
+  HuggingFace (~hundreds of MB) and caches them under your home
+  directory; subsequent runs start instantly.
 - Audio plays as 24 kHz mono float PCM. The program reads the rate from
   `tts.sample_rate` rather than hardcoding it, so it stays correct if the
   codec rate ever changes.

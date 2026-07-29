@@ -1,7 +1,7 @@
 # LLM (Language Model)
 
 On-device language model inference with batch and token-by-token
-streaming. `TheStageLLM` wraps Qwen2 / Qwen3 / Gemma3 chat models with
+streaming. `TheStageLLM` wraps Qwen3 / Gemma3 / LFM2.5 chat models with
 KV cache, chat-template rendering, and stop-token policy.
 
 Flutter consumers go through the singleton `start_model` +
@@ -27,6 +27,25 @@ let result = llm.infer(
     prompt: "What is 2+2?",
     system_prompt: "You are a helpful assistant.",
     max_new_tokens: 64
+)
+print(result.text)
+```
+
+For full sampling control, pass an `LLMGenerationConfig`. Start from the
+bundle's `generation_defaults` (a per-model sampling preset baked into the
+bundle) and override only what you need:
+
+```swift
+var config = llm.generation_defaults   // proper preset for this model
+config.max_new_tokens = 256
+config.temperature = 0.7
+config.top_p = 0.8
+config.repetition_penalty = 1.1
+config.enable_thinking = false         // Qwen3 / thinking-capable models
+
+let result = llm.infer(
+    prompt: "List 20 facts about London.",
+    config: config
 )
 print(result.text)
 ```
@@ -61,14 +80,118 @@ print(result[0]['text']);
 | input  `prompt` | `String` | The user message. |
 | input  `system_prompt` | `String?` | Optional system message; defaults to the bundle's `default_system_prompt`. |
 | input  `max_new_tokens` | `Int` (default 512) | Maximum tokens to generate. |
-| input  `temperature` | `Float` (default 0.7) | Sampling temperature. |
-| input  `top_k` | `Int` (default 20) | Top-k sampling. |
+| input  `min_new_tokens` | `Int` (default 0) | Swift `LLMGenerationConfig` only — not applied via JSON overlay. |
+| input  `temperature` | `Float` | Sampling temperature. `0` = greedy. |
+| input  `top_k` | `Int` | Keep only the top-k logits. `0` = disabled. |
+| input  `top_p` | `Float` | Nucleus sampling cumulative-probability cap. `1.0` = disabled. |
+| input  `min_p` | `Float` | Drop tokens below `min_p × p(max)`. `0.0` = disabled. |
+| input  `repetition_penalty` | `Float` | Penalize already-seen tokens. `1.0` = disabled. |
+| input  `enable_thinking` | `Bool` | Toggle the model's thinking/reasoning prelude (Qwen3 etc.). |
 | input  `seed` | `UInt64?` | Deterministic sampling seed. |
 | output `LLMResult.text` | `String` | Decoded response. |
 | output `LLMResult.prompt_tokens` / `generated_tokens` | `Int` | Token counts. |
 | output `LLMResult.tokens_per_second` | `Double` | Decode speed. |
 | output `LLMResult.time_to_first_token` / `total_seconds` | `Double` | Latency breakdown. |
 | output `LLMResult.stop_reason` | `String` | `"eos"` / `"max_new_tokens"` / `"stop_sequence"` / `"unknown"`. |
+
+Sampling defaults are **per-model**: each bundle ships a tuned preset
+(`generation_defaults`). When you omit a sampling field it keeps the bundle's
+preset value, so you don't have to know the right `temperature` / `top_p` for
+each family. Pass `LLMGenerationConfig` (above) to override.
+
+## Generation parameters (what to set)
+
+Omit sampling fields unless you have a reason — the bundle preset is usually
+right. Override only the knobs you care about.
+
+| Knob | Plain meaning | Typical range | Notes |
+|---|---|---|---|
+| `max_new_tokens` | Hard cap on reply length | 64–1024 | Hit this → `stop_reason == "max_new_tokens"` (truncated). |
+| `temperature` | How random next-token picks are | 0–1.2 | `0` = greedy / most deterministic. Higher = more variety (and more nonsense risk). |
+| `top_k` | Keep only the *k* most likely tokens | 0 / 10–50 | `0` = off. Lower = safer, more repetitive. |
+| `top_p` | Keep the smallest set whose probs sum to *p* | 0.8–1.0 | `1.0` = off. Often used with moderate temperature. |
+| `min_p` | Drop tokens weaker than `min_p × p(best)` | 0–0.1 | `0` = off. Cuts long-tail noise. |
+| `repetition_penalty` | Discourage already-seen tokens | 1.0–1.2 | `1.0` = off. Helpful if the model loops. |
+| `enable_thinking` | Qwen3 reasoning prelude on/off | true/false | Off for short chat UX; on for harder reasoning. |
+| `seed` | Fix the RNG | any `UInt64` | Same device + same bundle + same inputs → same text. |
+
+**Swift:** start from `llm.generation_defaults`, mutate fields, pass `config:`.  
+**Flutter / JSON:** put the same keys in `input_json` (except `min_new_tokens`, which is Swift-only).
+
+### Real-world recipes
+
+Copy a block that matches the product job. Values are starting points — tune on device.
+
+**1. Short factual Q&A** (support bot, FAQ, “what is…?”)
+
+```swift
+var config = llm.generation_defaults
+config.max_new_tokens = 128
+config.temperature = 0.3
+config.top_k = 20
+config.top_p = 0.9
+config.repetition_penalty = 1.05
+config.enable_thinking = false
+```
+
+```dart
+input_json: {
+  'prompt': 'What is the capital of France?',
+  'system_prompt': 'Answer in one short sentence. No fluff.',
+  'max_new_tokens': 128,
+  'temperature': 0.3,
+  'top_k': 20,
+  'top_p': 0.9,
+  'repetition_penalty': 1.05,
+  'enable_thinking': false,
+}
+```
+
+**2. Creative / chatty reply** (story, brainstorm, casual chat)
+
+```swift
+var config = llm.generation_defaults
+config.max_new_tokens = 512
+config.temperature = 0.9
+config.top_k = 40
+config.top_p = 0.95
+config.enable_thinking = false
+```
+
+**3. Longer structured answer** (summarize, explain, bullet list)
+
+```swift
+var config = llm.generation_defaults
+config.max_new_tokens = 768
+config.temperature = 0.5
+config.top_p = 0.9
+config.repetition_penalty = 1.1
+config.enable_thinking = false
+```
+
+Check `result.stop_reason`. If it is `"max_new_tokens"`, raise the cap and retry.
+
+**4. Hard reasoning (Qwen3 thinking)**
+
+```swift
+var config = llm.generation_defaults
+config.max_new_tokens = 1024
+config.temperature = 0.6
+config.enable_thinking = true
+```
+
+Thinking tokens still count toward `max_new_tokens` — budget headroom.
+
+**5. Deterministic tests / golden fixtures**
+
+```swift
+var config = llm.generation_defaults
+config.temperature = 0
+config.seed = 42
+config.max_new_tokens = 64
+```
+
+Same seed is only guaranteed on the **same device + same bundle revision**.
 
 ## Streaming
 
@@ -118,9 +241,10 @@ await for (final chunk in stream) {
 
 | Model | HF repo | Parameters | Chat template |
 |-------|---------|-----------:|---------------|
-| Qwen2.5-1.5B | `TheStageAI/Qwen2.5-1.5B` | 1.5B | Qwen2 |
 | Qwen3-0.6B | `TheStageAI/Qwen3-0.6B` | 0.6B | Qwen3 |
-| Gemma3-1B | `TheStageAI/Gemma3-1B` | 1B | Gemma3 |
+| Gemma3-1B | `TheStageAI/gemma-3-1b-it` | 1B | Gemma3 |
+| LFM2.5-230M | `TheStageAI/LFM2.5-230M` | 230M | LFM2 |
+| LFM2.5-350M | `TheStageAI/LFM2.5-350M` | 350M | LFM2 |
 
 The bundle's `engines_path` accepts either a HuggingFace repo id or a
 local directory. The chat template, EOS / stop tokens and KV-cache
@@ -146,6 +270,10 @@ let json = try ai.infer(
         "max_new_tokens": 256,                            // optional
         "temperature": 0.7,                               // optional
         "top_k": 20,                                      // optional
+        "top_p": 0.8,                                     // optional
+        "min_p": 0.0,                                     // optional
+        "repetition_penalty": 1.1,                        // optional
+        "enable_thinking": false,                         // optional
         "seed": 42                                        // optional
     ]
 )
@@ -187,13 +315,17 @@ exact JSON path, so the response keys above apply unchanged on Dart.
 ```swift
 let llm = try await TheStageLLM(
     engines_path: "TheStageAI/Qwen3-0.6B", // HF repo or local dir
-    device: "gpu",                         // "gpu" | "cpu" | …
-    max_context_size: 2048,
+    device: "gpu",                         // "gpu" | "cpu" | "npu"
     chat_template: nil,                    // nil = use the bundle's
-    revision: "main",                      // HF revision; ignored locally
+    default_system_prompt: nil,            // nil = use the bundle's
+    eos_token_id: nil,                     // nil = use the spec's
+    // revision: omitted → ModelRevisionMap (vA.B for this SDK); ignored locally
     on_load_progress: nil                  // see "Load Progress" below
 )
 ```
+
+> `max_context_size` is deprecated and ignored — the KV-cache horizon comes
+> from the bundle spec. It is still accepted so existing callers compile.
 
 `TheStageAI.shared.initialize(apiToken:)` must have succeeded before
 this call returns.
@@ -273,3 +405,10 @@ _ = try ai.stop_model(model_name: "llm")
 ```dart
 await TheStageFlutterSDK.stop_model(model_name: 'llm');
 ```
+
+## Agent checklist
+
+- Supported: Qwen3 / Gemma3 / LFM2.5 (see table).
+- Chat template + stops come from the bundle — do not hardcode.
+- Streaming chunks: drain `infer_stream`; check stop reason on final.
+- Initialize before construct / `start_model`.

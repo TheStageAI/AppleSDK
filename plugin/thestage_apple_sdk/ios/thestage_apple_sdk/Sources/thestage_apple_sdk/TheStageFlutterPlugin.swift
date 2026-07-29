@@ -18,7 +18,11 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
     var __voice_agent_llm_deltas: VoiceAgentBroadcastStream?
     var __voice_agent_transcripts: VoiceAgentBroadcastStream?
     var __voice_agent_vad_probs: VoiceAgentBroadcastStream?
+    var __voice_agent_ports: VoiceAgentPortStream?
+    var __voice_agent_nodes_channel: FlutterMethodChannel?
     var __audio_players: [String: TheStageCore.AudioStreamPlayer] = [:]
+    var __log_sink: FlutterDeveloperLogSink?
+    var __log_stream_handler: LogStreamHandler?
 
     // ----------------------------------------------------------------------------------
     // Registration
@@ -34,6 +38,28 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
         registrar.addMethodCallDelegate(
             instance, channel: channel
         )
+
+        // Developer logs → Flutter EventChannel (no NSLog).
+        let log_sink = FlutterDeveloperLogSink()
+        instance.__log_sink = log_sink
+        #if DEBUG
+        TheStageAI.configure_logging(
+            TheStageLogConfig(
+                level: .debug,
+                capture_user_breadcrumbs: true,
+                developer_sink: log_sink
+            )
+        )
+        #else
+        TheStageAI.set_developer_log_sink(log_sink)
+        #endif
+        let logs = FlutterEventChannel(
+            name: MethodChannels.logs,
+            binaryMessenger: registrar.messenger()
+        )
+        let log_handler = LogStreamHandler(sink: log_sink)
+        logs.setStreamHandler(log_handler)
+        instance.__log_stream_handler = log_handler
 
         let progress = FlutterEventChannel(
             name: MethodChannels.progress,
@@ -56,6 +82,27 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
         let vaHandler = VoiceAgentStateStream()
         voiceAgentEvents.setStreamHandler(vaHandler)
         instance.__voice_agent_handler = vaHandler
+
+        let nodeChannel = FlutterMethodChannel(
+            name: MethodChannels.voiceAgentNodes,
+            binaryMessenger: registrar.messenger()
+        )
+        instance.__voice_agent_nodes_channel = nodeChannel
+
+        let portStream = VoiceAgentPortStream()
+        portStream.configure(
+            agent_provider: { [weak vaHandler] in vaHandler?.agent }
+        )
+        let voiceAgentPorts = FlutterEventChannel(
+            name: MethodChannels.voiceAgentPorts,
+            binaryMessenger: registrar.messenger()
+        )
+        voiceAgentPorts.setStreamHandler(portStream)
+        instance.__voice_agent_ports = portStream
+        vaHandler.configure(
+            node_channel: nodeChannel,
+            port_stream: portStream
+        )
 
         let llmDeltas = FlutterEventChannel(
             name: MethodChannels.voiceAgentLLMDeltas,
@@ -164,6 +211,8 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
 
         case MethodRoute.voiceAgentStart:
             __handle_voice_agent_start(call, result: result)
+        case MethodRoute.voiceAgentBeginListening:
+            __handle_voice_agent_begin_listening(call, result: result)
         case MethodRoute.voiceAgentStop:
             __handle_voice_agent_stop(call, result: result)
         case MethodRoute.voiceAgentInterrupt:
@@ -178,6 +227,10 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
             __handle_voice_agent_update_interrupt_config(
                 call, result: result
             )
+        case MethodRoute.voiceAgentEnrollSpeaker:
+            __handle_voice_agent_enroll_speaker(call, result: result)
+        case MethodRoute.voiceAgentSendNodePort:
+            __handle_voice_agent_send_node_port(call, result: result)
 
         default:
             result(FlutterMethodNotImplemented)

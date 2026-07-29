@@ -153,6 +153,7 @@
 				97C146EA1CF9000F007C117D /* Sources */,
 				97C146EB1CF9000F007C117D /* Frameworks */,
 				97C146EC1CF9000F007C117D /* Resources */,
+				A1B2C3D41E5F6071809ABCDE /* Copy BundledModels */,
 				9705A1C41CF9048500538489 /* Embed Frameworks */,
 				3B06AD1E1E4923F5004D2608 /* Thin Binary */,
 			);
@@ -232,6 +233,21 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
+		A1B2C3D41E5F6071809ABCDE /* Copy BundledModels */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Copy BundledModels";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "SRC=\"${SRCROOT}/Runner/BundledModels\"\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/BundledModels\"\nif [ -d \"$SRC\" ]; then\n  mkdir -p \"$DST\"\n  rsync -a --delete --exclude '.gitignore' \"$SRC/\" \"$DST/\"\n  echo \"Copied BundledModels ($(du -sh \"$DST\" | cut -f1)) into app resources\"\nelse\n  echo \"warning: $SRC missing — run scripts/sync_local_bundles.sh (HF fallback at runtime)\"\nfi\n";
+		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;

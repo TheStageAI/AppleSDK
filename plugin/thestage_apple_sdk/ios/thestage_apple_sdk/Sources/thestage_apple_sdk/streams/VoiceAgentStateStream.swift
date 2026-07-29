@@ -15,12 +15,24 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     private var __agent: TheStageVoiceAgent?
     private var __event_task: Task<Void, Never>?
     private var __taps: [VoiceAgentBroadcastStream] = []
+    private var __bridge_nodes: [FlutterBridgeNode] = []
+    private var __node_channel: FlutterMethodChannel?
+    private weak var __port_stream: VoiceAgentPortStream?
 
     // ----------------------------------------------------------------------------------
     // Public Methods
     // ----------------------------------------------------------------------------------
     var has_sink: Bool { __event_sink != nil }
     var agent: TheStageVoiceAgent? { __agent }
+    var bridge_nodes: [FlutterBridgeNode] { __bridge_nodes }
+
+    func configure(
+        node_channel: FlutterMethodChannel,
+        port_stream: VoiceAgentPortStream
+    ) {
+        __node_channel = node_channel
+        __port_stream = port_stream
+    }
 
     func register_tap(_ tap: VoiceAgentBroadcastStream) {
         __taps.append(tap)
@@ -51,7 +63,11 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     // Lifecycle
     // ----------------------------------------------------------------------------------
     func start(config: [String: Any]) async throws {
-        let agent_config = Self.__parse_config(config)
+        let agent_config = Self.__parse_config(
+            config,
+            node_channel: __node_channel,
+            bridge_nodes: &__bridge_nodes
+        )
         let agent = TheStageVoiceAgent(config: agent_config)
         __agent = agent
 
@@ -75,14 +91,21 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         }
 
         try await agent.start()
+        __port_stream?.bind(agent: agent)
+    }
+
+    func begin_listening() async throws {
+        try await __agent?.begin_listening()
     }
 
     func stop() async {
         __event_task?.cancel()
         __event_task = nil
         for tap in __taps { tap.unbind() }
+        __port_stream?.unbind()
         await __agent?.stop()
         __agent = nil
+        __bridge_nodes.removeAll()
     }
 
     func interrupt() {
@@ -104,25 +127,39 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     func update_interrupt_config(
         min_speech_ms: Int?,
         min_playback_ms: Int?,
-        mode: InterruptTrigger?,
+        mode: InterruptMode?,
         onset_ms: Int? = nil,
         threshold: Double? = nil
     ) async {
         await __agent?.update_interrupt_config(
             min_speech_ms: min_speech_ms,
             min_playback_ms: min_playback_ms,
-            mode: mode,
+            interrupt_mode: mode,
             onset_ms: onset_ms,
             threshold: threshold
         )
+    }
+
+    func enroll_speaker(embedding: [Double]?) async {
+        await __agent?.enroll_speaker(embedding)
+    }
+
+    func send_node_port(node_id: String, port: String, value: String) {
+        guard let node = __bridge_nodes.first(where: { $0.id == node_id })
+        else { return }
+        __port_stream?.register_node_port_forward(node: node, port: port)
+        node.send_port(port, value: value)
     }
 
     // ----------------------------------------------------------------------------------
     // Private Methods
     // ----------------------------------------------------------------------------------
     private static func __parse_config(
-        _ dict: [String: Any]
+        _ dict: [String: Any],
+        node_channel: FlutterMethodChannel?,
+        bridge_nodes: inout [FlutterBridgeNode]
     ) -> TheStageAgentConfig {
+        bridge_nodes.removeAll()
         let llm: TheStageLLMProvider
         let provider_type =
             dict["llm_provider"] as? String ?? "openai_compatible"
@@ -145,7 +182,7 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
             stt: dict["stt"] as? String
                 ?? "TheStageAI/thewhisper-large-v3-turbo",
             tts: dict["tts"] as? String
-                ?? "TheStageAI/neutts-multilingual",
+                ?? "TheStageAI/neutts-nano-multilingual",
             llm: llm,
             wake_word: dict["wake_word"] as? String
         )
@@ -155,6 +192,9 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         }
         if let v = dict["system_prompt"] as? String {
             config.system_prompt = v
+        }
+        if let v = dict["chat_memory_max_turns"] as? Int, v > 0 {
+            config.chat_memory = TheStageSlidingWindowMemory(max_turns: v)
         }
         if let v = dict["max_tokens"] as? Int {
             config.max_tokens = v
@@ -174,12 +214,31 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         if let v = dict["allow_interruptions"] as? Bool {
             config.allow_interruptions = v
         }
-        if let v = dict["interrupt_mode"] as? String {
-            switch v {
-            case "none":      config.interrupt_mode = .none
-            case "wake_word": config.interrupt_mode = .wake_word
-            default:          config.interrupt_mode = .speech_only
-            }
+        if let v = __parse_interrupt_mode(dict["interrupt_mode"]) {
+            config.interrupt_mode = v
+        }
+        if let v = __parse_turn_start_mode(dict["turn_start_mode"]) {
+            config.turn_start_mode = v
+        }
+        if let v = __parse_turn_end_mode(dict["turn_end_mode"]) {
+            config.turn_end_mode = v
+        } else if let v = __parse_turn_end_mode(dict["turn_detection_mode"]) {
+            config.turn_detection_mode = v
+        }
+        if let v = dict["speaker_id"] as? String {
+            config.speaker_id = v
+        }
+        if let v = dict["speaker_id_device"] as? String {
+            config.speaker_id_device = v
+        }
+        if let v = dict["speaker_similarity_threshold"] as? Double {
+            config.speaker_similarity_threshold = v
+        }
+        if let v = __parse_embedding(dict["enrolled_speaker_embedding"]) {
+            config.enrolled_speaker_embedding = v
+        }
+        if let v = dict["ww_threshold_score"] as? Double {
+            config.ww_threshold_score = v
         }
         if let v = dict["interrupt_min_speech_ms"] as? Int {
             config.interrupt_min_speech_ms = v
@@ -204,6 +263,9 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         }
         if let v = dict["max_accumulation_ms"] as? Int {
             config.max_accumulation_ms = v
+        }
+        if let v = dict["auto_listen"] as? Bool {
+            config.auto_listen = v
         }
         if let v = dict["aec_enabled"] as? Bool {
             config.aec_enabled = v
@@ -253,10 +315,6 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
             config.tts_revision = v
         }
 
-        // Turn detection (end-of-turn). `.dnn` requires `turn_detector`.
-        if let v = dict["turn_detection_mode"] as? String, v == "dnn" {
-            config.turn_detection_mode = .dnn
-        }
         if let v = dict["turn_detector"] as? String {
             config.turn_detector = v
         }
@@ -304,6 +362,25 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         }
         if let v = dict["debug_timeline"] as? Bool {
             config.debug_timeline = v
+        }
+
+        if let channel = node_channel,
+           let nodes = dict["extra_nodes"] as? [[String: Any]] {
+            var parsed: [FlutterBridgeNode] = []
+            parsed.reserveCapacity(nodes.count)
+            for desc in nodes {
+                guard let id = desc["id"] as? String else { continue }
+                let run_when = __parse_agent_states(desc["run_when"])
+                parsed.append(
+                    FlutterBridgeNode(
+                        id: id,
+                        run_when: run_when,
+                        channel: channel
+                    )
+                )
+            }
+            bridge_nodes = parsed
+            config.extra_nodes = parsed
         }
 
         return config

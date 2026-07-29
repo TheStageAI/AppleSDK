@@ -1,0 +1,52 @@
+name: EngineBench
+options:
+  bundleIdPrefix: com.example.enginebench
+  deploymentTarget:
+    iOS: "18.0"
+packages:
+  # Local path into the AppleSDK checkout (Package.swift at repo root).
+  # Resolves the published TheStageCore.xcframework + TheStageSDK wrapper.
+  TheStageSDK:
+    path: ../..
+settings:
+  base:
+    # Set your Apple Developer Team in Xcode → Signing & Capabilities.
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  EngineBench:
+    type: application
+    platform: iOS
+    configFiles:
+      Debug: Secrets.xcconfig
+      Release: Secrets.xcconfig
+    dependencies:
+      - package: TheStageSDK
+        product: TheStageSDK
+    sources:
+      - path: Sources
+      - path: Assets.xcassets
+    info:
+      path: EngineBench-Info.plist
+      properties:
+        CFBundleDisplayName: EngineBench
+        UILaunchScreen: {}
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleIconName: AppIcon
+        ITSAppUsesNonExemptEncryption: false
+        NSMicrophoneUsageDescription: >-
+          EngineBench records short clips to benchmark speech recognition.
+        # Expanded from gitignored Secrets.xcconfig at build time.
+        TSAPIToken: "$(TS_API_TOKEN)"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.enginebench
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        SWIFT_OPTIMIZATION_LEVEL: "-O"
+        SWIFT_COMPILATION_MODE: "wholemodule"
+        ENABLE_TESTABILITY: "NO"
+        ONLY_ACTIVE_ARCH: "NO"

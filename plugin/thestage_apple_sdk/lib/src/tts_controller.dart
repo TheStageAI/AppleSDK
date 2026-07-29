@@ -49,9 +49,7 @@ class TTSStreamStats {
 /// Usage:
 /// ```dart
 /// final tts = TTSController(
-///   enginesPath: 'TheStageAI/neutts-multilingual',
-///   modelType: 'neutts-multilingual',
-///   revision: 'develop',
+///   enginesPath: 'TheStageAI/neutts-nano-multilingual',
 /// );
 /// await tts.initialize();
 /// await tts.startStream('Hello world!');
@@ -60,7 +58,8 @@ class TTSController extends ChangeNotifier {
   final String modelName;
   final String enginesPath;
   final String? modelType;
-  final String revision;
+  /// HF revision override. `null` → SDK ModelRevisionMap.
+  final String? revision;
   final int sampleRate;
   final List<String> availableVoices;
 
@@ -106,12 +105,12 @@ class TTSController extends ChangeNotifier {
   // Constructor
   // -------------------------------------------------------------------------
   TTSController({
-    this.modelName = 'neutts',
-    this.enginesPath = 'TheStageAI/neutts-multilingual',
-    this.modelType = 'neutts-multilingual',
-    this.revision = 'develop',
+    this.modelName = 'tts',
+    this.enginesPath = 'TheStageAI/neutts-nano-multilingual',
+    this.modelType,
+    this.revision,
     this.sampleRate = 24000,
-    this.availableVoices = const ['dave', 'jo', 'paul', 'bril'],
+    this.availableVoices = const ['dave', 'jo', 'paul'],
     String? defaultVoice,
   })  : _selectedVoice = defaultVoice ?? 'dave',
         _player = TheStageAudioPlayer(sampleRate: sampleRate);
@@ -314,15 +313,15 @@ class TTSController extends ChangeNotifier {
   static String statusForPhase(String? phase) {
     switch (phase) {
       case 'downloading':
-        return 'Downloading engines...';
+        return 'Downloading…';
       case 'extracting':
-        return 'Extracting engines...';
+        return 'Preparing…';
       case 'loading':
-        return 'Loading & compiling model...';
+        return 'Loading…';
       case 'ready':
         return 'Ready';
       default:
-        return 'Loading model...';
+        return 'Loading…';
     }
   }
 

@@ -1,0 +1,48 @@
+# TheStage Apple SDK — agent index
+# Source of truth for customer Markdown: docs/*.md (scrubbed to dist/docs/)
+
+## Init (required)
+- Swift: TheStageAI.shared.initialize(apiToken:)
+- Flutter: TheStageFlutterSDK.initialize(api_token:)
+- Seat: (apiToken, deviceId) — see licensing.md / product_terms.md
+- Pricing: Service Request at https://app.thestage.ai/contact — no public rate card
+
+## Imports (shipped customer docs)
+- Swift: import TheStageSDK
+- Flutter: package:thestage_apple_sdk/thestage_apple_sdk.dart
+
+## Core symbols
+- TheStageAI (singleton): start_model, stop_model, infer, infer_stream, open_tts_streamer, prefetch_engines, logging helpers
+- TheStageLLM
+- WhisperPipeline
+- NeuTTSMultilingualPipeline, Qwen3TTSPipeline
+  (English espeak NeuTTSNano / TheStageAI/neutts out of this release)
+- SileroVAD
+- TheStageVoiceAgent, TheStageAgentConfig, TheStageLocalLLMProvider, TheStageOpenAICompatibleProvider
+- SpeakerEmbedding (family thestage_speaker_embedding; often model_name speaker_id)
+
+## Pages
+- llm.md — TheStageLLM
+- whisper.md — WhisperPipeline ASR
+- tts.md — NeuTTS + Qwen3-TTS
+- vad.md — SileroVAD
+- streaming.md — stream contracts
+- voice_agent.md — full agent
+- speaker_embedding.md — enroll / cosine verify
+- licensing.md — initialize registers; seat pair
+- product_terms.md — pointer to full Product Terms
+- logging.md — session log / debugReport
+- benchmarks.md — metric defs + illustrative numbers
+
+## Audio rates
+- VAD / Whisper / speaker embedding input: 16 kHz mono Float
+- VAD frame: 512 samples
+- TTS output (NeuTTS / Qwen3-TTS): 24 kHz mono Float
+- Speaker embedding window: 2.0 s
+
+## Flutter mirror
+- start_model / stop_model / infer / infer_stream / send / finish_stream / stop_stream / on_progress
+
+## Out of scope here
+- Wake-word engines / dedicated wake-word guide (out of this release)
+- VLM guide (not published as a standalone page yet)

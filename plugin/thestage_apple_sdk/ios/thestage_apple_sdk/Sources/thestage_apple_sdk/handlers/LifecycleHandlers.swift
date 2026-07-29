@@ -42,10 +42,10 @@ extension TheStageFlutterPlugin {
         }
 
         let model_type = args["model_type"] as? String
-        let device = args["device"] as? String ?? "gpu"
+        let device = args["device"] as? String ?? "npu"
         let devices = __parse_devices(args["devices"])
         let config = args["config"] as? [String: Any]
-        let revision = args["revision"] as? String ?? "main"
+        let revision = args["revision"] as? String
         let phonemizer = __make_phonemizer(
             model_type: model_type, config: config
         )

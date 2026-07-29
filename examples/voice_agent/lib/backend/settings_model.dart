@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
 // ============================================================================
 // BACKEND layer — the config source
@@ -13,21 +14,124 @@ import 'package:flutter/foundation.dart';
 // It's a [ChangeNotifier] so the Settings screen rebuilds live as sliders move.
 // ============================================================================
 class VoiceAgentSettings extends ChangeNotifier {
-  // ── Voice & language ─────────────────────────────────────────────────────
-  String ttsVoice = 'paul';
-  String sttLanguage = 'en';
-  String systemPrompt =
-      'You are a helpful voice assistant. Keep responses concise.';
+  // ── Local BundledModels (ios/Runner/BundledModels via sync_local_bundles) ─
+  // When true, [resolveLocalConfig] rewrites vad/stt/tts/turn + starts the
+  // on-device LLM from prepare trees. When false (default), HF repo ids are
+  // used and HF revisions come from the SDK ModelRevisionMap (do not pass
+  // stt_revision / tts_revision / turn_detector_revision).
+  bool useLocalBundles = false;
 
-  // ── LLM provider (cloud only for now) ────────────────────────────────────
-  // These map to the `llm_*` keys below. The agent streams the user's
-  // finalized request to this endpoint and streams tokens back as
-  // `response_delta` events.
-  String llmProvider = 'openai_compatible';
-  String llmModel = 'gpt-4o-mini';
+  // Bundled folder names under BundledModels/ (must match sync_local_bundles).
+  String localLlmBundle = 'lfm2.5-350m';
+  String localSttBundle = 'thewhisper-large-v3-turbo';
+  String localTtsBundle = 'qwen3-tts-12hz-0.6b-base';
+  String localVadBundle = 'silero-vad';
+  String localTurnBundle = 'smart-turn-v3';
+
+  // Handle registered with TheStageAI.start_model for bundled local LLM.
+  static const localLlmHandle = 'llm';
+  // Default on-device LLM when loading from HuggingFace (handle == repo id).
+  static const hfLlmRepo = 'TheStageAI/LFM2.5-350M';
+  static const hfSttRepo = 'TheStageAI/thewhisper-large-v3-turbo';
+  static const hfTtsRepo = 'TheStageAI/Qwen3-TTS-12Hz-0.6B-Base';
+
+  /// Shipping HF LLMs (must match ModelRevisionMap / public docs).
+  static const availableHfLlms = [
+    'TheStageAI/LFM2.5-350M',
+    'TheStageAI/LFM2.5-230M',
+    'TheStageAI/Qwen3-0.6B',
+    'TheStageAI/gemma-3-1b-it',
+  ];
+
+  /// Shipping HF ASR repos.
+  static const availableHfAsr = [
+    'TheStageAI/thewhisper-large-v3-turbo',
+    'TheStageAI/Qwen3-ASR-0.6B',
+  ];
+
+  /// Shipping HF TTS repos.
+  static const availableHfTts = [
+    'TheStageAI/Qwen3-TTS-12Hz-0.6B-Base',
+    'TheStageAI/neutts-nano-multilingual',
+  ];
+
+  /// BundledModels folder names for local-dev mode.
+  static const availableLocalLlms = [
+    'lfm2.5-350m',
+    'lfm2.5-230m',
+    'qwen3-0.6b',
+    'gemma3-1b-it',
+  ];
+  static const availableLocalAsr = [
+    'thewhisper-large-v3-turbo',
+    'qwen3-asr-0.6b',
+  ];
+  static const availableLocalTts = [
+    'qwen3-tts-12hz-0.6b-base',
+    'neutts-nano-multilingual',
+  ];
+
+  // HF repo ids used when [useLocalBundles] is false.
+  String sttRepo = hfSttRepo;
+  String ttsRepo = hfTtsRepo;
+
+  // ── Voice & language ─────────────────────────────────────────────────────
+  // Qwen TTS clone voice + LFM persona for the on-device Trump demo.
+  String ttsVoice = 'donald_trump';
+  String sttLanguage = 'en';
+  // Keep this short — small LFM will parrot long style guides / phrase lists.
+  // Ask for complete sentences so the model doesn't EOS after a 3-word stub.
+  String systemPrompt =
+      'You are Donald Trump in a short voice chat. Stay in character. '
+      'Reply in 1–2 complete sentences, never a cut-off fragment.';
+
+  // ── LLM provider ─────────────────────────────────────────────────────────
+  // Local: llm_model is the start_model handle (bundled: [localLlmHandle];
+  // HF: usually the repo id, e.g. [hfLlmRepo]).
+  // Cloud: openai_compatible + endpoint + api key.
+  String llmProvider = 'local';
+  String llmModel = hfLlmRepo;
   String llmEndpoint = 'https://api.openai.com/v1/chat/completions';
+  // Cloud (OpenAI-compatible) only. Local LFM uses the bundle's
+  // `arch.decoder.generation` — these are not sent when llmProvider=local.
   int maxTokens = 256;
   double temperature = 0.7;
+
+  /// Voices that make sense for the selected TTS family.
+  List<String> get voicesForSelectedTts {
+    final tts = useLocalBundles ? localTtsBundle : ttsRepo;
+    if (tts.contains('qwen3-tts') || tts.contains('Qwen3-TTS')) {
+      return const [
+        'b_ref',
+        'donald_trump',
+        'elon_musk',
+        'jensen_huang',
+        'joe_biden',
+      ];
+    }
+    // NeuTTS multilingual / nano-multilingual
+    return const ['paul', 'dave', 'jo'];
+  }
+
+  void selectTtsRepo(String repo) {
+    ttsRepo = repo;
+    final voices = voicesForSelectedTts;
+    if (!voices.contains(ttsVoice)) {
+      ttsVoice = voices.first;
+    }
+  }
+
+  void selectLocalTtsBundle(String bundle) {
+    localTtsBundle = bundle;
+    final voices = voicesForSelectedTts;
+    if (!voices.contains(ttsVoice)) {
+      ttsVoice = voices.first;
+    }
+  }
+
+  // Sliding chat window: last N user+assistant turns. System prompt is
+  // prepended every LLM call from [systemPrompt] (never trimmed with history).
+  int chatMemoryMaxTurns = 10;
 
   // ── Endpointing (VAD) ────────────────────────────────────────────────────
   int silenceTimeoutMs = 600;
@@ -42,7 +146,7 @@ class VoiceAgentSettings extends ChangeNotifier {
   double turnEotHighConfidence = 1.0;
   int turnPauseTriggerMs = 256;
   int turnReevalIntervalMs = 120;
-  int turnMaxSilenceMs = 5000;
+  int turnMaxSilenceMs = 2000;
   int turnWindowMs = 8000;
   int turnMinSpeechMs = 250;
   // Trailing silence still fed to the streaming decoder after speech stops;
@@ -90,6 +194,8 @@ class VoiceAgentSettings extends ChangeNotifier {
 
   // ── Audio ────────────────────────────────────────────────────────────────
   int preRollMs = 200;
+  // iOS Voice Processing IO (hardware AEC). Off previously while debugging
+  // model-load crashes; back on so the agent doesn't hear its own TTS.
   bool aecEnabled = true;
   // Silence pumped to the speaker at start so VPIO has echo reference samples
   // before the first real TTS. Bumped above the SDK default for restart margin.
@@ -101,30 +207,46 @@ class VoiceAgentSettings extends ChangeNotifier {
   bool showPartialTranscript = true;
   bool speculativeWhisper = true;
 
-  static const availableVoices = ['paul', 'bril', 'dave', 'jo'];
+  static const availableVoices = [
+    'b_ref',
+    'donald_trump',
+    'elon_musk',
+    'jensen_huang',
+    'joe_biden',
+    'paul',
+    'dave',
+    'jo',
+  ];
   static const availableLanguages = ['en', 'auto', 'fr', 'de', 'es'];
 
   /// Flatten the settings into the `config` map `agent.start(config:)` reads.
   /// Grouped by subsystem so the LLM / ASR / TTS / turn-detection wiring is
   /// obvious at a glance.
+  ///
+  /// Paths here are HF repo ids by default. Call [resolveLocalConfig] first
+  /// when [useLocalBundles] is true so they become on-device absolute paths.
   Map<String, dynamic> toConfig(String apiKey) => {
-        // ── Models the agent loads ──
+        // ── Models the agent loads (HF by default; no revision keys —
+        // ModelRevisionMap picks vA.B for this SDK build) ──
         'vad': 'TheStageAI/silero-vad',
-        'stt': 'TheStageAI/thewhisper-large-v3-turbo',
-        'tts': 'TheStageAI/neutts-multilingual',
-        'stt_revision': 'develop',
-        'tts_revision': 'develop',
+        'stt': sttRepo,
+        'tts': ttsRepo,
+        'turn_detector': 'TheStageAI/smart-turn-v3',
         'tts_voice': ttsVoice,
         'wake_word': wakeWordEnabled ? 'TheStageAI/wake-word' : null,
 
         // ── LLM wiring (what produces the assistant's words) ──
         'llm_provider': llmProvider,
-        'llm_model': llmModel,
+        'llm_model': useLocalBundles ? localLlmHandle : llmModel,
         'llm_endpoint': llmEndpoint,
         'llm_api_key': apiKey,
         'system_prompt': systemPrompt,
-        'max_tokens': maxTokens,
-        'temperature': temperature,
+        'chat_memory_max_turns': chatMemoryMaxTurns,
+        // Sampling belongs on the LLM bundle for local; only cloud needs these.
+        if (llmProvider != 'local') 'max_tokens': maxTokens,
+        if (llmProvider != 'local') 'temperature': temperature,
+        // Local: load VAD/STT/TTS first, then LLM, then open the mic.
+        if (llmProvider == 'local') 'auto_listen': false,
 
         // ── VAD / endpointing ──
         'vad_threshold': vadThreshold,
@@ -157,10 +279,6 @@ class VoiceAgentSettings extends ChangeNotifier {
         'stt_language': sttLanguage,
 
         // ── Turn detection (neural smart-turn on the ANE) ──
-        // The `turn_detector` engines repo (TheStageAI/smart-turn-v3) is
-        // injected at start() in ui/voice_chat_screen.dart and downloaded from
-        // HuggingFace by the SDK. Streaming ASR runs alongside it for live
-        // captions; the DNN model still owns end-of-turn.
         'turn_detection_mode': useDnnTurn ? 'dnn' : 'vad',
         'turn_detector_device': 'npu',
         'turn_eot_threshold': turnEotThreshold,
@@ -180,6 +298,80 @@ class VoiceAgentSettings extends ChangeNotifier {
         // ── Diagnostics ──
         'debug_timeline': debugTimeline,
       };
+
+  /// Resolve BundledModels/<name> paths and patch [config] so the agent loads
+  /// VAD/STT/TTS/turn from the app bundle.
+  ///
+  /// Does **not** start the local LLM — call [startLocalLlm] *after*
+  /// `agent.start` so Whisper+Qwen TTS don't compete with LFM for RAM/ANE
+  /// (TTS load was jetsamming when LFM was already resident).
+  Future<Map<String, dynamic>> resolveLocalConfig(
+    Map<String, dynamic> config,
+  ) async {
+    if (!useLocalBundles) return config;
+
+    Future<String> pathFor(String name) async {
+      final p = await TheStageFlutterSDK.get_bundled_engine_path(name);
+      if (p == null || p.isEmpty) {
+        throw StateError(
+          'Bundled model missing: $name\n'
+          'Run: test_apps/voice_agent/scripts/sync_local_bundles.sh\n'
+          'then rebuild the iOS app.',
+        );
+      }
+      return p;
+    }
+
+    final sttPath = await pathFor(localSttBundle);
+    final ttsPath = await pathFor(localTtsBundle);
+    final vadPath = await pathFor(localVadBundle);
+    final turnPath = await pathFor(localTurnBundle);
+
+    config['vad'] = vadPath;
+    config['stt'] = sttPath;
+    config['tts'] = ttsPath;
+    config['turn_detector'] = turnPath;
+    config['llm_provider'] = 'local';
+    config['llm_model'] = localLlmHandle;
+    return config;
+  }
+
+  /// Start the on-device LLM after VAD/STT/TTS are loaded.
+  /// Bundled: [localLlmHandle] + BundledModels path.
+  /// HF: [llmModel] as both handle and repo (revision from ModelRevisionMap).
+  Future<void> startLocalLlm() async {
+    if (llmProvider != 'local') return;
+    final String handle;
+    final String enginesPath;
+    if (useLocalBundles) {
+      final p = await TheStageFlutterSDK.get_bundled_engine_path(localLlmBundle);
+      if (p == null || p.isEmpty) {
+        throw StateError('Bundled model missing: $localLlmBundle');
+      }
+      handle = localLlmHandle;
+      enginesPath = p;
+    } else {
+      handle = llmModel;
+      enginesPath = llmModel;
+    }
+    try {
+      await TheStageFlutterSDK.stop_model(model_name: handle);
+    } catch (_) {}
+    await TheStageFlutterSDK.start_model(
+      model_name: handle,
+      engines_path: enginesPath,
+      model_type: 'thestage_llm',
+      device: 'npu',
+    );
+  }
+
+  Future<void> stopLocalLlm() async {
+    if (llmProvider != 'local') return;
+    final handle = useLocalBundles ? localLlmHandle : llmModel;
+    try {
+      await TheStageFlutterSDK.stop_model(model_name: handle);
+    } catch (_) {}
+  }
 
   /// Mutate settings inside [fn] and notify listeners (the Settings screen).
   void update(void Function(VoiceAgentSettings s) fn) {

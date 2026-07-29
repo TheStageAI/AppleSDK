@@ -76,9 +76,9 @@ you skip registration, nano still runs via the CoreML fallback.
 
 - The espeak-ng data bundle is installed once on first use into the app's
   Application Support directory (see `EspeakLib.ensureBundleInstalled`).
-- The `Phonemizer` protocol comes from `TheStageCore`. `EspeakPhonemizer.swift`
-  already `import`s it, so the `AppDelegate` snippet above only needs
-  `import thestage_apple_sdk`. If you reference `Phonemizer` directly elsewhere,
-  add `import TheStageCore`.
+- The `Phonemizer` protocol comes from the SDK. `EspeakPhonemizer.swift`
+  already imports it, so the `AppDelegate` snippet above only needs
+  `import thestage_apple_sdk`. If you reference `Phonemizer` directly elsewhere
+  in a native Swift app, add `import TheStageSDK`.
 - macOS apps follow the same pattern; register in
   `applicationDidFinishLaunching` instead.

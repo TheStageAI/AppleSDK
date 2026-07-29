@@ -5,20 +5,19 @@ let package = Package(
     name: "macos_swift_tts",
     platforms: [.macOS(.v15)],
     dependencies: [
-        // This example lives inside the SDK repo, so it depends on the
-        // dist-root TheStageSDK package by local path. In your own app, add
-        // it from GitHub instead — see the SDK README ("Use the SDK in your
-        // own app"):
-        //   .package(url: "https://github.com/TheStageAI/AppleSDK.git", from: "1.0.0")
-        // `name:` pins the package identity so the product reference below
-        // resolves regardless of what the distribution folder is named on disk.
-        .package(name: "TheStageSDK", path: "../..")
+        // Pinned to the AppleSDK git tag stamped by `make_dist.sh --version=…`.
+        // Do not use a local path here — CI and customers must exercise the
+        // published tag.
+        .package(
+            url: "https://github.com/TheStageAI/AppleSDK.git",
+            exact: Version(1, 1, 0)
+        )
     ],
     targets: [
         .executableTarget(
             name: "macos_swift_tts",
             dependencies: [
-                .product(name: "TheStageSDK", package: "TheStageSDK")
+                .product(name: "TheStageSDK", package: "AppleSDK")
             ],
             path: "Sources/macos_swift_tts"
         )

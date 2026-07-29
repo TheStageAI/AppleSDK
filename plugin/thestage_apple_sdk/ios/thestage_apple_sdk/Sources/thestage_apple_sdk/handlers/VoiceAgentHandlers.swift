@@ -26,6 +26,24 @@ extension TheStageFlutterPlugin {
         }
     }
 
+    func __handle_voice_agent_begin_listening(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let handler = __voice_agent_handler else {
+            __fail(result, msg: "Voice agent handler not initialized.")
+            return
+        }
+        Task { @MainActor in
+            do {
+                try await handler.begin_listening()
+                result(nil)
+            } catch {
+                __fail(result, error: error)
+            }
+        }
+    }
+
     func __handle_voice_agent_stop(
         _ call: FlutterMethodCall,
         result: @escaping FlutterResult
@@ -98,13 +116,7 @@ extension TheStageFlutterPlugin {
         let onset_ms = args["interrupt_onset_ms"] as? Int
         let threshold = args["interrupt_threshold"] as? Double
         let mode_str = args["interrupt_mode"] as? String
-        let mode: InterruptTrigger?
-        switch mode_str {
-        case "none":         mode = InterruptTrigger.none
-        case "wake_word":    mode = .wake_word
-        case "speech_only":  mode = .speech_only
-        default:             mode = nil
-        }
+        let mode = __parse_interrupt_mode(mode_str)
         Task { [weak self] in
             await self?.__voice_agent_handler?.update_interrupt_config(
                 min_speech_ms: min_speech_ms,
@@ -115,5 +127,41 @@ extension TheStageFlutterPlugin {
             )
             result(nil)
         }
+    }
+
+    func __handle_voice_agent_enroll_speaker(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let handler = __voice_agent_handler else {
+            __fail(result, msg: "Voice agent handler not initialized.")
+            return
+        }
+        let args = call.arguments as? [String: Any] ?? [:]
+        let embedding = __parse_embedding(args["embedding"])
+        Task { @MainActor in
+            await handler.enroll_speaker(embedding: embedding)
+            result(nil)
+        }
+    }
+
+    func __handle_voice_agent_send_node_port(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let handler = __voice_agent_handler else {
+            __fail(result, msg: "Voice agent handler not initialized.")
+            return
+        }
+        guard let args = call.arguments as? [String: Any],
+              let node_id = args["node_id"] as? String,
+              let port = args["port"] as? String,
+              let value = args["value"] as? String
+        else {
+            __fail(result, msg: "Missing node_id, port, or value.")
+            return
+        }
+        handler.send_node_port(node_id: node_id, port: port, value: value)
+        result(nil)
     }
 }

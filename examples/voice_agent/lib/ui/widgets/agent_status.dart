@@ -13,49 +13,71 @@ import '../../backend/voice_agent_controller.dart';
 Color agentStateColor(TheStageAgentState state) {
   switch (state) {
     case TheStageAgentState.idle:
-      return Colors.grey;
+      return const Color(0xFF8E8E93); // systemGray
     case TheStageAgentState.loading:
-      return Colors.amber;
+      return const Color(0xFFFF9500); // systemOrange
     case TheStageAgentState.sleeping:
-      return Colors.blueGrey;
+      return const Color(0xFF636366);
     case TheStageAgentState.listening:
-      return Colors.green;
+      return const Color(0xFF34C759); // systemGreen
     case TheStageAgentState.thinking:
-      return Colors.purple;
+      return const Color(0xFF007AFF); // systemBlue
     case TheStageAgentState.speaking:
-      return Colors.blue;
+      return const Color(0xFF0A84FF);
   }
 }
 
 /// Human-readable status line shown in the bottom bar.
 String agentStateLabel(VoiceAgentController c) {
+  if (c.isStartupLoading) {
+    if (c.currentLoadingModel == null) return 'Loading models…';
+    return '${_shortModelName(c.currentLoadingModel!)} — ${agentPhaseLabel(c)}';
+  }
   switch (c.state) {
     case TheStageAgentState.idle:
       return 'Idle';
     case TheStageAgentState.loading:
-      if (c.currentLoadingModel == null) return 'Loading models...';
-      return '${c.currentLoadingModel} - ${agentPhaseLabel(c)}';
+      if (c.currentLoadingModel == null) return 'Loading models…';
+      return '${_shortModelName(c.currentLoadingModel!)} — ${agentPhaseLabel(c)}';
     case TheStageAgentState.sleeping:
-      return 'Waiting for wake word...';
+      return 'Waiting for wake word…';
     case TheStageAgentState.listening:
-      return 'Listening...';
+      return 'Listening…';
     case TheStageAgentState.thinking:
-      return 'Thinking...';
+      return 'Thinking…';
     case TheStageAgentState.speaking:
-      return 'Speaking...';
+      return 'Speaking…';
   }
 }
 
-/// Sub-status for the model currently loading (download → extract → compile).
+/// Friendly sub-status for the model currently loading (no internal jargon).
 String agentPhaseLabel(VoiceAgentController c) {
   switch (c.loadPhase) {
     case 'downloading':
-      return 'downloading ${(c.downloadProgress * 100).toStringAsFixed(0)}%';
+      final pct = (c.downloadProgress * 100).clamp(0, 100).toStringAsFixed(0);
+      return 'Downloading $pct%';
     case 'extracting':
-      return 'extracting...';
+      return 'Preparing…';
     case 'loading':
-      return 'loading & compiling...';
+      return 'Loading…';
     default:
-      return 'preparing...';
+      return 'Preparing…';
   }
+}
+
+/// Determinate progress while downloading; `null` = indeterminate bar.
+double? agentLoadProgressValue(VoiceAgentController c) {
+  if (!c.isStartupLoading && c.state != TheStageAgentState.loading) {
+    return null;
+  }
+  if (c.loadPhase == 'downloading' && c.downloadProgress > 0) {
+    return c.downloadProgress.clamp(0.0, 1.0);
+  }
+  // Extract / open phases have no useful fraction — animate.
+  return null;
+}
+
+String _shortModelName(String id) {
+  final slash = id.lastIndexOf('/');
+  return slash >= 0 ? id.substring(slash + 1) : id;
 }

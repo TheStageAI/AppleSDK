@@ -176,7 +176,6 @@ let stt = try await WhisperPipeline(
     devices: nil,                        // optional per-component override
     overlap_seconds: 0,                  // chunk overlap for long audio
     use_internal_vad: true,              // bundled SileroVAD pre-pass
-    revision: "main",                    // HF revision; ignored locally
     on_load_progress: nil                // see "Load Progress" below
 )
 ```
@@ -244,3 +243,10 @@ _ = try ai.stop_model(model_name: "stt")
 ```dart
 await TheStageFlutterSDK.stop_model(model_name: 'stt');
 ```
+
+## Agent checklist
+
+- Input **16 kHz** mono Float; shipping turbo bundle uses **10 s** windows.
+- HF example: `TheStageAI/thewhisper-large-v3-turbo`.
+- If you already gate with standalone VAD, set `use_internal_vad: false`.
+- Flutter JSON key for text is often `transcription` (check response map).

@@ -7,6 +7,28 @@ SLA. Results move with chip, OS, thermals, and bundle revision.
 
 Debug builds are much slower; always measure release.
 
+Cross-stack charts (power, tok/s, TTFT, ANE bake-off) also appear in the
+customer package README intro (**Built for battery**) and **Performance**
+sections.
+
+## Headline charts
+
+### Power (ANE vs MLX GPU)
+
+![Power draw during generation — Gemma3-1B](assets/power-draw-gemma3-1b.png)
+
+### Decode throughput (Gemma-3-1B-it)
+
+![Gemma-3-1B-it decode speed](assets/tps-gemma-3-1b-it.png)
+
+### Time to first token (LFM2.5-350M)
+
+![LFM2.5-350M TTFT](assets/ttft-lfm2.5-350m.png)
+
+### ANE runtimes (Qwen3-0.6B, iPhone 17 Pro)
+
+![Qwen3-0.6B ANE runtime bake-off](assets/qwen3-0.6b-ane-runtimes-iphone17.png)
+
 ## Metric definitions
 
 | Metric | Meaning |

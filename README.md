@@ -19,6 +19,23 @@ leaves the device** — there is no server in the hot path.
 
 ---
 
+## Built for battery — not just tok/s
+
+On-device generation on the **Apple Neural Engine** draws a fraction of the
+power of GPU paths like MLX — phones stay cooler, laptops stay on battery,
+and sustained chat / voice agents remain practical.
+
+![Power draw during generation — Gemma3-1B, TheStage ANE vs MLX GPU](docs/assets/power-draw-gemma3-1b.png)
+
+*Gemma3-1B, sustained load. MacBook M3 Max via macmon; iPhone 13 via battery
+drain. **~5.1×** less power on M3 Max and **~3.5×** on iPhone 13 vs MLX
+(GPU). Lower is better.*
+
+Speed and latency charts live under [Performance](#performance). Numeric
+tables: [benchmarks.md](./docs/benchmarks.md).
+
+---
+
 ## Read this first
 
 **Humans** — do the [60-second Mac quick start](#quick-start), then pick
@@ -53,14 +70,15 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 
 1. [What's in this repo](#whats-in-this-repo)
 2. [Capabilities & model fleet](#capabilities--model-fleet)
-3. [Quick start](#quick-start)
-4. [Prerequisites](#prerequisites)
-5. [Integrate](#integrate)
-6. [Mental model](#mental-model)
-7. [Contracts](#contracts) (audio · progress · Swift↔Flutter)
-8. [Documentation map](#documentation-map)
-9. [Troubleshooting](#troubleshooting)
-10. [Secrets & license](#secrets--license)
+3. [Performance](#performance)
+4. [Quick start](#quick-start)
+5. [Prerequisites](#prerequisites)
+6. [Integrate](#integrate)
+7. [Mental model](#mental-model)
+8. [Contracts](#contracts) (audio · progress · Swift↔Flutter)
+9. [Documentation map](#documentation-map)
+10. [Troubleshooting](#troubleshooting)
+11. [Secrets & license](#secrets--license)
 
 ---
 
@@ -102,6 +120,38 @@ wake-word, VLM / YOLO.
 
 Model cards (contracts + acknowledgments):
 [huggingface.co/TheStageAI](https://huggingface.co/TheStageAI).
+
+---
+
+## Performance
+
+Release-build comparisons vs common on-device stacks. Device class and thermals
+matter — treat these as relative guidance, not an SLA. Full metric tables:
+[benchmarks.md](./docs/benchmarks.md).
+
+### Decode throughput vs MLX (GPU)
+
+Gemma-3-1B-it tokens/sec across iPhones — TheStage on ANE vs MLX on GPU
+(higher is better):
+
+![Gemma-3-1B-it decode speed — TheStage AI vs MLX GPU](docs/assets/tps-gemma-3-1b-it.png)
+
+### Time to first token
+
+LFM2.5-350M TTFT — TheStage stays in the low teens of ms while MLX stretches
+on older phones (lower is better):
+
+![LFM2.5-350M time to first token — TheStage AI vs MLX GPU](docs/assets/ttft-lfm2.5-350m.png)
+
+### ANE runtime bake-off (same chip)
+
+Qwen3-0.6B on **iPhone 17 Pro**, all paths on the Neural Engine — TheStage
+SDK vs CoreML-LLM and CoreAI (higher is better):
+
+![Qwen3-0.6B decode speed — ANE runtimes on iPhone 17 Pro](docs/assets/qwen3-0.6b-ane-runtimes-iphone17.png)
+
+Power / efficiency (intro highlight):
+[Built for battery](#built-for-battery--not-just-toks).
 
 ---
 

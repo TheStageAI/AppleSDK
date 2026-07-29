@@ -1,5 +1,7 @@
 # TheStage Apple SDK
 
+![On-Device Apple SDK](docs/assets/on-device-apple-sdk-banner.png)
+
 **On-device** speech, language, and audio inference for **iOS and macOS** on
 Apple Silicon. Engines ship as CoreML / MLX bundles from Hugging Face; the
 SDK picks ANE / GPU / CPU per device. After `initialize`, **inference never

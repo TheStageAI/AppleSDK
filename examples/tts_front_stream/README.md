@@ -7,8 +7,8 @@ being generated.
 ## What it exercises
 
 - `TheStageFlutterSDK.initialize(api_token:)`
-- `TheStageFlutterSDK.start_model(model_type: 'neutts', …)` with
-  HuggingFace engine prefetch.
+- `TheStageFlutterSDK.start_model(…)` for
+  `TheStageAI/neutts-nano-multilingual` with HuggingFace engine prefetch.
 - `TheStageFlutterSDK.infer_stream(...)` in push mode (per-chunk audio
   events).
 - `TheStageAudioPlayer` for low-latency playback.

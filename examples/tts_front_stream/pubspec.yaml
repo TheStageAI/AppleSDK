@@ -15,7 +15,10 @@ dependencies:
   # path. In your own app, depend on it from GitHub instead — see the
   # "Flutter (iOS)" section of the SDK README for the git: dependency.
   thestage_apple_sdk:
-    path: ../../plugin/thestage_apple_sdk
+    git:
+      url: https://github.com/TheStageAI/AppleSDK.git
+      path: plugin/thestage_apple_sdk
+      ref: 1.1.0
 
 dev_dependencies:
   flutter_test:

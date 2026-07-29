@@ -1,3 +1,4 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
@@ -7,6 +8,7 @@ import 'settings_screen.dart';
 import 'widgets/agent_status.dart';
 import 'widgets/bottom_bar.dart';
 import 'widgets/error_banner.dart';
+import 'widgets/model_picker_bar.dart';
 import 'widgets/transcript_area.dart';
 
 // ============================================================================
@@ -23,6 +25,7 @@ import 'widgets/transcript_area.dart';
 //   AppBar ............. title + settings + status dot
 //   ErrorBanner ........ only when controller.error != null
 //   TranscriptArea ..... loading checklist / hint / chat bubbles
+//   ModelPickerBar ..... LLM / ASR / TTS / voice (idle; before Start)
 //   BottomBar .......... status line, mic level, Start/Stop/Interrupt
 // ============================================================================
 class VoiceChatScreen extends StatefulWidget {
@@ -51,14 +54,20 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
     super.initState();
     // Auto-scroll the transcript whenever the controller emits new content.
     _controller.addListener(_scrollToBottom);
+    widget.settings.addListener(_onSettingsChanged);
   }
 
   @override
   void dispose() {
+    widget.settings.removeListener(_onSettingsChanged);
     _controller.removeListener(_scrollToBottom);
     _controller.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onSettingsChanged() {
+    if (mounted) setState(() {});
   }
 
   void _scrollToBottom() {
@@ -75,28 +84,94 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
 
   Future<void> _toggleRun() async {
     if (_controller.isRunning) {
-      _controller.stop();
+      await _controller.stop();
+      await widget.settings.stopLocalLlm();
       return;
     }
-    final config = widget.settings.toConfig(widget.openAIKey);
-    // The smart-turn engines are hosted on HuggingFace; the SDK downloads and
-    // caches them on first run (then reuses the cache), exactly like the VAD /
-    // Whisper / TTS engines. EngineArchive resolves/decrypts the bundle.
-    config['turn_detector'] = 'TheStageAI/smart-turn-v3';
-    _controller.start(config);
+    try {
+      // Don't seed the checklist with STT — that made Whisper appear twice
+      // (fake row, then real `STT (...)` from the agent). Keep the loader
+      // held so deferred LFM still shows after agent.start.
+      final local = widget.settings.useLocalBundles;
+      final deferLlm = widget.settings.llmProvider == 'local';
+      _controller.beginStartup(holdForDeferredLlm: deferLlm);
+      var config = widget.settings.toConfig(widget.openAIKey);
+      if (local) {
+        config = await widget.settings.resolveLocalConfig(config);
+      }
+      await _controller.start(config);
+      if (deferLlm) {
+        // Models are up but mic is still closed (`auto_listen: false`).
+        // Load LLM next (HF or bundled), then arm listening.
+        final label = local
+            ? widget.settings.localLlmBundle
+            : widget.settings.llmModel;
+        _controller.beginDeferredModel(label);
+        await widget.settings.startLocalLlm();
+        await _controller.beginListening();
+        _controller.finishDeferredLoad();
+      }
+    } catch (e) {
+      _controller.failStartup(e);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$e')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      extendBodyBehindAppBar: false,
       appBar: AppBar(
-        title: const Text('Voice Agent'),
+        title: Column(
+          children: [
+            const Text('Voice Agent'),
+            Text(
+              'TheStage',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                letterSpacing: -0.1,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
         actions: [
+          AnimatedBuilder(
+            animation: _controller,
+            builder: (context, _) {
+              final color = agentStateColor(_controller.state);
+              return Padding(
+                padding: const EdgeInsets.only(right: 2),
+                child: Center(
+                  child: Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: color.withValues(alpha: 0.5),
+                          blurRadius: 5,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
           IconButton(
-            icon: const Icon(Icons.settings),
+            tooltip: 'Settings',
+            icon: const Icon(Icons.settings_outlined, size: 22),
             onPressed: () => Navigator.push(
               context,
-              MaterialPageRoute(
+              CupertinoPageRoute(
                 builder: (_) => SettingsScreen(
                   settings: widget.settings,
                   agent: widget.agent,
@@ -104,17 +179,8 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
               ),
             ),
           ),
-          AnimatedBuilder(
-            animation: _controller,
-            builder: (context, _) => Padding(
-              padding: const EdgeInsets.only(right: 16),
-              child: Icon(Icons.circle,
-                  size: 14, color: agentStateColor(_controller.state)),
-            ),
-          ),
         ],
       ),
-      // One listener for the whole screen: rebuild when the controller changes.
       body: AnimatedBuilder(
         animation: _controller,
         builder: (context, _) {
@@ -130,6 +196,11 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
                   controller: _controller,
                   scrollController: _scrollController,
                 ),
+              ),
+              ModelPickerBar(
+                settings: widget.settings,
+                enabled: !_controller.isRunning &&
+                    !_controller.isStartupLoading,
               ),
               BottomBar(controller: _controller, onToggleRun: _toggleRun),
             ],

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
 import 'backend/settings_model.dart';
+import 'ui/app_theme.dart';
 import 'ui/voice_chat_screen.dart';
 
 // Secrets are injected at build/run time via:
@@ -23,17 +24,8 @@ class VoiceAgentApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Voice Agent',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      darkTheme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.indigo,
-          brightness: Brightness.dark,
-        ),
-        useMaterial3: true,
-      ),
+      theme: buildVoiceAgentTheme(brightness: Brightness.light),
+      darkTheme: buildVoiceAgentTheme(brightness: Brightness.dark),
       themeMode: ThemeMode.system,
       home: const HomePage(),
     );
@@ -75,12 +67,15 @@ class _HomePageState extends State<HomePage> {
       });
       return;
     }
-    if (_openAIKey.isEmpty) {
+    // Cloud LLM needs OPENAI_API_KEY; on-device local (HF or BundledModels) does not.
+    final needsCloudKey = _settings.llmProvider != 'local';
+    if (needsCloudKey && _openAIKey.isEmpty) {
       setState(() {
         _initError =
             'OPENAI_API_KEY not set.\n'
             'Run with: flutter run '
-            '--dart-define-from-file=../secrets.json';
+            '--dart-define-from-file=../secrets.json\n'
+            '(or set llmProvider=local for on-device HF / BundledModels).';
       });
       return;
     }
@@ -101,7 +96,11 @@ class _HomePageState extends State<HomePage> {
             padding: const EdgeInsets.all(32),
             child: Text(
               _initError!,
-              style: const TextStyle(color: Colors.red),
+              style: const TextStyle(
+                color: AppColors.systemRed,
+                fontSize: 16,
+                height: 1.35,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -111,7 +110,13 @@ class _HomePageState extends State<HomePage> {
 
     if (!_initialized) {
       return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(
+          child: SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(strokeWidth: 2.5),
+          ),
+        ),
       );
     }
 

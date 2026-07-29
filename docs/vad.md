@@ -182,3 +182,9 @@ _ = try ai.stop_model(model_name: "vad")
 ```dart
 await TheStageFlutterSDK.stop_model(model_name: 'vad');
 ```
+
+## Agent checklist
+
+- Input **16 kHz** mono; exactly **512 samples** per `infer` (32 ms).
+- Call `reset_state()` between independent utterances.
+- HF example: `TheStageAI/silero-vad`.

@@ -5,6 +5,7 @@ neural end-of-turn detection (the **smart-turn-v3** model), interruption
 handling, streaming transcription (live partial captions), and
 sentence-level streaming for sub-second time-to-first-audio.
 
+
 ## Quick Start (Swift)
 
 ```swift
@@ -97,6 +98,77 @@ await agent.updateInterruptConfig(interruptMinSpeechMs: 200);
 await agent.stop();
 ```
 
+## Using a local (on-device) LLM
+
+`TheStageLocalLLMProvider` does **not** download or load the model itself.
+It streams through `TheStageAI.shared.infer_stream(model_name:)` — so you
+must `start_model` first and pass the **same handle** as `model_path` /
+Flutter `llm_model`.
+
+Local replies use the LLM bundle’s generation defaults (`temperature`,
+`max_new_tokens`, …). Agent `max_tokens` / `temperature` are ignored for
+the local provider — tune sampling on the LLM itself (see
+[LLM generation parameters](./llm.md#generation-parameters-what-to-set)),
+not on `TheStageAgentConfig`.
+
+**Swift:**
+
+```swift
+import TheStageSDK
+
+try await TheStageAI.shared.initialize(apiToken: "your-api-token")
+
+// 1) Load the on-device LLM under a handle.
+try await TheStageAI.shared.start_model(
+    model_name: "llm",
+    engines_path: "TheStageAI/Qwen3-0.6B"   // or LFM2.5 / Gemma3 / local dir
+)
+
+// 2) Point the agent at that handle.
+let llm = TheStageLocalLLMProvider(model_path: "llm")
+
+var config = TheStageAgentConfig(
+    vad: "TheStageAI/silero-vad",
+    stt: "TheStageAI/thewhisper-large-v3-turbo",
+    tts: "TheStageAI/neutts-multilingual",
+    llm: llm
+)
+config.system_prompt = "You are a concise offline voice assistant."
+// Optional: wait until models are ready before opening the mic.
+config.auto_listen = false
+
+let agent = TheStageVoiceAgent(config: config)
+try await agent.start()
+try await agent.begin_listening()
+```
+
+**Flutter:**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'llm',
+  engines_path: 'TheStageAI/Qwen3-0.6B',
+  model_type: 'thestage_llm',
+);
+
+final agent = TheStageVoiceAgentFlutter();
+await agent.start(config: {
+  'vad': 'TheStageAI/silero-vad',
+  'stt': 'TheStageAI/thewhisper-large-v3-turbo',
+  'tts': 'TheStageAI/neutts-multilingual',
+  'tts_voice': 'paul',
+  'llm_provider': 'local',
+  'llm_model': 'llm',   // must match start_model model_name
+  'auto_listen': false,
+  'system_prompt': 'You are a concise offline voice assistant.',
+});
+await agent.beginListening();
+```
+
+You can use the HF repo id as the handle too (`model_name` /
+`model_path` / `llm_model` all `"TheStageAI/Qwen3-0.6B"`) — just keep
+them identical.
+
 ## State Machine
 
 ```
@@ -118,10 +190,8 @@ idle → loading ─────►│  listening ⇄ thinking → speaking     
 | `thinking` | Speech committed, LLM is generating |
 | `speaking` | TTS streaming audio to the speaker |
 
-State is derived inside `AgentOrchestrator` from the event stream and is
-the only place the state machine lives. It is broadcast as
-`AgentEvent.STATE(_)` and surfaces on the public stream as the
-`state_changed` event.
+State transitions surface on the public event stream as `state_changed`
+(see Events below).
 
 ## Public Output Channels
 
@@ -154,7 +224,49 @@ The same channels are exposed in Flutter as
 (`Stream<String>`), and `agent.vadProbabilities` (`Stream<double>`),
 each backed by its own `EventChannel`.
 
-## Configuration
+## Turn strategies (start / end / interrupt)
+
+Three independent knobs on `TheStageAgentConfig` (Flutter: same string keys):
+
+| Strategy | Field | Values |
+|----------|--------|--------|
+| Turn start | `turn_start_mode` | `vad` / `vad_wake_word` / `vad_speaker_id_wake_word` |
+| Turn end | `turn_end_mode` | `vad` / `dnn` / `none` (alias: `turn_detection_mode`) |
+| Interrupt | `interrupt_mode` | `none` / `vad` / `vad_wake_word` / `vad_speaker_id` / `vad_speaker_id_wake_word` |
+
+Sensors (wake word, speaker ID) are attached only if start or interrupt
+requires them. Policies (`TurnStartPolicy`, `InterruptPolicy`) accumulate
+evidence on the bus; turn end still uses `VADTurnNode` / `DNNTurnNode`.
+
+> **Release note:** wake-word engines (`TheStageAI/wake-word`) are **not**
+> in the current HF fleet. Prefer `turn_start_mode = .vad` until that
+> bundle ships. Speaker-ID paths remain available.
+
+```swift
+config.turn_start_mode = .vad
+config.turn_end_mode = .dnn
+config.interrupt_mode = .vad_speaker_id
+config.speaker_id = "TheStageAI/redimnet2"
+try await agent.enroll_speaker(embedding)   // or enroll from audio via SpeakerEmbedding
+// Standalone enroll/verify API: see speaker_embedding.md
+```
+
+Legacy: `InterruptTrigger.speech_only` → `InterruptMode.vad`;
+`wake_word` → `vad_wake_word`. Graph channel ports on processing nodes use
+`*_in` / `*_out` (`vad.audio_in`, `tts.audio_out`, …); `AudioEngineNode`
+keeps `mic` / `playback`.
+
+### Custom nodes + ports
+
+```swift
+open class TheStageAgentNode: AgentNode { … }  // subclass, set config.extra_nodes
+agent.ports.channel("vad.probability", as: Double.self)
+```
+
+Flutter: implement `TheStageAgentNode` in Dart, pass `extraNodes:` to
+`start`. Lifecycle crosses a `FlutterBridgeNode` stub by string `id`.
+Inference uses existing `TheStageFlutterSDK.start_model` / `infer`
+(e.g. `VLMCaptionNode` + `thestage_vl`).
 
 ### Models
 
@@ -166,8 +278,8 @@ each backed by its own `EventChannel`.
 | `tts_voice` | String | `"paul"` | Voice preset id |
 | `wake_word` | String? | `nil` | Optional wake-word bundle. When set, the agent rests in `.sleeping` until the wake word fires. |
 | `stt_language` | String | `"en"` | Whisper decode language (ISO-639-1, e.g. `"en"`, `"es"`) |
-| `stt_revision` | String | `"develop"` | HF branch / tag for STT |
-| `tts_revision` | String | `"develop"` | HF branch / tag for TTS |
+| `stt_revision` | String? | `nil` | HF tag for STT; omit → ModelRevisionMap |
+| `tts_revision` | String? | `nil` | HF tag for TTS; omit → ModelRevisionMap |
 
 ### Compute device routing (Apple Silicon)
 
@@ -194,10 +306,14 @@ NPU is the default because:
 |-------|------|---------|-------------|
 | `llm` | `TheStageLLMProvider` | required | Local or remote LLM (Swift API) |
 | `llm_provider` | String | required | `"local"` or `"openai_compatible"` (Flutter) |
+| `llm_model` | String | required (Flutter) | For `"local"`: the `start_model` **handle**. For `"openai_compatible"`: remote model id |
+| `llm_endpoint` / `llm_api_key` | String | — | Required for `"openai_compatible"` |
 | `system_prompt` | String | helpful default | Prepended as a system message |
-| `max_tokens` | Int | 256 | Generation cap |
-| `temperature` | Double | 0.7 | Sampling temperature |
-| `chat_memory` | `TheStageChatMemory` | `TheStageSlidingWindowMemory(max_turns: 10)` | History strategy |
+| `max_tokens` | Int | 256 | Soft cap for remote providers; **ignored by local LLM** (bundle defaults) |
+| `temperature` | Double | 0.7 | Remote sampling; **ignored by local LLM** |
+| `chat_memory` | `TheStageChatMemory` | sliding window (10 turns) | History strategy |
+| `chat_memory_max_turns` | Int | 10 | Flutter map key for the sliding window |
+| `auto_listen` | Bool | `true` | If `false`, call `begin_listening` / `beginListening` after `start` |
 
 ### VAD / endpointing
 
@@ -232,14 +348,14 @@ through the pause — never VAD-filtered audio.
 |-------|------|---------|-------------|
 | `turn_detection_mode` | enum | `.vad` | `.vad` (silence timeout) or `.dnn` (smart-turn model) |
 | `turn_detector` | String? | `nil` | smart-turn engines repo/path (required for `.dnn`), e.g. `"TheStageAI/smart-turn-v3"` |
-| `turn_detector_revision` | String | `"main"` | HF branch / tag for the smart-turn engines |
+| `turn_detector_revision` | String? | `nil` | HF tag for smart-turn; omit → ModelRevisionMap |
 | `turn_detector_device` | String | `"npu"` | Compute device for the classifier (int8, ANE) |
 | `turn_eot_threshold` | Double | 0.85 | Completion prob at/above which a checkpoint counts as "done" |
 | `turn_eot_confirm_count` | Int | 2 | Consecutive "done" verdicts required before committing. Debounces a single spike on a mid-sentence pause. `1` = fire on first positive. |
 | `turn_eot_high_confidence` | Double | 1.0 | Verdict prob that commits immediately, skipping confirmation. `>= 1.0` (default) disables the bypass (see note). |
 | `turn_pause_trigger_ms` | Int | 256 | Trailing silence before the first model call |
 | `turn_reeval_interval_ms` | Int | 120 | Re-run cadence on a sustained pause (0 disables) |
-| `turn_max_silence_ms` | Int | 5000 | Hard fallback; MUST be < `turn_window_ms` |
+| `turn_max_silence_ms` | Int | 2000 | Hard fallback; MUST be < `turn_window_ms` |
 | `turn_window_ms` | Int | 8000 | Trailing audio window fed to the model |
 | `turn_min_speech_ms` | Int | 250 | Minimum voiced speech before the model is consulted |
 | `turn_asr_silence_hangover_ms` | Int | 200 | Trailing silence still fed to streaming ASR after speech stops (bounds "mm"/"?" filler; the turn model still sees the full pause) |
@@ -318,8 +434,11 @@ agent's `ASRNode` no longer uses it but it is otherwise untouched.
 
 | Field | Type | Default | Description |
 |-------|------|---------|-------------|
-| `interrupt_mode` | `InterruptTrigger` | `.speech_only` (iOS) / `.none` (macOS) | How (and whether) the user can barge in |
+| `interrupt_mode` | `InterruptMode` | `.vad` (iOS) / `.none` (macOS) | How (and whether) the user can barge in |
 | `allow_interruptions` | Bool | computed | Back-compat alias: `true` ⇔ `interrupt_mode != .none` |
+| `turn_start_mode` | `TurnStartMode` | `.vad` | When a user turn may begin (WW/SID gates) |
+| `turn_end_mode` | `TurnEndMode` | `.vad` | Endpointer (`turn_detection_mode` alias) |
+| `speaker_id` | String? | `nil` | ReDimNet speaker-embedding bundle when modes need SID |
 | `interrupt_min_speech_ms` | Int | 600 | Sustained speech needed to interrupt (Flutter slider goes down to 100 ms) |
 | `interrupt_onset_ms` | Int | 0 | Sustained positive-VAD duration to fire a barge-in. When `> 0` it takes precedence over `interrupt_min_speech_ms`. |
 | `interrupt_threshold` | Double | 0.9 | VAD prob threshold for barge-in, independent of `vad_threshold`. Kept strict so the agent doesn't trip on its own TTS / AEC residue. |
@@ -453,14 +572,21 @@ all keep running while the app is backgrounded — the system status
 bar shows the orange always-on-mic indicator. No additional lifecycle
 wiring is needed in the app.
 
-
 ## Concurrency Note
 
 `TheStageAI.infer` and `TheStageAI.infer_stream` are `nonisolated`,
-so VAD, Whisper, NeuTTS and the LLM stream run on independent tasks
+so VAD, Whisper, TTS and the LLM stream run on independent tasks
 inside the agent — none of them serialize on `MainActor`. Each node
 in the graph is its own actor / serial-queue-backed inference loop;
 the orchestrator is just an event router and never sits on the hot
 path. If you build your own orchestrator on top of these APIs, don't
 wrap inference calls in `Task { @MainActor in ... }`; that re-introduces
 the very serialization this design avoids.
+
+## Agent checklist
+
+- Wire `vad` / `stt` / `tts` / `llm` (local or OpenAI-compatible).
+- Local LLM: `start_model` first; `model_path` / `llm_model` must match the handle.
+- Speaker ID: set `speaker_id` + `enroll_speaker`; see [speaker_embedding.md](./speaker_embedding.md).
+- Mic/ASR **16 kHz**; TTS playback **24 kHz** (`tts_voice` / `voice_id` per TTS family).
+- Do not wrap `infer` / `infer_stream` in `@MainActor` tasks.

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 
 import '../../models/chat_message.dart';
+import '../app_theme.dart';
 
 // ============================================================================
-// FRONTEND widget — one chat bubble
-// ============================================================================
-// Dumb: given a [ChatMessage], draw it. User turns align right (primary
-// colour), assistant/error align left. A small spinner shows while the line is
-// still streaming (a live ASR partial or a mid-stream LLM reply).
+// FRONTEND widget — one chat bubble (iMessage-style)
 // ============================================================================
 class MessageBubble extends StatelessWidget {
   const MessageBubble({
@@ -21,34 +18,46 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isUser = message.role == MessageRole.user;
     final isError = message.role == MessageRole.error;
 
     final Color bgColor;
     final Color fgColor;
     if (isError) {
-      bgColor = colorScheme.error;
-      fgColor = colorScheme.onError;
+      bgColor = AppColors.systemRed.withValues(alpha: isDark ? 0.28 : 0.12);
+      fgColor = isDark ? const Color(0xFFFF8A80) : const Color(0xFFB00020);
     } else if (isUser) {
-      bgColor = colorScheme.primary;
-      fgColor = colorScheme.onPrimary;
+      bgColor = Theme.of(context).colorScheme.primary;
+      fgColor = Colors.white;
     } else {
-      bgColor = colorScheme.tertiary;
-      fgColor = colorScheme.onTertiary;
+      bgColor =
+          isDark ? AppColors.bubbleGrayDark : AppColors.bubbleGrayLight;
+      fgColor = Theme.of(context).colorScheme.onSurface;
     }
+
+    final radius = BorderRadius.only(
+      topLeft: const Radius.circular(20),
+      topRight: const Radius.circular(20),
+      bottomLeft: Radius.circular(isUser ? 20 : 6),
+      bottomRight: Radius.circular(isUser ? 6 : 20),
+    );
 
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-      child: Container(
-        margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 12),
-        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
-        constraints: BoxConstraints(
-          maxWidth: MediaQuery.of(context).size.width * 0.75,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        margin: EdgeInsets.only(
+          top: 3,
+          bottom: 3,
+          left: isUser ? 56 : 16,
+          right: isUser ? 16 : 56,
         ),
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 14),
         decoration: BoxDecoration(
           color: bgColor,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: radius,
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -57,16 +66,23 @@ class MessageBubble extends StatelessWidget {
             Flexible(
               child: Text(
                 message.text,
-                style: TextStyle(color: fgColor, fontSize: 15),
+                style: TextStyle(
+                  color: fgColor,
+                  fontSize: 16,
+                  height: 1.28,
+                  letterSpacing: -0.2,
+                ),
               ),
             ),
             if (isStreaming) ...[
-              const SizedBox(width: 6),
+              const SizedBox(width: 8),
               SizedBox(
-                width: 12,
-                height: 12,
-                child:
-                    CircularProgressIndicator(strokeWidth: 2, color: fgColor),
+                width: 11,
+                height: 11,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.8,
+                  color: fgColor.withValues(alpha: 0.85),
+                ),
               ),
             ],
           ],

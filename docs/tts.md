@@ -1,15 +1,79 @@
-# NeuTTS (Text-to-Speech)
+# TTS (Text-to-Speech)
 
 On-device neural text-to-speech with batch and push-based streaming.
-Two public pipelines:
+Public pipelines:
 
-- **`NeuTTSMultilingualPipeline`** — Qwen3-based, 9 languages.
-- **`NeuTTSNanoPipeline`** — phoneme-based, English only, faster.
+- **`NeuTTSMultilingualPipeline`** — NeuTTS multilingual / nano-multilingual.
+- **`Qwen3TTSPipeline`** — Qwen3-TTS (12 Hz talker + MTP + codec).
 
-Flutter consumers go through the singleton `start_model` + `infer` /
-`infer_stream` (JSON) path — there is no direct TTS pipeline
-constructor on Dart. Both surfaces share the same on-disk cache and
-response shape.
+> **Release note:** English espeak nano (`TheStageAI/neutts` /
+> `NeuTTSNanoPipeline`) is **not** in the current HF fleet — it needs an
+> app-side espeak phonemizer. For the current `@v1.1` fleet prefer
+> `neutts-nano-multilingual`. Full `neutts-multilingual` is temporarily
+> out of the sealed release set until its talker ships `llm/graph.json`.
+
+Flutter / `start_model` go through the TTS family router: the bundle
+layout selects Qwen3-TTS vs NeuTTS automatically (see
+[Auto-routing](#auto-routing-start_model)). There is no direct TTS
+constructor on Dart. All surfaces share the same on-disk cache and
+24 kHz PCM output contract.
+
+## Qwen3-TTS
+
+**Swift** — direct constructor:
+
+```swift
+import TheStageSDK
+
+try await TheStageAI.shared.initialize(apiToken: "your-api-token")
+
+let tts = try await Qwen3TTSPipeline(
+    engines_path: "TheStageAI/Qwen3-TTS-12Hz-0.6B-Base",
+    voice_id: "b_ref"   // default
+)
+
+let result = tts.infer(text: "Hello, world!")
+// result.samples: [Float] @ 24 kHz mono
+```
+
+**Flutter** — same JSON path as NeuTTS; pass the Qwen3-TTS repo:
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/Qwen3-TTS-12Hz-0.6B-Base',
+  config: {'voice_id': 'b_ref'},
+);
+```
+
+| Item | Default / notes |
+|---|---|
+| HF example | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` |
+| `voice_id` | `"b_ref"` |
+| Sample rate | **24 000 Hz** mono |
+| Sampling | Bundle defaults (talker ~`temperature=0.9`, `top_k=50`); override via `TTSGenerationConfig` / JSON `config` |
+| Streaming | Same push `infer_stream` / `open_streamer` patterns as NeuTTS |
+
+## Auto-routing (`start_model`)
+
+When you `start_model` a TTS handle without picking a Swift subclass, the
+SDK inspects the bundle:
+
+1. Spec has MTP (or legacy `talker/` / `qwen3_tts_spec.json`) → **Qwen3-TTS**
+   (`voice_id` default `"b_ref"`).
+2. Else NeuCodec + NeuTTS layout → **NeuTTS** multilingual /
+   nano-multilingual (`voice_id` default often `"dave"` / `"paul"`).
+
+Config keys: `voice_id`, `language` (NeuTTS multilingual).
+
+## NeuTTS
+
+Shipping HF repos:
+
+| Bundle | HF repo |
+|---|---|
+| Multilingual | `TheStageAI/neutts-multilingual` |
+| Nano multilingual | `TheStageAI/neutts-nano-multilingual` |
 
 ## Basic Usage
 
@@ -30,15 +94,6 @@ let tts = try await NeuTTSMultilingualPipeline(
 let result = tts.infer(text: "Hello, world!")
 let audio = result.samples           // [Float], 24 kHz mono
 let sample_rate = result.sample_rate // 24000
-```
-
-The English-only Nano variant follows the same shape:
-
-```swift
-let tts = try await NeuTTSNanoPipeline(
-    engines_path: "TheStageAI/neutts-nano",
-    voice_id: "dave"
-)
 ```
 
 **Flutter** — JSON path:
@@ -78,6 +133,47 @@ final sampleRate  = result[0]['sample_rate'] as int; // 24000
 | output `TTSResult.rtf` | `Double` | Real-time factor (duration / wall time). |
 | output `TTSResult.tokens_per_second` | `Double` | Decode speed. |
 | output `TTSResult.debug_info` | `TTSDebugInfo?` | Only set if `return_debug_info`. |
+
+## Sampling (voice quality)
+
+Omit `temperature` / `top_k` / `seed` to use the **voice / bundle defaults**
+(Qwen3-TTS talker is typically ~`temperature=0.9`, `top_k=50`). These knobs
+are independent of streaming chunking (`TTSStreamConfig`).
+
+| Goal | `temperature` | `top_k` | `seed` |
+|---|---|---|---|
+| Stable / clear (default-ish) | omit or `0.8–1.0` | omit or `40–50` | omit |
+| More expressive / varied | `1.1–1.2` | `60–80` | omit |
+| Safer / less artifact-prone | `0.6–0.8` | `20–30` | omit |
+| Reproducible QA fixture | `0.8` | `50` | fixed (`42`) |
+
+**Swift:**
+
+```swift
+let result = tts.infer(
+    text: "Welcome to the product demo.",
+    config: TTSGenerationConfig(temperature: 0.8, top_k: 30)
+)
+
+// Deterministic fixture
+let fixed = tts.infer(
+    text: "Hello.",
+    config: TTSGenerationConfig(temperature: 0.8, top_k: 50, seed: 42)
+)
+```
+
+**Flutter / JSON** (sampling keys live next to `text`):
+
+```dart
+final result = await TheStageFlutterSDK.infer(
+  model_name: 'tts',
+  input_json: {
+    'text': 'Welcome to the product demo.',
+    'temperature': 0.8,
+    'top_k': 30,
+  },
+);
+```
 
 ## Streaming
 
@@ -298,18 +394,13 @@ let tts = try await NeuTTSMultilingualPipeline(
     language: "english",             // optional language override
     device: "npu",                   // "npu" | "gpu" | "cpu"
     devices: nil,                    // optional per-component override
-    revision: "main",                // HF revision; ignored locally
     on_load_progress: nil            // see "Load Progress" below
 )
 
-let nano = try await NeuTTSNanoPipeline(
-    engines_path: "TheStageAI/neutts-nano",
-    voice_id: "dave"
-)
 ```
 
 `TheStageAI.shared.initialize(apiToken:)` must have succeeded before
-either call returns.
+the call returns.
 
 ## Load Progress
 
@@ -364,7 +455,7 @@ let tts = try await NeuTTSMultilingualPipeline(
 
 ## Cleanup
 
-`NeuTTSMultilingualPipeline` and `NeuTTSNanoPipeline` are normal Swift
+`NeuTTSMultilingualPipeline` and `Qwen3TTSPipeline` are normal Swift
 objects — drop the reference to release them. When you used the
 singleton API:
 
@@ -377,3 +468,10 @@ _ = try ai.stop_model(model_name: "tts")
 ```dart
 await TheStageFlutterSDK.stop_model(model_name: 'tts');
 ```
+
+## Agent checklist
+
+- Output is always **24 kHz** mono Float / `Float32List`.
+- `start_model` auto-routes Qwen3-TTS vs NeuTTS from the bundle layout.
+- Qwen3 default `voice_id`: `b_ref`. NeuTTS examples often use `paul` / `dave`.
+- Streaming: drain `infer_stream` / streamer `output` concurrently with `send`.

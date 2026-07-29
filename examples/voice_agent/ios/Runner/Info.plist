@@ -49,5 +49,8 @@
 	<string>Voice Agent needs microphone access to listen and respond to your voice.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<!-- Allow Flutter/Xcode debugger with RELEASE TheStageCore xcframework. -->
+	<key>TheStageAllowDebugger</key>
+	<true/>
 </dict>
 </plist>

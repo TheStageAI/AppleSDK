@@ -94,6 +94,36 @@ public struct AudioDeviceInfo : Swift.Sendable {
 extension TheStageCore.AudioStreamPlayer {
   public static func list_output_devices() -> [TheStageCore.AudioDeviceInfo]
 }
+public enum DemoAudioCapture {
+  public static var enabled: Swift.Bool
+  public static var on_playback: (@Sendable ([Swift.Float], Swift.Double) -> Swift.Void)?
+  public static var on_mic: (@Sendable ([Swift.Float], Swift.Double) -> Swift.Void)?
+  @inline(__always) public static func emit_playback(_ samples: [Swift.Float], sample_rate: Swift.Double)
+  @inline(__always) public static func emit_mic(_ samples: [Swift.Float], sample_rate: Swift.Double)
+}
+public enum AECMethod : Swift.String, Swift.Sendable {
+  case VPIO
+  case NEURAL
+  case NONE
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+@_hasMissingDesignatedInitializers final public class NeuralAecSession : @unchecked Swift.Sendable {
+  public static let ENGINES_REPO: Swift.String
+  public static let MODEL_TYPE: Swift.String
+  public static let SAMPLE_RATE: Swift.Int
+  @objc deinit
+  public static func create(engines_path: Swift.String? = nil, render_sample_rate: Swift.Int, revision: Swift.String = "main") async -> TheStageCore.NeuralAecSession?
+  public static func create_local(engines_path: Swift.String, render_sample_rate: Swift.Int) -> TheStageCore.NeuralAecSession?
+  public static func resolve_engines_path(engines_path: Swift.String? = nil, revision: Swift.String = "main") async -> Swift.String?
+  final public func push_render(_ samples: [Swift.Float])
+  final public func render_reset()
+  final public func process_capture(_ samples: [Swift.Float], played_frames: Swift.Int64 = -1) -> [Swift.Float]
+  final public func close()
+}
 public struct TTSSessionMetrics : Swift.Sendable {
   public let time_to_first_audio: Swift.Double?
   public let total_seconds: Swift.Double?
@@ -1219,6 +1249,8 @@ public struct VLMResult : Swift.Sendable {
 }
 @_hasMissingDesignatedInitializers public class TheStageVLMPipeline : TheStageCore.TheStageMultimodalPipeline, @unchecked Swift.Sendable {
   final public let image_token_id: Swift.Int
+  final public let image_start_token_id: Swift.Int?
+  final public let image_end_token_id: Swift.Int?
   final public let max_image_tokens: Swift.Int?
   @objc deinit
   override public func release()
@@ -1695,7 +1727,10 @@ public struct ASRNodeConfig : Swift.Sendable {
 public struct AudioEngineConfig : Swift.Sendable {
   public var sample_rate_in: Swift.Double
   public var sample_rate_out: Swift.Double
+  public var tts_sample_rate: Swift.Double
   public var voice_processing: Swift.Bool
+  public var aec_method: TheStageCore.AECMethod
+  public var aec_engines_path: Swift.String?
   public var aec_warmup_ms: Swift.Int
   public var post_drain_grace_ms: Swift.Int
   public var mute_mic_during_playback: Swift.Bool
@@ -1944,7 +1979,15 @@ public struct TheStageAgentConfig : @unchecked Swift.Sendable {
   }
   public var conversation_timeout_sec: Swift.Int
   public var auto_listen: Swift.Bool
-  public var aec_enabled: Swift.Bool
+  public var sample_rate_in: Swift.Double
+  public var sample_rate_out: Swift.Double
+  public var tts_sample_rate: Swift.Double
+  public var aec_method: TheStageCore.AECMethod
+  public var aec_engines_path: Swift.String?
+  public var aec_enabled: Swift.Bool {
+    get
+    set
+  }
   public var aec_playback_gate_tail_ms: Swift.Int
   public var aec_warmup_ms: Swift.Int
   public var interrupt_min_playback_ms: Swift.Int
@@ -2015,6 +2058,9 @@ final public class TheStageVoiceAgent : @unchecked Swift.Sendable {
   final public func update_interrupt_config(min_speech_ms: Swift.Int? = nil, min_playback_ms: Swift.Int? = nil, interrupt_mode mode: TheStageCore.InterruptMode? = nil, onset_ms: Swift.Int? = nil, threshold: Swift.Double? = nil) async
   final public func update_turn_config(eot_threshold: Swift.Double? = nil, pause_trigger_ms: Swift.Int? = nil, reeval_interval_ms: Swift.Int? = nil, max_silence_ms: Swift.Int? = nil) async
 }
+extension TheStageCore.AECMethod : Swift.Equatable {}
+extension TheStageCore.AECMethod : Swift.Hashable {}
+extension TheStageCore.AECMethod : Swift.RawRepresentable {}
 extension TheStageCore.TheStageLogLevel : Swift.Hashable {}
 extension TheStageCore.TheStageLogLevel : Swift.RawRepresentable {}
 extension TheStageCore.TheStageLogRedaction : Swift.Equatable {}

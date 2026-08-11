@@ -43,6 +43,10 @@ struct BenchRecord: Codable {
     let medianRtfx: Double?
     let medianEncodeMs: Double?
 
+    // VLM prefill latency (encode reuses medianEncodeMs).
+    let medianPrefillMs: Double?
+    let medianTotalMs: Double?
+
     // Raw per-run values so exported sessions stay analyzable.
     let perRunTokS: [Double]?
     let perRunRtf: [Double]?
@@ -69,6 +73,7 @@ struct BenchRecord: Codable {
             tokens: row.tokens,
             bestRtf: nil, medianRtf: nil,
             bestRtfx: nil, medianRtfx: nil, medianEncodeMs: nil,
+            medianPrefillMs: nil, medianTotalMs: nil,
             perRunTokS: perRunTokS, perRunRtf: nil, perRunRtfx: nil,
             perRunEncodeMs: nil
         )
@@ -90,6 +95,7 @@ struct BenchRecord: Codable {
             ttftMs: nil, tokens: nil,
             bestRtf: perRunRtf.max(), medianRtf: median(perRunRtf),
             bestRtfx: nil, medianRtfx: nil, medianEncodeMs: nil,
+            medianPrefillMs: nil, medianTotalMs: nil,
             perRunTokS: perRunTokS, perRunRtf: perRunRtf, perRunRtfx: nil,
             perRunEncodeMs: nil
         )
@@ -111,8 +117,34 @@ struct BenchRecord: Codable {
             bestRtf: nil, medianRtf: nil,
             bestRtfx: perRunRtfx.max(), medianRtfx: median(perRunRtfx),
             medianEncodeMs: median(perRunEncodeS.map { $0 * 1000 }),
+            medianPrefillMs: nil, medianTotalMs: nil,
             perRunTokS: perRunTokS, perRunRtf: nil, perRunRtfx: perRunRtfx,
             perRunEncodeMs: perRunEncodeS.map { $0 * 1000 }
+        )
+    }
+
+    static func vlm(
+        model: String,
+        prompt: String,
+        runs: Int,
+        maxNewTokens: Int,
+        row: VLMBenchRow,
+        perRunTokS: [Double],
+        perRunEncodeMs: [Double]
+    ) -> BenchRecord {
+        BenchRecord(
+            kind: "vlm", model: model, voice: nil, timestamp: Date(),
+            prompt: prompt, runs: runs, maxNewTokens: maxNewTokens,
+            bestTokS: row.bestTokS, medianTokS: row.medianTokS,
+            meanTokS: row.meanTokS, predictMsStep: nil, hostMsStep: nil,
+            ttftMs: nil, tokens: row.tokens,
+            bestRtf: nil, medianRtf: nil,
+            bestRtfx: nil, medianRtfx: nil,
+            medianEncodeMs: row.medianEncodeMs,
+            medianPrefillMs: row.medianPrefillMs,
+            medianTotalMs: row.medianTotalMs,
+            perRunTokS: perRunTokS, perRunRtf: nil, perRunRtfx: nil,
+            perRunEncodeMs: perRunEncodeMs
         )
     }
 

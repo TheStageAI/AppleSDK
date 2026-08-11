@@ -2,7 +2,12 @@ import AVFoundation
 import SwiftUI
 import TheStageSDK
 
-// ASR catalog — Hugging Face repos (``ModelRevisionMap`` picks the revision).
+// --------------------------------------------------------------------------------------
+// ASR catalog
+// --------------------------------------------------------------------------------------
+// One entry per ASR bundle under `BundledModels/<name>/`. Same bundled-first /
+// HF-fallback rule as the LLM/TTS catalogs. An empty `hfRepo` means the model
+// is dev-bundle only (no published engines yet).
 enum ASRFamily: Hashable {
     case qwen3
     case whisper
@@ -36,7 +41,6 @@ struct BundledASRModel: Identifiable, Hashable {
         }
         return nil
     }
-
 }
 
 enum ASRCatalog {
@@ -104,7 +108,7 @@ final class ASRHost {
             throw NSError(domain: "ASRBench", code: 1, userInfo: [
                 NSLocalizedDescriptionKey:
                     "\(model.displayName): no bundled engines and no HF repo. "
-                    + "Set a Hugging Face repo id in ASRCatalog.",
+                    + "Set hfRepo on the catalog entry.",
             ])
         }
         if model.isBundled {

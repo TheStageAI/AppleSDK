@@ -1,13 +1,14 @@
 # EngineBench
 
-iOS benchmark app for the **TheStage Apple SDK `1.1.0`**.
-Measure LLM decode tok/s + TTFT, streaming TTS, and ASR on a physical
-iPhone — all engines load from **Hugging Face** (`TheStageAI/*`) via
-``ModelRevisionMap`` (no model weights are shipped in this example).
+iOS benchmark app for the **TheStage Apple SDK `1.2.0`**.
+Measure LLM decode tok/s + TTFT, streaming TTS, ASR, and VLM (camera /
+gallery) on a physical iPhone — all engines load from **Hugging Face**
+(`TheStageAI/*`) via ``ModelRevisionMap`` (no model weights are shipped
+in this example).
 
 | | |
 | --- | --- |
-| Example version | **`1.1.0`** (see [`VERSION`](./VERSION)) |
+| Example version | **`1.2.0`** (see [`VERSION`](./VERSION)) |
 | SDK pin | Local `Package.swift` at repo root (`import TheStageSDK`) |
 | Platforms | iPhone, **iOS 18+** (no Simulator) |
 | Models | HF only — first launch downloads + caches per model |
@@ -17,6 +18,7 @@ iPhone — all engines load from **Hugging Face** (`TheStageAI/*`) via
 - **LLM** tab — Generate (streaming) + Benchmark (warmup + N quiet runs)
 - **TTS** tab — NeuTTS nano-multilingual + Qwen3-TTS
 - **ASR** tab — Whisper turbo + Qwen3-ASR (mic or fixture)
+- **VLM** tab — LFM2.5-VL (camera / gallery) + Generate / Benchmark
 - **Share** — export the session as a JSON file (device id + metrics)
 
 ## Prerequisites
@@ -26,7 +28,7 @@ iPhone — all engines load from **Hugging Face** (`TheStageAI/*`) via
 3. API token from [app.thestage.ai](https://app.thestage.ai)
 4. This example lives inside a checkout of
    [TheStageAI/AppleSDK](https://github.com/TheStageAI/AppleSDK) at tag
-   **`1.1.0`** (the `project.yml` depends on `../..`)
+   **`1.2.0`** (the `project.yml` depends on `../..`)
 
 ## Setup (once)
 
@@ -74,6 +76,7 @@ do **not** hardcode `vA.B` unless you intentionally override):
 | LLM | `TheStageAI/LFM2.5-230M`, `LFM2.5-350M`, `Qwen3-0.6B`, `gemma-3-1b-it` |
 | TTS | `TheStageAI/neutts-nano-multilingual`, `Qwen3-TTS-12Hz-0.6B-Base` |
 | ASR | `TheStageAI/thewhisper-large-v3-turbo`, `Qwen3-ASR-0.6B` |
+| VLM | `TheStageAI/LFM2.5-VL-450M` (SDK 1.2 map → HF `v1.2`) |
 
 First load of each model downloads hundreds of MB and compiles on-device
 (progress UI in-app). Later launches reuse the SDK cache.

@@ -151,6 +151,16 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         node.send_port(port, value: value)
     }
 
+    func publish_node_event(node_id: String, event: [String: Any]) {
+        guard let node = __bridge_nodes.first(where: { $0.id == node_id })
+        else { return }
+        node.publish_bus_event(event)
+    }
+
+    func send_request(_ text: String) {
+        __agent?.send_request(text)
+    }
+
     // ----------------------------------------------------------------------------------
     // Private Methods
     // ----------------------------------------------------------------------------------
@@ -267,8 +277,33 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         if let v = dict["auto_listen"] as? Bool {
             config.auto_listen = v
         }
-        if let v = dict["aec_enabled"] as? Bool {
+        if let v = dict["sample_rate_in"] as? Double {
+            config.sample_rate_in = v
+        } else if let v = dict["sample_rate_in"] as? Int {
+            config.sample_rate_in = Double(v)
+        }
+        if let v = dict["sample_rate_out"] as? Double {
+            config.sample_rate_out = v
+        } else if let v = dict["sample_rate_out"] as? Int {
+            config.sample_rate_out = Double(v)
+        }
+        if let v = dict["tts_sample_rate"] as? Double {
+            config.tts_sample_rate = v
+        } else if let v = dict["tts_sample_rate"] as? Int {
+            config.tts_sample_rate = Double(v)
+        }
+        if let raw = dict["aec_method"] as? String {
+            switch raw.lowercased() {
+            case "vpio": config.aec_method = .VPIO
+            case "neural": config.aec_method = .NEURAL
+            case "none": config.aec_method = .NONE
+            default: break
+            }
+        } else if let v = dict["aec_enabled"] as? Bool {
             config.aec_enabled = v
+        }
+        if let v = dict["aec_engines_path"] as? String {
+            config.aec_engines_path = v
         }
         if let v = dict["aec_warmup_ms"] as? Int {
             config.aec_warmup_ms = v

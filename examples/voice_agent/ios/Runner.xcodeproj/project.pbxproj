@@ -246,7 +246,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "SRC=\"${SRCROOT}/Runner/BundledModels\"\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/BundledModels\"\nif [ -d \"$SRC\" ]; then\n  mkdir -p \"$DST\"\n  rsync -a --delete --exclude '.gitignore' \"$SRC/\" \"$DST/\"\n  echo \"Copied BundledModels ($(du -sh \"$DST\" | cut -f1)) into app resources\"\nelse\n  echo \"warning: $SRC missing — run scripts/sync_local_bundles.sh (HF fallback at runtime)\"\nfi\n";
+			shellScript = "SRC=\"${SRCROOT}/Runner/BundledModels\"\nDST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/BundledModels\"\nif [ -d \"$SRC\" ]; then\n  mkdir -p \"$DST\"\n  rsync -a --delete --exclude '.gitignore' \"$SRC/\" \"$DST/\"\n  echo \"Copied BundledModels ($(du -sh \"$DST\" | cut -f1)) into app resources\"\nelse\n  echo \"warning: $SRC missing — optional BundledModels missing (HF fallback at runtime)\"\nfi\n";
 		};
 		3B06AD1E1E4923F5004D2608 /* Thin Binary */ = {
 			isa = PBXShellScriptBuildPhase;

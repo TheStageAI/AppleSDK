@@ -7,7 +7,7 @@ import 'ui/voice_chat_screen.dart';
 
 // Secrets are injected at build/run time via:
 //   flutter run --dart-define-from-file=../secrets.json
-// See `test_apps/secrets.example.json` for the schema.
+// See `secrets.example.json` for the schema.
 const _apiToken = String.fromEnvironment('TS_API_TOKEN');
 const _openAIKey = String.fromEnvironment('OPENAI_API_KEY');
 

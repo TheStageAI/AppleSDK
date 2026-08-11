@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/services.dart';
 
-import 'thestage_flutter_sdk.dart';
-
 // ---------------------------------------------------------------------------
 // AgentNodeContext
 // ---------------------------------------------------------------------------
@@ -13,17 +11,24 @@ class AgentNodeContext {
     required this.state,
     required this.isGateOpen,
     required void Function(String port, String value) sendPort,
+    required void Function(Map<String, dynamic> event) publishEvent,
     required Stream<Map<String, dynamic>> portEvents,
   }) : _sendPort = sendPort,
+       _publishEvent = publishEvent,
        _portEvents = portEvents;
 
   final String nodeId;
   final String state;
   final bool isGateOpen;
   final void Function(String port, String value) _sendPort;
+  final void Function(Map<String, dynamic> event) _publishEvent;
   final Stream<Map<String, dynamic>> _portEvents;
 
+  /// Publish a value on a local port name. Native bus name is `$nodeId.$name`.
   void sendPort(String name, String value) => _sendPort(name, value);
+
+  /// Inject a bus event. Supported kinds today: `USER_REQUEST` with `text`.
+  void publishEvent(Map<String, dynamic> event) => _publishEvent(event);
 
   Stream<String> recvPort(String name) {
     final fullName = '$nodeId.$name';
@@ -36,6 +41,10 @@ class AgentNodeContext {
 // ---------------------------------------------------------------------------
 // TheStageAgentNode
 // ---------------------------------------------------------------------------
+/// Base class for Flutter custom voice-agent nodes.
+///
+/// Pass instances to [TheStageVoiceAgentFlutter.start] via `extraNodes:`.
+/// Example nodes (VLM captions, event logs) live in the host app — not here.
 abstract class TheStageAgentNode {
   String get id;
   List<String> get runWhen;
@@ -58,97 +67,6 @@ abstract class TheStageAgentNode {
 }
 
 // ---------------------------------------------------------------------------
-// VLMCaptionNode
-// ---------------------------------------------------------------------------
-/// Example custom node that runs a local VLM for live captions.
-class VLMCaptionNode extends TheStageAgentNode {
-  VLMCaptionNode({
-    this.id = 'vlm',
-    this.runWhen = const ['idle', 'sleeping'],
-    this.modelName = 'vlm_caption',
-    required this.enginesPath,
-    this.prompt = 'Describe briefly for the voice assistant.',
-    this.device = 'npu',
-    this.revision,
-  });
-
-  @override
-  final String id;
-
-  @override
-  final List<String> runWhen;
-
-  final String modelName;
-  final String enginesPath;
-  final String prompt;
-  final String device;
-  /// HF revision override. `null` → SDK ModelRevisionMap.
-  final String? revision;
-
-  bool _modelReady = false;
-  final _pending = <String>[];
-  final _captions = StreamController<String>.broadcast();
-  AgentNodeContext? _ctx;
-
-  Stream<String> get captions => _captions.stream;
-
-  @override
-  Future<void> onStart(AgentNodeContext context) async {
-    _ctx = context;
-    await TheStageFlutterSDK.start_model(
-      model_name: modelName,
-      engines_path: enginesPath,
-      model_type: 'thestage_vl',
-      device: device,
-      revision: revision,
-    );
-    _modelReady = true;
-  }
-
-  @override
-  Future<void> onStop() async {
-    if (!_modelReady) return;
-    await TheStageFlutterSDK.stop_model(model_name: modelName);
-    _modelReady = false;
-  }
-
-  @override
-  Future<void> onState(AgentNodeContext context, String state) async {
-    _ctx = context;
-    if (context.isGateOpen) await _drain();
-  }
-
-  /// Buffer an image path; drains when gate is open (idle/sleeping).
-  Future<void> submitImage({required String path}) async {
-    _pending.add(path);
-    if (_ctx?.isGateOpen == true) await _drain();
-  }
-
-  Future<void> _drain() async {
-    final ctx = _ctx;
-    if (ctx == null || !_modelReady) return;
-    final batch = List<String>.from(_pending);
-    _pending.clear();
-    for (final path in batch) {
-      final results = await TheStageFlutterSDK.infer(
-        model_name: modelName,
-        input_json: {
-          'prompt': prompt,
-          'image': path,
-        },
-      );
-      final caption = results.isEmpty
-          ? ''
-          : (results.first['text']?.toString() ?? '');
-      if (caption.isNotEmpty) {
-        _captions.add(caption);
-        ctx.sendPort('vlm.caption', caption);
-      }
-    }
-  }
-}
-
-// ---------------------------------------------------------------------------
 // VoiceAgentNodeDispatcher
 // ---------------------------------------------------------------------------
 class VoiceAgentNodeDispatcher {
@@ -157,14 +75,22 @@ class VoiceAgentNodeDispatcher {
     required Stream<Map<String, dynamic>> portEvents,
     required Future<void> Function(String nodeId, String port, String value)
     sendNodePort,
+    required Future<void> Function(
+      String nodeId,
+      Map<String, dynamic> event,
+    )
+    publishNodeEvent,
   }) : _nodesChannel = nodesChannel,
        _portEvents = portEvents,
-       _sendNodePort = sendNodePort;
+       _sendNodePort = sendNodePort,
+       _publishNodeEvent = publishNodeEvent;
 
   final MethodChannel _nodesChannel;
   final Stream<Map<String, dynamic>> _portEvents;
   final Future<void> Function(String nodeId, String port, String value)
   _sendNodePort;
+  final Future<void> Function(String nodeId, Map<String, dynamic> event)
+  _publishNodeEvent;
   final Map<String, TheStageAgentNode> _nodes = {};
 
   void registerNodes(List<TheStageAgentNode> nodes) {
@@ -196,6 +122,9 @@ class VoiceAgentNodeDispatcher {
       isGateOpen: args['is_gate_open'] == true,
       sendPort: (port, value) {
         unawaited(_sendNodePort(nodeId, port, value));
+      },
+      publishEvent: (event) {
+        unawaited(_publishNodeEvent(nodeId, event));
       },
       portEvents: _portEvents,
     );

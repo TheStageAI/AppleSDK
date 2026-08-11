@@ -12,7 +12,7 @@ settings:
   base:
     # Set your Apple Developer Team in Xcode → Signing & Capabilities.
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "1.1.0"
+    MARKETING_VERSION: "1.2.0"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   EngineBench:
@@ -38,6 +38,10 @@ targets:
         ITSAppUsesNonExemptEncryption: false
         NSMicrophoneUsageDescription: >-
           EngineBench records short clips to benchmark speech recognition.
+        NSCameraUsageDescription: >-
+          EngineBench captures photos to test vision-language models.
+        NSPhotoLibraryUsageDescription: >-
+          EngineBench loads photos to test vision-language models.
         # Expanded from gitignored Secrets.xcconfig at build time.
         TSAPIToken: "$(TS_API_TOKEN)"
     settings:

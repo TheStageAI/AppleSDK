@@ -173,6 +173,8 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
             __handle_start_model(call, result: result)
         case MethodRoute.stopModel:
             __handle_stop_model(call, result: result)
+        case MethodRoute.prefetchEngines:
+            __handle_prefetch_engines(call, result: result)
 
         case MethodRoute.listComponents:
             __handle_list_components(call, result: result)
@@ -231,6 +233,17 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
             __handle_voice_agent_enroll_speaker(call, result: result)
         case MethodRoute.voiceAgentSendNodePort:
             __handle_voice_agent_send_node_port(call, result: result)
+        case MethodRoute.voiceAgentPublishNodeEvent:
+            __handle_voice_agent_publish_node_event(call, result: result)
+        case MethodRoute.voiceAgentSendRequest:
+            __handle_voice_agent_send_request(call, result: result)
+
+        case MethodRoute.screenRecorderIsRecording:
+            __handle_screen_recorder_is_recording(call, result: result)
+        case MethodRoute.screenRecorderStart:
+            __handle_screen_recorder_start(call, result: result)
+        case MethodRoute.screenRecorderStop:
+            __handle_screen_recorder_stop(call, result: result)
 
         default:
             result(FlutterMethodNotImplemented)

@@ -2,7 +2,13 @@ import AVFoundation
 import SwiftUI
 import TheStageSDK
 
-// TTS catalog — Hugging Face repos (``ModelRevisionMap`` picks the revision).
+// --------------------------------------------------------------------------------------
+// TTS catalog
+// --------------------------------------------------------------------------------------
+// One entry per TTS bundle under `BundledModels/<name>/`. `family` picks the
+// SDK pipeline class (NeuTTS multilingual vs Qwen3-TTS dual-LM); `hfRepo` is
+// the fallback when the bundle isn't baked into the app (same bundled-first
+// rule as the LLM catalog).
 enum TTSFamily: Hashable {
     case neutts
     case qwen3Tts

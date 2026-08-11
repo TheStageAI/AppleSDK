@@ -1,7 +1,14 @@
 import Foundation
 import TheStageSDK
 
-// LLMHost — initialize once, keep a single resident TheStageLLM.
+// --------------------------------------------------------------------------------------
+// LLMHost
+// --------------------------------------------------------------------------------------
+// Thin wrapper around the SDK: one-time `TheStageAI.initialize` (token from the
+// gitignored Secrets.xcconfig -> Info.plist `TSAPIToken`) plus a one-slot
+// `TheStageLLM` cache. Only the currently selected model stays resident — three
+// CoreML decoders at once would be hundreds of MB of compiled ANE state — so
+// switching models releases the previous one before loading the next.
 
 enum LLMHostError: LocalizedError {
     case missingToken
@@ -9,7 +16,7 @@ enum LLMHostError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingToken:
-            return "TSAPIToken missing. Copy Secrets.xcconfig.example → Secrets.xcconfig and set TS_API_TOKEN."
+            return "TSAPIToken missing. Set TS_API_TOKEN in Secrets.xcconfig."
         }
     }
 }
@@ -22,7 +29,8 @@ final class LLMHost {
     private var initialized = false
     private var current: (name: String, llm: TheStageLLM)?
 
-    /// Validate the API token once per process (online `initialize` required).
+    /// Validate the API token exactly once per process (online required;
+    /// offline initialize fails inside the SDK).
     func ensureInitialized() async throws {
         if initialized { return }
         guard
@@ -38,10 +46,12 @@ final class LLMHost {
         initialized = true
     }
 
-    /// Load (or return cached) decoder for `model`. Downloads from Hugging
-    /// Face on first use; later launches hit the on-device cache.
+    /// Load (or return the cached) decoder for `model`, releasing any other
+    /// resident model first. Bundled models load from the app bundle; anything
+    /// else is fetched from the model's HF repo (download -> extract ->
+    /// decrypt, cached by the SDK) with `onProgress` reporting the phases.
     func llm(
-        for model: CatalogModel,
+        for model: BundledModel,
         onProgress: LoadProgressHandler? = nil
     ) async throws -> TheStageLLM {
         try await ensureInitialized()

@@ -54,6 +54,8 @@
 	<!-- Allow Flutter/Xcode debugger with RELEASE TheStageCore xcframework. -->
 	<key>TheStageAllowDebugger</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Capture a photo for on-device VLM captions.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Pick an image for on-device VLM captions.</string>
 </dict>

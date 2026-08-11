@@ -261,7 +261,7 @@ keeps `mic` / `playback`.
 The plugin/SDK ships **primitives only** (`TheStageAgentNode`,
 `AgentNodeContext`, `extraNodes:`). Example nodes (VLM captions, event
 logs) live in the host app — see
-the custom-nodes demo shipped alongside the SDK examples.
+`examples/voice_agent_custom_nodes` in the AppleSDK checkout.
 
 **Attach + listen (Flutter):**
 

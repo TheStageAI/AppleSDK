@@ -94,6 +94,7 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 | `examples/engine_bench/` | iPhone LLM / TTS / ASR / VLM benches (Hugging Face engines) |
 | `examples/tts_front_stream/` | Flutter streaming TTS on a physical iPhone |
 | `examples/voice_agent/` | Flutter mic → VAD → STT → LLM → TTS with barge-in |
+| `examples/voice_agent_custom_nodes/` | Flutter custom nodes + ephemeral VLM captions |
 | `docs/` | Per-pipeline guides + [`llms.txt`](./docs/llms.txt) agent index |
 | `scripts/setup.sh` | One-time host setup for Flutter examples |
 

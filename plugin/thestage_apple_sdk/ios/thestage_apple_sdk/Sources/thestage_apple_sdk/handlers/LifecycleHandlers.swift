@@ -104,4 +104,47 @@ extension TheStageFlutterPlugin {
             }
         }
     }
+
+    func __handle_prefetch_engines(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let args = call.arguments as? [String: Any],
+              let repo_id = args["repo_id"] as? String
+        else {
+            __fail(result, msg: "Missing repo_id.")
+            return
+        }
+        let model_type = args["model_type"] as? String
+        let revision = args["revision"] as? String
+        let config = args["config"] as? [String: Any]
+
+        var on_load_progress: LoadProgressHandler? = nil
+        if let sink = self.__progress_sink {
+            on_load_progress = { event in
+                DispatchQueue.main.async {
+                    sink([
+                        "model_name": repo_id,
+                        "phase": event.phase.rawValue,
+                        "progress": event.fraction,
+                    ])
+                }
+            }
+        }
+
+        Task { @MainActor in
+            do {
+                let path = try await TheStageAI.shared.prefetch_engines(
+                    repo_id: repo_id,
+                    model_type: model_type,
+                    revision: revision,
+                    config: config,
+                    on_load_progress: on_load_progress
+                )
+                result(path)
+            } catch {
+                __fail(result, error: error)
+            }
+        }
+    }
 }

@@ -164,4 +164,41 @@ extension TheStageFlutterPlugin {
         handler.send_node_port(node_id: node_id, port: port, value: value)
         result(nil)
     }
+
+    func __handle_voice_agent_publish_node_event(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let handler = __voice_agent_handler else {
+            __fail(result, msg: "Voice agent handler not initialized.")
+            return
+        }
+        guard let args = call.arguments as? [String: Any],
+              let node_id = args["node_id"] as? String,
+              let event = args["event"] as? [String: Any]
+        else {
+            __fail(result, msg: "Missing node_id or event.")
+            return
+        }
+        handler.publish_node_event(node_id: node_id, event: event)
+        result(nil)
+    }
+
+    func __handle_voice_agent_send_request(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let handler = __voice_agent_handler else {
+            __fail(result, msg: "Voice agent handler not initialized.")
+            return
+        }
+        guard let args = call.arguments as? [String: Any],
+              let text = args["text"] as? String
+        else {
+            __fail(result, msg: "Missing text.")
+            return
+        }
+        handler.send_request(text)
+        result(nil)
+    }
 }

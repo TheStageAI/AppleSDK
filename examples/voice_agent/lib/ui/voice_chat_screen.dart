@@ -1,9 +1,11 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
 import '../backend/settings_model.dart';
 import '../backend/voice_agent_controller.dart';
+import 'app_theme.dart';
 import 'settings_screen.dart';
 import 'widgets/agent_status.dart';
 import 'widgets/bottom_bar.dart';
@@ -48,6 +50,8 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
   late final VoiceAgentController _controller =
       VoiceAgentController(widget.agent);
   final _scrollController = ScrollController();
+  bool _recording = false;
+  bool _recordBusy = false;
 
   @override
   void initState() {
@@ -80,6 +84,41 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
         );
       }
     });
+  }
+
+  Future<void> _toggleRecord() async {
+    if (_recordBusy) return;
+    setState(() => _recordBusy = true);
+    try {
+      if (_recording) {
+        await TheStageScreenRecorder.stop();
+        if (!mounted) return;
+        setState(() => _recording = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Saved to Photos')),
+        );
+      } else {
+        await TheStageScreenRecorder.start();
+        if (!mounted) return;
+        setState(() => _recording = true);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Recording… tap again to save to Photos'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _recording = false);
+      final msg = e is PlatformException
+          ? (e.message ?? e.code)
+          : '$e';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Record failed: $msg')),
+      );
+    } finally {
+      if (mounted) setState(() => _recordBusy = false);
+    }
   }
 
   Future<void> _toggleRun() async {
@@ -165,6 +204,19 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
                 ),
               );
             },
+          ),
+          IconButton(
+            tooltip: _recording ? 'Stop & save to Photos' : 'Record to Photos',
+            onPressed: _recordBusy ? null : _toggleRecord,
+            icon: Icon(
+              _recording
+                  ? Icons.stop_circle_outlined
+                  : Icons.fiber_manual_record,
+              size: 22,
+              color: _recording
+                  ? AppColors.systemRed
+                  : Theme.of(context).colorScheme.onSurface,
+            ),
           ),
           IconButton(
             tooltip: 'Settings',

@@ -14,14 +14,14 @@ import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 // It's a [ChangeNotifier] so the Settings screen rebuilds live as sliders move.
 // ============================================================================
 class VoiceAgentSettings extends ChangeNotifier {
-  // ── Local BundledModels (ios/Runner/BundledModels via sync_local_bundles) ─
+  // ── Local BundledModels (optional ios/Runner/BundledModels offline stack) ─
   // When true, [resolveLocalConfig] rewrites vad/stt/tts/turn + starts the
   // on-device LLM from prepare trees. When false (default), HF repo ids are
   // used and HF revisions come from the SDK ModelRevisionMap (do not pass
   // stt_revision / tts_revision / turn_detector_revision).
   bool useLocalBundles = false;
 
-  // Bundled folder names under BundledModels/ (must match sync_local_bundles).
+  // Bundled folder names under BundledModels/ (optional offline stack).
   String localLlmBundle = 'lfm2.5-350m';
   String localSttBundle = 'thewhisper-large-v3-turbo';
   String localTtsBundle = 'qwen3-tts-12hz-0.6b-base';
@@ -315,8 +315,8 @@ class VoiceAgentSettings extends ChangeNotifier {
       if (p == null || p.isEmpty) {
         throw StateError(
           'Bundled model missing: $name\n'
-          'Run: test_apps/voice_agent/scripts/sync_local_bundles.sh\n'
-          'then rebuild the iOS app.',
+          'Place engines under ios/Runner/BundledModels/$name/ '
+          'or use Hugging Face ids (default).',
         );
       }
       return p;

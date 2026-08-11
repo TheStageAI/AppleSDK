@@ -111,6 +111,7 @@ class TheStageVoiceAgentFlutter {
       nodesChannel: _nodesChannel,
       portEvents: portEvents,
       sendNodePort: _sendNodePort,
+      publishNodeEvent: _publishNodeEvent,
     )..registerNodes(extraNodes)
       ..installHandler();
 
@@ -134,6 +135,14 @@ class TheStageVoiceAgentFlutter {
 
   Future<void> say(String text) async {
     await _channel.invokeMethod(MethodRoute.voiceAgentSay, {'text': text});
+  }
+
+  /// Inject a text user turn (parity with Swift `send_request`).
+  Future<void> sendRequest(String text) async {
+    await _channel.invokeMethod(
+      MethodRoute.voiceAgentSendRequest,
+      {'text': text},
+    );
   }
 
   Future<void> setVoice(String voice) async {
@@ -221,6 +230,16 @@ class TheStageVoiceAgentFlutter {
       'node_id': nodeId,
       'port': port,
       'value': value,
+    });
+  }
+
+  Future<void> _publishNodeEvent(
+    String nodeId,
+    Map<String, dynamic> event,
+  ) async {
+    await _channel.invokeMethod(MethodRoute.voiceAgentPublishNodeEvent, {
+      'node_id': nodeId,
+      'event': event,
     });
   }
 

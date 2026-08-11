@@ -14,20 +14,23 @@
 ## Core symbols
 - TheStageAI (singleton): start_model, stop_model, infer, infer_stream, open_tts_streamer, prefetch_engines, logging helpers
 - TheStageLLM
+- TheStageVLM
 - WhisperPipeline
 - NeuTTSMultilingualPipeline, Qwen3TTSPipeline
   (English espeak NeuTTSNano / TheStageAI/neutts out of this release)
 - SileroVAD
 - TheStageVoiceAgent, TheStageAgentConfig, TheStageLocalLLMProvider, TheStageOpenAICompatibleProvider
 - SpeakerEmbedding (family thestage_speaker_embedding; often model_name speaker_id)
+- AECMethod (vpio / neural / none) on agent audio config
 
 ## Pages
 - llm.md — TheStageLLM
+- vlm.md — TheStageVLM (LFM2.5-VL)
 - whisper.md — WhisperPipeline ASR
 - tts.md — NeuTTS + Qwen3-TTS
 - vad.md — SileroVAD
 - streaming.md — stream contracts
-- voice_agent.md — full agent
+- voice_agent.md — full agent (sample_rate_* / aec_method)
 - speaker_embedding.md — enroll / cosine verify
 - licensing.md — initialize registers; seat pair
 - product_terms.md — pointer to full Product Terms
@@ -37,7 +40,9 @@
 ## Audio rates
 - VAD / Whisper / speaker embedding input: 16 kHz mono Float
 - VAD frame: 512 samples
-- TTS output (NeuTTS / Qwen3-TTS): 24 kHz mono Float
+- TTS codec output (NeuTTS / Qwen3-TTS): 24 kHz mono Float
+- Voice agent: sample_rate_in / sample_rate_out / tts_sample_rate;
+  AudioEngineNode resamples TTS → sample_rate_out
 - Speaker embedding window: 2.0 s
 
 ## Flutter mirror
@@ -45,4 +50,3 @@
 
 ## Out of scope here
 - Wake-word engines / dedicated wake-word guide (out of this release)
-- VLM guide (not published as a standalone page yet)

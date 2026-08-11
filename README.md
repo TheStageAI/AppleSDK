@@ -9,10 +9,10 @@ leaves the device** — there is no server in the hot path.
 
 | | |
 | --- | --- |
-| Version | **`1.1.0`** (pin this tag / SwiftPM `exact:`) |
+| Version | **`1.2.0`** (pin this tag / SwiftPM `exact:`) |
 | Platforms | iOS **18+**, macOS **15+**, Apple Silicon only |
 | Surfaces | Native Swift (`TheStageSDK`) · Flutter plugin (iOS) |
-| Engines | Hugging Face `TheStageAI/*` @ **`v1.1`** |
+| Engines | Hugging Face `TheStageAI/*` @ **`v1.2`** |
 | Token | [app.thestage.ai](https://app.thestage.ai) — online `initialize` required |
 
 > **Not supported:** iOS Simulator, Intel Macs, Android, server-side inference.
@@ -47,7 +47,7 @@ when something breaks.
 touch. Hard rules:
 
 1. Always `initialize` **before** any pipeline / `start_model`.
-2. Pin the SDK to tag **`1.1.0`** (do not float `from:`).
+2. Pin the SDK to tag **`1.2.0`** (do not float `from:`).
 3. Pass HF repo ids like `"TheStageAI/Qwen3-0.6B"` — omit `revision` unless
    you intentionally override (defaults track this SDK line).
 4. Audio is **mono `Float` / `Float32List` in `[-1.0, 1.0]`** — never
@@ -91,7 +91,7 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 | `plugin/thestage_apple_sdk/` | Flutter plugin (iOS only); vendors the xcframework |
 | `examples/` | Demos pinned to this SDK version — see [`examples/README.md`](./examples/README.md) |
 | `examples/macos_swift_tts/` | **Start here** — native Swift streaming TTS on Mac (no Xcode) |
-| `examples/engine_bench/` | iPhone LLM / TTS / ASR benches (Hugging Face engines) |
+| `examples/engine_bench/` | iPhone LLM / TTS / ASR / VLM benches (Hugging Face engines) |
 | `examples/tts_front_stream/` | Flutter streaming TTS on a physical iPhone |
 | `examples/voice_agent/` | Flutter mic → VAD → STT → LLM → TTS with barge-in |
 | `docs/` | Per-pipeline guides + [`llms.txt`](./docs/llms.txt) agent index |
@@ -101,7 +101,7 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 
 ## Capabilities & model fleet
 
-Everything below is the **production `@v1.1`**
+Everything below is the **production `@v1.2`**
 fleet. Pass the HF id as `engines_path` (or construct the typed pipeline
 with the same string).
 
@@ -225,7 +225,7 @@ Xcode → **File → Add Package Dependencies…** → this repo URL → product
 ```swift
 .package(
     url: "https://github.com/TheStageAI/AppleSDK.git",
-    exact: Version(1, 1, 0)
+    exact: Version(1, 2, 0)
 )
 ```
 
@@ -264,7 +264,7 @@ dependencies:
     git:
       url: https://github.com/TheStageAI/AppleSDK.git
       path: plugin/thestage_apple_sdk
-      ref: 1.1.0
+      ref: 1.2.0
 ```
 
 ```bash
@@ -314,8 +314,8 @@ path to a working UI: copy an `examples/` app.
 ### Revisions
 
 Omit `revision:` in normal apps. This build resolves HF tags via an
-internal map aligned with SDK **`1.1.0`** → fleet
-**`v1.1`**. Override only when
+internal map aligned with SDK **`1.2.0`** → fleet
+**`v1.2`**. Override only when
 you intentionally pin an older engine tag.
 
 ### Init & seats (product)
@@ -403,7 +403,7 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | First infer very slow | HF download | Wait for `ready`; later runs use cache |
 | Flutter audio glitches / NaNs | `Float64List` or wrong rate | Use `Float32List`; match table above |
 | TTS / ASR “wrong” model type | Bundle auto-route | Pass the correct HF repo; see tts.md |
-| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.1.0` |
+| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.2.0` |
 | Voice agent never commits turn | Thresholds / mode | See smart-turn knobs in voice_agent.md |
 
 ---

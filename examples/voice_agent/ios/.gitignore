@@ -27,7 +27,7 @@ Flutter/flutter_export_environment.sh
 ServiceDefinitions.json
 Runner/GeneratedPluginRegistrant.*
 
-# Local v2 prepare trees synced by scripts/sync_local_bundles.sh (~1GB+).
+# Optional offline engines (~1GB+). Prefer Hugging Face downloads at runtime.
 Runner/BundledModels/
 
 # Exceptions to above rules.

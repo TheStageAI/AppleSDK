@@ -47,6 +47,8 @@
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Voice Agent needs microphone access to listen and respond to your voice.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Voice Agent saves demo screen recordings to your Photos library.</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<!-- Allow Flutter/Xcode debugger with RELEASE TheStageCore xcframework. -->

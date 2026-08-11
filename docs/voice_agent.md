@@ -258,15 +258,118 @@ keeps `mic` / `playback`.
 
 ### Custom nodes + ports
 
-```swift
-open class TheStageAgentNode: AgentNode { … }  // subclass, set config.extra_nodes
-agent.ports.channel("vad.probability", as: Double.self)
+The plugin/SDK ships **primitives only** (`TheStageAgentNode`,
+`AgentNodeContext`, `extraNodes:`). Example nodes (VLM captions, event
+logs) live in the host app — see
+the custom-nodes demo shipped alongside the SDK examples.
+
+**Attach + listen (Flutter):**
+
+```dart
+class EventLogNode extends TheStageAgentNode {
+  EventLogNode({this.id = 'event_log', this.onBusEvent});
+  @override final String id;
+  @override final List<String> runWhen = const [];
+  final void Function(Map<String, dynamic>)? onBusEvent;
+
+  @override
+  Future<void> onEvent(AgentNodeContext ctx, Map<String, dynamic> e) async {
+    onBusEvent?.call(e); // kind = STATE | USER_REQUEST | BARGE_IN | …
+  }
+}
+
+await agent.start(config: baseConfig, extraNodes: [EventLogNode(...)]);
 ```
 
-Flutter: implement `TheStageAgentNode` in Dart, pass `extraNodes:` to
-`start`. Lifecycle crosses a `FlutterBridgeNode` stub by string `id`.
-Inference uses existing `TheStageFlutterSDK.start_model` / `infer`
-(e.g. `VLMCaptionNode` + `thestage_vl`).
+**VLM captions → file (app-local node):** copy
+`lib/nodes/vlm_caption_node.dart` from the demo app. Prefer
+`lifecycle: external` so a `ModelRoster` owns `start_model` /
+`stop_model`. Port convention: `ctx.sendPort('caption', text)` → bus
+port `vlm.caption`.
+
+Gate heavy vision work to **non-active** agent states so you do not
+fight ASR/LLM/TTS for ANE/RAM. Set `runWhen` to quiet states and swap
+models around the infer:
+
+```dart
+// Node: only drain when gate is open (not thinking / speaking).
+VLMCaptionNode(
+  enginesPath: 'TheStageAI/LFM2.5-VL-450M',
+  runWhen: const ['idle', 'sleeping', 'listening'],
+  lifecycle: VlmLifecycle.external,
+);
+
+// Host: wait for quiet → offload session models → VLM → restore.
+Future<void> captionWhenQuiet(String imagePath) async {
+  await waitUntilState((s) =>
+      s == 'idle' || s == 'sleeping' || s == 'listening');
+  final heavy = ['llm', 'stt', 'tts'];
+  await roster.release(heavy);
+  try {
+    await roster.withEphemeral('vlm', () async {
+      vlm.markReady(ready: true);
+      await vlm.submitImage(path: imagePath);
+    });
+  } finally {
+    vlm.markReady(ready: false);
+    await roster.ensureHot(heavy);
+  }
+}
+```
+
+`withEphemeral` starts the VLM, runs the body, then `stop_model`s it.
+Compiled engines stay on disk, so the next start is cheap. See
+[Events](#events) for public `state_changed` vs internal bus kinds.
+
+**Swift:** subclass `TheStageAgentNode`, `config.extra_nodes = [...]`,
+`subscribe()` after bind. Built-in ports:
+`agent.ports.channel("vad.probability", as: Double.self)`.
+
+Internal bus kinds (`SPEECH_STARTED`, `USER_REQUEST`, …) differ from
+public UI `agent.events` kinds (`state_changed`, `user_request`, …) —
+see the tables under [Events](#events).
+
+### Sample rates
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `sample_rate_in` | Double | `16000` | Mic / VAD / ASR path |
+| `sample_rate_out` | Double | `24000` | Speaker / audio-engine rate; TTS is resampled here |
+| `tts_sample_rate` | Double | `24000` | Native TTS codec rate (NeuCodec / Qwen3-TTS) |
+
+Set `sample_rate_out` to the rate your audio session should play; TTS
+is converted automatically inside `AudioEngineNode`.
+
+### AEC
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `aec_method` | `AECMethod` / string | `.VPIO` (iOS) / `.NONE` (macOS) | `vpio` \| `neural` \| `none` |
+| `aec_engines_path` | String? | `nil` → `TheStageAI/dtln-aec` | Neural engines (HF or local) |
+| `aec_enabled` | Bool | alias | Legacy: `true`→VPIO when NONE; `false`→NONE. Prefer `aec_method`. |
+| `aec_warmup_ms` | Int | 250 | VPIO silence warmup |
+| `aec_playback_gate_tail_ms` | Int | 80 | Drain-drain grace |
+
+```swift
+config.aec_method = .NEURAL
+config.aec_engines_path = "TheStageAI/dtln-aec"
+```
+
+```dart
+'aec_method': 'neural',
+'aec_engines_path': 'TheStageAI/dtln-aec',
+```
+
+Neural AEC uses DTLN (`NeuralAecSession`) inside `AudioEngineNode` — not
+a separate graph node. Capture must stay 16 kHz.
+
+### Model residency (app helper)
+
+Use a host-side `ModelRoster` (see the custom-nodes demo): declare
+slots as `resident` / `warmDisk` / `ephemeral`, call `prepare()`
+(prefetch + compile to disk), `ensure_hot([...])` for session models,
+and `with_ephemeral('vlm', …)` for burst work. Reuses
+`prefetch_engines` / `start_model` / `stop_model` — no second manager.
 
 ### Models
 
@@ -445,7 +548,9 @@ agent's `ASRNode` no longer uses it but it is otherwise untouched.
 | `interrupt_min_playback_ms` | Int | 250 | Grace at TTS turn start during which barge-in is suppressed (lets AEC re-converge) |
 | `interrupt_initial_lockout_ms` | Int | 1000 | One-time, longer barge-in lockout on the *first* TTS playback after start (covers iOS VPIO cold-start). Should exceed `aec_warmup_ms`. |
 | `interrupt_thinking_lockout_ms` | Int | 600 | Barge-in lockout while `.thinking` (mic live, AEC has no reference yet). 0 disables. |
-| `aec_enabled` | Bool | `true` | Voice Processing IO (iOS only — set `false` on macOS) |
+| `aec_method` | `AECMethod` / string | `.VPIO` (iOS) / `.NONE` (macOS) | `vpio` \| `neural` (DTLN / `TheStageAI/dtln-aec`) \| `none` |
+| `aec_engines_path` | String? | `nil` | Neural engines HF id or local dir |
+| `aec_enabled` | Bool | alias of method ≠ none | Legacy; prefer `aec_method` |
 | `aec_warmup_ms` | Int | 250 | Silence pumped to the speaker on start so VPIO has reference samples |
 | `aec_playback_gate_tail_ms` | Int | 80 | Sink-drain grace at end of every TTS turn |
 
@@ -482,34 +587,65 @@ state between turns is `.listening`.
 
 ## Events
 
-The agent emits a modality-agnostic, lifecycle-oriented event vocabulary.
+There are **two** vocabularies. UI / Flutter `agent.events` use the
+public snake_case kinds below. Custom nodes (`onEvent` /
+`TheStageAgentNode`) see the **internal bus** (`AgentEvent`) with
+UPPERCASE kinds. Do not mix them when gating residency.
+
+### Public `agent.events` (UI / Flutter)
+
 Each event is `{ kind, data }`:
 
 | `kind` | `data` keys | When |
 |--------|-------------|------|
-| `state_changed` | `state` | State transition |
-| `user_request_partial` | `text` | A stable partial caption was committed mid-turn (streaming ASR only). UI-only; does not drive the state machine. |
-| `user_request` | `text`, `source` | A user request was finalized. `source` is `speech` (Whisper committed a turn) or `text` (`send_request(...)`). This is what drives the LLM. |
+| `state_changed` | `state` | State transition. `state` is one of `idle` / `loading` / `sleeping` / `listening` / `thinking` / `speaking`. |
+| `user_request_partial` | `text` | Stable partial caption mid-turn (streaming ASR only). UI-only; does not drive the LLM. |
+| `user_request` | `text`, `source` | Finalized user request. `source` is `speech` or `text` (`send_request`). Drives the LLM. |
 | `response_delta` | `delta` | An LLM token arrived |
-| `response_done` | `text`, `reason`, `interrupted` | The response stream finished. `reason` is an `EndReason` (`completed` / `interrupted` / `error` / `empty`); `interrupted` (Bool) is kept for back-compat. |
+| `response_done` | `text`, `reason`, `interrupted` | Response finished. `reason`: `completed` / `interrupted` / `error` / `empty`. |
 | `playback_started` | — | First TTS sample reached the speaker |
-| `playback_ended` | `reason` | Speaker stopped. `reason` is `completed` (after the audio drained) or `interrupted` (barge-in). |
-| `metrics` | `loading_model`, ... | Heartbeat metrics |
+| `playback_ended` | `reason` | Speaker stopped (`completed` after drain, or `interrupted`). |
+| `wake_word` | `prob` | Wake-word classifier fired |
+| `turn_start_accepted` | — | Turn-start policy accepted (left `.sleeping`) |
+| `metrics` | `loading_model`, … | Heartbeat metrics |
 | `error` | `message` | Recoverable error |
+
+**Active vs quiet (custom heavy work):** treat `thinking` and `speaking`
+as **active**. Run VLM / other burst models only in
+`idle` / `sleeping` / `listening` (gate with `runWhen` + wait on
+`state_changed`). Offload resident ASR/LLM/TTS around the burst, then
+`ensureHot` them again — see Custom nodes above.
 
 The vocabulary is deliberately invariant to *how* a request originated or
 *why* playback stopped:
 
-- `user_request` carries a `source` so a typed request (`send_request`)
-  and a spoken turn flow through the **same** path to the LLM.
-- Playback lifecycle (`playback_started` / `playback_ended`) is distinct
-  from synthesis: `playback_ended(reason)` is what tells the UI whether the
-  agent finished naturally (`completed`) or was cut off (`interrupted`),
-  rather than overloading "TTS done".
+- `user_request` carries a `source` so typed and spoken turns share one path.
+- Playback (`playback_started` / `playback_ended`) is distinct from synthesis.
 
-For high-frequency or fan-out friendly signals, prefer the typed
-channels (`llm_deltas`, `partial_transcripts`, `transcripts`,
-`vad_probabilities`) over parsing `events`.
+For high-frequency signals, prefer typed channels (`llm_deltas`,
+`partial_transcripts`, `transcripts`, `vad_probabilities`) over parsing
+`events`.
+
+### Internal bus (custom `TheStageAgentNode.onEvent`)
+
+| Bus kind | Meaning / when to care |
+|----------|------------------------|
+| `STATE(state)` | Same lifecycle as public `state_changed` — primary gate for `runWhen` / residency. |
+| `SPEECH_STARTED` / `SPEECH_ENDED` | VAD turn boundaries |
+| `SPEECH_ONSET` | Sustained speech while interrupt policy is evaluating |
+| `BARGE_IN` | User interrupted assistant (cause); playback ends separately |
+| `WAKE_WORD_DETECTED` | Wake-word positive |
+| `SPEAKER_VERIFIED` / `SPEAKER_REJECTED` | Speaker-ID gates |
+| `TURN_START_ACCEPTED` | Left `.sleeping` |
+| `USER_REQUEST_PARTIAL` | Live caption (UI); never drives LLM |
+| `USER_REQUEST` | Final request → LLM |
+| `RESPONSE_STARTED` / `RESPONSE_DONE` | Reply lifecycle |
+| `SYNTHESIS_DONE` | Last TTS sample produced (not yet drained) |
+| `PLAYBACK_STARTED` / `PLAYBACK_ENDED` | Speaker lifecycle |
+| `ERROR` | Recoverable error string |
+
+Flutter custom nodes receive these as maps with `kind` strings matching
+the UPPERCASE names (`STATE`, `USER_REQUEST`, `BARGE_IN`, …).
 
 ## Programmatic Controls
 

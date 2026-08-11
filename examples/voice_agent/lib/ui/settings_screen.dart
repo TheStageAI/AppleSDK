@@ -19,19 +19,33 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   VoiceAgentSettings get s => widget.settings;
 
+  // Stable controllers — recreating TextEditingController(text:) on every
+  // rebuild resets the caret to offset 0 (broken for system prompt edits).
+  late final TextEditingController _systemPromptCtrl;
+  late final TextEditingController _llmModelCtrl;
+  late final TextEditingController _llmEndpointCtrl;
+
   @override
   void initState() {
     super.initState();
+    _systemPromptCtrl = TextEditingController(text: s.systemPrompt);
+    _llmModelCtrl = TextEditingController(text: s.llmModel);
+    _llmEndpointCtrl = TextEditingController(text: s.llmEndpoint);
     s.addListener(_refresh);
   }
 
   @override
   void dispose() {
     s.removeListener(_refresh);
+    _systemPromptCtrl.dispose();
+    _llmModelCtrl.dispose();
+    _llmEndpointCtrl.dispose();
     super.dispose();
   }
 
-  void _refresh() => setState(() {});
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -106,9 +120,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
               VoiceAgentSettings.availableLanguages, (v) {
             s.update((s) => s.sttLanguage = v);
           }),
-          _textField('System Prompt', s.systemPrompt, (v) {
-            s.update((s) => s.systemPrompt = v);
-          }, maxLines: 3),
+          _textField(
+            'System Prompt',
+            _systemPromptCtrl,
+            (v) => s.update((s) => s.systemPrompt = v),
+            maxLines: 3,
+          ),
           _slider('Chat memory (turns)', s.chatMemoryMaxTurns.toDouble(), 2, 30,
               (v) {
             s.update((s) => s.chatMemoryMaxTurns = v.round());
@@ -143,12 +160,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'Sampling from the LLM bundle generation config.',
             ),
           ] else ...[
-            _textField('Model', s.llmModel, (v) {
-              s.update((s) => s.llmModel = v);
-            }),
-            _textField('Endpoint', s.llmEndpoint, (v) {
-              s.update((s) => s.llmEndpoint = v);
-            }),
+            _textField(
+              'Model',
+              _llmModelCtrl,
+              (v) => s.update((s) => s.llmModel = v),
+            ),
+            _textField(
+              'Endpoint',
+              _llmEndpointCtrl,
+              (v) => s.update((s) => s.llmEndpoint = v),
+            ),
             _slider('Max Tokens', s.maxTokens.toDouble(), 64, 1024, (v) {
               s.update((s) => s.maxTokens = v.round());
             }),
@@ -525,12 +546,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _textField(
-      String label, String value, ValueChanged<String> onChanged,
-      {int maxLines = 1}) {
+    String label,
+    TextEditingController controller,
+    ValueChanged<String> onChanged, {
+    int maxLines = 1,
+  }) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: TextField(
-        controller: TextEditingController(text: value),
+        controller: controller,
         decoration: InputDecoration(
           labelText: label,
           border: const OutlineInputBorder(),

@@ -1113,6 +1113,20 @@
       },
       {
         "kind": "Import",
+        "name": "Accelerate",
+        "printedName": "Accelerate",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
         "name": "AVFoundation",
         "printedName": "AVFoundation",
         "declKind": "Import",
@@ -2305,6 +2319,1442 @@
           "AccessControl",
           "RawDocComment"
         ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sendable",
+            "printedName": "Sendable",
+            "usr": "s:s8SendableP",
+            "mangledName": "$ss8SendableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "SendableMetatype",
+            "printedName": "SendableMetatype",
+            "usr": "s:s16SendableMetatypeP",
+            "mangledName": "$ss16SendableMetatypeP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "DemoAudioCapture",
+        "printedName": "DemoAudioCapture",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "enabled",
+            "printedName": "enabled",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Bool",
+                "printedName": "Swift.Bool",
+                "usr": "s:Sb"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore16DemoAudioCaptureO7enabledSbvpZ",
+            "mangledName": "$s12TheStageCore16DemoAudioCaptureO7enabledSbvpZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO7enabledSbvgZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO7enabledSbvgZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Bool",
+                    "printedName": "Swift.Bool",
+                    "usr": "s:Sb"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO7enabledSbvsZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO7enabledSbvsZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO7enabledSbvMZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO7enabledSbvMZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "on_playback",
+            "printedName": "on_playback",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "(([Swift.Float], Swift.Double) -> ())?",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "([Swift.Float], Swift.Double) -> ()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Tuple",
+                        "printedName": "([Swift.Float], Swift.Double)",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Array",
+                            "printedName": "[Swift.Float]",
+                            "children": [
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Float",
+                                "printedName": "Swift.Float",
+                                "usr": "s:Sf"
+                              }
+                            ],
+                            "usr": "s:Sa"
+                          },
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Double",
+                            "printedName": "Swift.Double",
+                            "usr": "s:Sd"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore16DemoAudioCaptureO11on_playbackySaySfG_SdtYbcSgvpZ",
+            "mangledName": "$s12TheStageCore16DemoAudioCaptureO11on_playbackySaySfG_SdtYbcSgvpZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "(([Swift.Float], Swift.Double) -> ())?",
+                    "children": [
+                      {
+                        "kind": "TypeFunc",
+                        "name": "Function",
+                        "printedName": "([Swift.Float], Swift.Double) -> ()",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Void",
+                            "printedName": "()"
+                          },
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Tuple",
+                            "printedName": "([Swift.Float], Swift.Double)",
+                            "children": [
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Array",
+                                "printedName": "[Swift.Float]",
+                                "children": [
+                                  {
+                                    "kind": "TypeNominal",
+                                    "name": "Float",
+                                    "printedName": "Swift.Float",
+                                    "usr": "s:Sf"
+                                  }
+                                ],
+                                "usr": "s:Sa"
+                              },
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Double",
+                                "printedName": "Swift.Double",
+                                "usr": "s:Sd"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO11on_playbackySaySfG_SdtYbcSgvgZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO11on_playbackySaySfG_SdtYbcSgvgZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "(([Swift.Float], Swift.Double) -> ())?",
+                    "children": [
+                      {
+                        "kind": "TypeFunc",
+                        "name": "Function",
+                        "printedName": "([Swift.Float], Swift.Double) -> ()",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Void",
+                            "printedName": "()"
+                          },
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Tuple",
+                            "printedName": "([Swift.Float], Swift.Double)",
+                            "children": [
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Array",
+                                "printedName": "[Swift.Float]",
+                                "children": [
+                                  {
+                                    "kind": "TypeNominal",
+                                    "name": "Float",
+                                    "printedName": "Swift.Float",
+                                    "usr": "s:Sf"
+                                  }
+                                ],
+                                "usr": "s:Sa"
+                              },
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Double",
+                                "printedName": "Swift.Double",
+                                "usr": "s:Sd"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO11on_playbackySaySfG_SdtYbcSgvsZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO11on_playbackySaySfG_SdtYbcSgvsZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO11on_playbackySaySfG_SdtYbcSgvMZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO11on_playbackySaySfG_SdtYbcSgvMZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "on_mic",
+            "printedName": "on_mic",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "(([Swift.Float], Swift.Double) -> ())?",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "([Swift.Float], Swift.Double) -> ()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Tuple",
+                        "printedName": "([Swift.Float], Swift.Double)",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Array",
+                            "printedName": "[Swift.Float]",
+                            "children": [
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Float",
+                                "printedName": "Swift.Float",
+                                "usr": "s:Sf"
+                              }
+                            ],
+                            "usr": "s:Sa"
+                          },
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Double",
+                            "printedName": "Swift.Double",
+                            "usr": "s:Sd"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore16DemoAudioCaptureO6on_micySaySfG_SdtYbcSgvpZ",
+            "mangledName": "$s12TheStageCore16DemoAudioCaptureO6on_micySaySfG_SdtYbcSgvpZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "(([Swift.Float], Swift.Double) -> ())?",
+                    "children": [
+                      {
+                        "kind": "TypeFunc",
+                        "name": "Function",
+                        "printedName": "([Swift.Float], Swift.Double) -> ()",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Void",
+                            "printedName": "()"
+                          },
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Tuple",
+                            "printedName": "([Swift.Float], Swift.Double)",
+                            "children": [
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Array",
+                                "printedName": "[Swift.Float]",
+                                "children": [
+                                  {
+                                    "kind": "TypeNominal",
+                                    "name": "Float",
+                                    "printedName": "Swift.Float",
+                                    "usr": "s:Sf"
+                                  }
+                                ],
+                                "usr": "s:Sa"
+                              },
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Double",
+                                "printedName": "Swift.Double",
+                                "usr": "s:Sd"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO6on_micySaySfG_SdtYbcSgvgZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO6on_micySaySfG_SdtYbcSgvgZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "(([Swift.Float], Swift.Double) -> ())?",
+                    "children": [
+                      {
+                        "kind": "TypeFunc",
+                        "name": "Function",
+                        "printedName": "([Swift.Float], Swift.Double) -> ()",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Void",
+                            "printedName": "()"
+                          },
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Tuple",
+                            "printedName": "([Swift.Float], Swift.Double)",
+                            "children": [
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Array",
+                                "printedName": "[Swift.Float]",
+                                "children": [
+                                  {
+                                    "kind": "TypeNominal",
+                                    "name": "Float",
+                                    "printedName": "Swift.Float",
+                                    "usr": "s:Sf"
+                                  }
+                                ],
+                                "usr": "s:Sa"
+                              },
+                              {
+                                "kind": "TypeNominal",
+                                "name": "Double",
+                                "printedName": "Swift.Double",
+                                "usr": "s:Sd"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO6on_micySaySfG_SdtYbcSgvsZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO6on_micySaySfG_SdtYbcSgvsZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16DemoAudioCaptureO6on_micySaySfG_SdtYbcSgvMZ",
+                "mangledName": "$s12TheStageCore16DemoAudioCaptureO6on_micySaySfG_SdtYbcSgvMZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "emit_playback",
+            "printedName": "emit_playback(_:sample_rate:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.Float]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Float",
+                    "printedName": "Swift.Float",
+                    "usr": "s:Sf"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16DemoAudioCaptureO13emit_playback_11sample_rateySaySfG_SdtFZ",
+            "mangledName": "$s12TheStageCore16DemoAudioCaptureO13emit_playback_11sample_rateySaySfG_SdtFZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "AccessControl",
+              "Inline"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "emit_mic",
+            "printedName": "emit_mic(_:sample_rate:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.Float]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Float",
+                    "printedName": "Swift.Float",
+                    "usr": "s:Sf"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16DemoAudioCaptureO8emit_mic_11sample_rateySaySfG_SdtFZ",
+            "mangledName": "$s12TheStageCore16DemoAudioCaptureO8emit_mic_11sample_rateySaySfG_SdtFZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "AccessControl",
+              "Inline"
+            ],
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "s:12TheStageCore16DemoAudioCaptureO",
+        "mangledName": "$s12TheStageCore16DemoAudioCaptureO",
+        "moduleName": "TheStageCore",
+        "declAttributes": [
+          "AccessControl",
+          "RawDocComment"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Accelerate",
+        "printedName": "Accelerate",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "CoreML",
+        "printedName": "CoreML",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "os",
+        "printedName": "os",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "os",
+        "printedName": "os",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "AECMethod",
+        "printedName": "AECMethod",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "VPIO",
+            "printedName": "VPIO",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(TheStageCore.AECMethod.Type) -> TheStageCore.AECMethod",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AECMethod",
+                    "printedName": "TheStageCore.AECMethod",
+                    "usr": "s:12TheStageCore9AECMethodO"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "TheStageCore.AECMethod.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AECMethod",
+                        "printedName": "TheStageCore.AECMethod",
+                        "usr": "s:12TheStageCore9AECMethodO"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "s:12TheStageCore9AECMethodO4VPIOyA2CmF",
+            "mangledName": "$s12TheStageCore9AECMethodO4VPIOyA2CmF",
+            "moduleName": "TheStageCore"
+          },
+          {
+            "kind": "Var",
+            "name": "NEURAL",
+            "printedName": "NEURAL",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(TheStageCore.AECMethod.Type) -> TheStageCore.AECMethod",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AECMethod",
+                    "printedName": "TheStageCore.AECMethod",
+                    "usr": "s:12TheStageCore9AECMethodO"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "TheStageCore.AECMethod.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AECMethod",
+                        "printedName": "TheStageCore.AECMethod",
+                        "usr": "s:12TheStageCore9AECMethodO"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "s:12TheStageCore9AECMethodO6NEURALyA2CmF",
+            "mangledName": "$s12TheStageCore9AECMethodO6NEURALyA2CmF",
+            "moduleName": "TheStageCore"
+          },
+          {
+            "kind": "Var",
+            "name": "NONE",
+            "printedName": "NONE",
+            "children": [
+              {
+                "kind": "TypeFunc",
+                "name": "Function",
+                "printedName": "(TheStageCore.AECMethod.Type) -> TheStageCore.AECMethod",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AECMethod",
+                    "printedName": "TheStageCore.AECMethod",
+                    "usr": "s:12TheStageCore9AECMethodO"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Metatype",
+                    "printedName": "TheStageCore.AECMethod.Type",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "AECMethod",
+                        "printedName": "TheStageCore.AECMethod",
+                        "usr": "s:12TheStageCore9AECMethodO"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ],
+            "declKind": "EnumElement",
+            "usr": "s:12TheStageCore9AECMethodO4NONEyA2CmF",
+            "mangledName": "$s12TheStageCore9AECMethodO4NONEyA2CmF",
+            "moduleName": "TheStageCore"
+          },
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(rawValue:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "TheStageCore.AECMethod?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AECMethod",
+                    "printedName": "TheStageCore.AECMethod",
+                    "usr": "s:12TheStageCore9AECMethodO"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:12TheStageCore9AECMethodO8rawValueACSgSS_tcfc",
+            "mangledName": "$s12TheStageCore9AECMethodO8rawValueACSgSS_tcfc",
+            "moduleName": "TheStageCore",
+            "implicit": true,
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "rawValue",
+            "printedName": "rawValue",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore9AECMethodO8rawValueSSvp",
+            "mangledName": "$s12TheStageCore9AECMethodO8rawValueSSvp",
+            "moduleName": "TheStageCore",
+            "implicit": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore9AECMethodO8rawValueSSvg",
+                "mangledName": "$s12TheStageCore9AECMethodO8rawValueSSvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              }
+            ]
+          }
+        ],
+        "declKind": "Enum",
+        "usr": "s:12TheStageCore9AECMethodO",
+        "mangledName": "$s12TheStageCore9AECMethodO",
+        "moduleName": "TheStageCore",
+        "declAttributes": [
+          "AccessControl",
+          "RawDocComment"
+        ],
+        "enumRawTypeName": "String",
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Equatable",
+            "printedName": "Equatable",
+            "usr": "s:SQ",
+            "mangledName": "$sSQ"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Hashable",
+            "printedName": "Hashable",
+            "usr": "s:SH",
+            "mangledName": "$sSH"
+          },
+          {
+            "kind": "Conformance",
+            "name": "RawRepresentable",
+            "printedName": "RawRepresentable",
+            "children": [
+              {
+                "kind": "TypeWitness",
+                "name": "RawValue",
+                "printedName": "RawValue",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ]
+              }
+            ],
+            "usr": "s:SY",
+            "mangledName": "$sSY"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sendable",
+            "printedName": "Sendable",
+            "usr": "s:s8SendableP",
+            "mangledName": "$ss8SendableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "SendableMetatype",
+            "printedName": "SendableMetatype",
+            "usr": "s:s16SendableMetatypeP",
+            "mangledName": "$ss16SendableMetatypeP"
+          }
+        ]
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "NeuralAecSession",
+        "printedName": "NeuralAecSession",
+        "children": [
+          {
+            "kind": "Var",
+            "name": "ENGINES_REPO",
+            "printedName": "ENGINES_REPO",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore16NeuralAecSessionC12ENGINES_REPOSSvpZ",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC12ENGINES_REPOSSvpZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16NeuralAecSessionC12ENGINES_REPOSSvgZ",
+                "mangledName": "$s12TheStageCore16NeuralAecSessionC12ENGINES_REPOSSvgZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "MODEL_TYPE",
+            "printedName": "MODEL_TYPE",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore16NeuralAecSessionC10MODEL_TYPESSvpZ",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC10MODEL_TYPESSvpZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16NeuralAecSessionC10MODEL_TYPESSvgZ",
+                "mangledName": "$s12TheStageCore16NeuralAecSessionC10MODEL_TYPESSvgZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "SAMPLE_RATE",
+            "printedName": "SAMPLE_RATE",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore16NeuralAecSessionC11SAMPLE_RATESivpZ",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC11SAMPLE_RATESivpZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "HasInitialValue",
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore16NeuralAecSessionC11SAMPLE_RATESivgZ",
+                "mangledName": "$s12TheStageCore16NeuralAecSessionC11SAMPLE_RATESivgZ",
+                "moduleName": "TheStageCore",
+                "static": true,
+                "implicit": true,
+                "declAttributes": [
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "create",
+            "printedName": "create(engines_path:render_sample_rate:revision:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "TheStageCore.NeuralAecSession?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NeuralAecSession",
+                    "printedName": "TheStageCore.NeuralAecSession",
+                    "usr": "s:12TheStageCore16NeuralAecSessionC"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16NeuralAecSessionC6create12engines_path18render_sample_rate8revisionACSgSSSg_SiSStYaFZ",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC6create12engines_path18render_sample_rate8revisionACSgSSSg_SiSStYaFZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "create_local",
+            "printedName": "create_local(engines_path:render_sample_rate:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "TheStageCore.NeuralAecSession?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "NeuralAecSession",
+                    "printedName": "TheStageCore.NeuralAecSession",
+                    "usr": "s:12TheStageCore16NeuralAecSessionC"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int",
+                "printedName": "Swift.Int",
+                "usr": "s:Si"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16NeuralAecSessionC12create_local12engines_path18render_sample_rateACSgSS_SitFZ",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC12create_local12engines_path18render_sample_rateACSgSS_SitFZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "resolve_engines_path",
+            "printedName": "resolve_engines_path(engines_path:revision:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16NeuralAecSessionC20resolve_engines_path0h1_I08revisionSSSgAG_SStYaFZ",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC20resolve_engines_path0h1_I08revisionSSSgAG_SStYaFZ",
+            "moduleName": "TheStageCore",
+            "static": true,
+            "declAttributes": [
+              "Final",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "push_render",
+            "printedName": "push_render(_:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.Float]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Float",
+                    "printedName": "Swift.Float",
+                    "usr": "s:Sf"
+                  }
+                ],
+                "usr": "s:Sa"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16NeuralAecSessionC11push_renderyySaySfGF",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC11push_renderyySaySfGF",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "Final",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "render_reset",
+            "printedName": "render_reset()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16NeuralAecSessionC12render_resetyyF",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC12render_resetyyF",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "Final",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "process_capture",
+            "printedName": "process_capture(_:played_frames:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.Float]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Float",
+                    "printedName": "Swift.Float",
+                    "usr": "s:Sf"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Array",
+                "printedName": "[Swift.Float]",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Float",
+                    "printedName": "Swift.Float",
+                    "usr": "s:Sf"
+                  }
+                ],
+                "usr": "s:Sa"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Int64",
+                "printedName": "Swift.Int64",
+                "hasDefaultArg": true,
+                "usr": "s:s5Int64V"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16NeuralAecSessionC15process_capture_13played_framesSaySfGAF_s5Int64VtF",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC15process_capture_13played_framesSaySfGAF_s5Int64VtF",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "Final",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          },
+          {
+            "kind": "Function",
+            "name": "close",
+            "printedName": "close()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore16NeuralAecSessionC5closeyyF",
+            "mangledName": "$s12TheStageCore16NeuralAecSessionC5closeyyF",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "Final",
+              "AccessControl"
+            ],
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:12TheStageCore16NeuralAecSessionC",
+        "mangledName": "$s12TheStageCore16NeuralAecSessionC",
+        "moduleName": "TheStageCore",
+        "declAttributes": [
+          "Final",
+          "AccessControl",
+          "RawDocComment"
+        ],
+        "hasMissingDesignatedInitializers": true,
         "conformances": [
           {
             "kind": "Conformance",
@@ -50949,6 +52399,134 @@
           },
           {
             "kind": "Var",
+            "name": "image_start_token_id",
+            "printedName": "image_start_token_id",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Int?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore0aB11VLMPipelineC20image_start_token_idSiSgvp",
+            "mangledName": "$s12TheStageCore0aB11VLMPipelineC20image_start_token_idSiSgvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Swift.Int?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Int",
+                        "printedName": "Swift.Int",
+                        "usr": "s:Si"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11VLMPipelineC20image_start_token_idSiSgvg",
+                "mangledName": "$s12TheStageCore0aB11VLMPipelineC20image_start_token_idSiSgvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "declAttributes": [
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "image_end_token_id",
+            "printedName": "image_end_token_id",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.Int?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Int",
+                    "printedName": "Swift.Int",
+                    "usr": "s:Si"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore0aB11VLMPipelineC18image_end_token_idSiSgvp",
+            "mangledName": "$s12TheStageCore0aB11VLMPipelineC18image_end_token_idSiSgvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "Final",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "isLet": true,
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Swift.Int?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Int",
+                        "printedName": "Swift.Int",
+                        "usr": "s:Si"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11VLMPipelineC18image_end_token_idSiSgvg",
+                "mangledName": "$s12TheStageCore0aB11VLMPipelineC18image_end_token_idSiSgvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "declAttributes": [
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "max_image_tokens",
             "printedName": "max_image_tokens",
             "children": [
@@ -66406,6 +67984,93 @@
           },
           {
             "kind": "Var",
+            "name": "tts_sample_rate",
+            "printedName": "tts_sample_rate",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore17AudioEngineConfigV15tts_sample_rateSdvp",
+            "mangledName": "$s12TheStageCore17AudioEngineConfigV15tts_sample_rateSdvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV15tts_sample_rateSdvg",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV15tts_sample_rateSdvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV15tts_sample_rateSdvs",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV15tts_sample_rateSdvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV15tts_sample_rateSdvM",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV15tts_sample_rateSdvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "voice_processing",
             "printedName": "voice_processing",
             "children": [
@@ -66484,6 +68149,203 @@
                 "declKind": "Accessor",
                 "usr": "s:12TheStageCore17AudioEngineConfigV16voice_processingSbvM",
                 "mangledName": "$s12TheStageCore17AudioEngineConfigV16voice_processingSbvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "aec_method",
+            "printedName": "aec_method",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "AECMethod",
+                "printedName": "TheStageCore.AECMethod",
+                "usr": "s:12TheStageCore9AECMethodO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore17AudioEngineConfigV10aec_methodAA9AECMethodOvp",
+            "mangledName": "$s12TheStageCore17AudioEngineConfigV10aec_methodAA9AECMethodOvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AECMethod",
+                    "printedName": "TheStageCore.AECMethod",
+                    "usr": "s:12TheStageCore9AECMethodO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV10aec_methodAA9AECMethodOvg",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV10aec_methodAA9AECMethodOvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AECMethod",
+                    "printedName": "TheStageCore.AECMethod",
+                    "usr": "s:12TheStageCore9AECMethodO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV10aec_methodAA9AECMethodOvs",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV10aec_methodAA9AECMethodOvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV10aec_methodAA9AECMethodOvM",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV10aec_methodAA9AECMethodOvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "aec_engines_path",
+            "printedName": "aec_engines_path",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore17AudioEngineConfigV16aec_engines_pathSSSgvp",
+            "mangledName": "$s12TheStageCore17AudioEngineConfigV16aec_engines_pathSSSgvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Swift.String?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV16aec_engines_pathSSSgvg",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV16aec_engines_pathSSSgvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Swift.String?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV16aec_engines_pathSSSgvs",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV16aec_engines_pathSSSgvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore17AudioEngineConfigV16aec_engines_pathSSSgvM",
+                "mangledName": "$s12TheStageCore17AudioEngineConfigV16aec_engines_pathSSSgvM",
                 "moduleName": "TheStageCore",
                 "implicit": true,
                 "accessorKind": "_modify"
@@ -79410,6 +81272,464 @@
           },
           {
             "kind": "Var",
+            "name": "sample_rate_in",
+            "printedName": "sample_rate_in",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore0aB11AgentConfigV14sample_rate_inSdvp",
+            "mangledName": "$s12TheStageCore0aB11AgentConfigV14sample_rate_inSdvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV14sample_rate_inSdvg",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV14sample_rate_inSdvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV14sample_rate_inSdvs",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV14sample_rate_inSdvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV14sample_rate_inSdvM",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV14sample_rate_inSdvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "sample_rate_out",
+            "printedName": "sample_rate_out",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore0aB11AgentConfigV15sample_rate_outSdvp",
+            "mangledName": "$s12TheStageCore0aB11AgentConfigV15sample_rate_outSdvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV15sample_rate_outSdvg",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV15sample_rate_outSdvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV15sample_rate_outSdvs",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV15sample_rate_outSdvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV15sample_rate_outSdvM",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV15sample_rate_outSdvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "tts_sample_rate",
+            "printedName": "tts_sample_rate",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore0aB11AgentConfigV15tts_sample_rateSdvp",
+            "mangledName": "$s12TheStageCore0aB11AgentConfigV15tts_sample_rateSdvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV15tts_sample_rateSdvg",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV15tts_sample_rateSdvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV15tts_sample_rateSdvs",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV15tts_sample_rateSdvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV15tts_sample_rateSdvM",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV15tts_sample_rateSdvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "aec_method",
+            "printedName": "aec_method",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "AECMethod",
+                "printedName": "TheStageCore.AECMethod",
+                "usr": "s:12TheStageCore9AECMethodO"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore0aB11AgentConfigV10aec_methodAA9AECMethodOvp",
+            "mangledName": "$s12TheStageCore0aB11AgentConfigV10aec_methodAA9AECMethodOvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AECMethod",
+                    "printedName": "TheStageCore.AECMethod",
+                    "usr": "s:12TheStageCore9AECMethodO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV10aec_methodAA9AECMethodOvg",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV10aec_methodAA9AECMethodOvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "AECMethod",
+                    "printedName": "TheStageCore.AECMethod",
+                    "usr": "s:12TheStageCore9AECMethodO"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV10aec_methodAA9AECMethodOvs",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV10aec_methodAA9AECMethodOvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV10aec_methodAA9AECMethodOvM",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV10aec_methodAA9AECMethodOvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
+            "name": "aec_engines_path",
+            "printedName": "aec_engines_path",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore0aB11AgentConfigV16aec_engines_pathSSSgvp",
+            "mangledName": "$s12TheStageCore0aB11AgentConfigV16aec_engines_pathSSSgvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasInitialValue",
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Swift.String?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV16aec_engines_pathSSSgvg",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV16aec_engines_pathSSSgvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Optional",
+                    "printedName": "Swift.String?",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:Sq"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV16aec_engines_pathSSSgvs",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV16aec_engines_pathSSSgvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore0aB11AgentConfigV16aec_engines_pathSSSgvM",
+                "mangledName": "$s12TheStageCore0aB11AgentConfigV16aec_engines_pathSSSgvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
+            "kind": "Var",
             "name": "aec_enabled",
             "printedName": "aec_enabled",
             "children": [
@@ -79425,12 +81745,9 @@
             "mangledName": "$s12TheStageCore0aB11AgentConfigV11aec_enabledSbvp",
             "moduleName": "TheStageCore",
             "declAttributes": [
-              "HasInitialValue",
-              "HasStorage",
               "AccessControl",
               "RawDocComment"
             ],
-            "hasStorage": true,
             "accessors": [
               {
                 "kind": "Accessor",
@@ -79448,7 +81765,6 @@
                 "usr": "s:12TheStageCore0aB11AgentConfigV11aec_enabledSbvg",
                 "mangledName": "$s12TheStageCore0aB11AgentConfigV11aec_enabledSbvg",
                 "moduleName": "TheStageCore",
-                "implicit": true,
                 "accessorKind": "get"
               },
               {
@@ -79472,7 +81788,6 @@
                 "usr": "s:12TheStageCore0aB11AgentConfigV11aec_enabledSbvs",
                 "mangledName": "$s12TheStageCore0aB11AgentConfigV11aec_enabledSbvs",
                 "moduleName": "TheStageCore",
-                "implicit": true,
                 "accessorKind": "set"
               },
               {
@@ -83964,6 +86279,41 @@
     },
     {
       "filePath": "",
+      "kind": "Array",
+      "offset": 1814,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1894,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1962,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2040,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2233,
+      "length": 2,
+      "value": "16"
+    },
+    {
+      "filePath": "",
       "kind": "IntegerLiteral",
       "offset": 954,
       "length": 5,
@@ -84045,6 +86395,468 @@
       "offset": 3390,
       "length": 5,
       "value": "false"
+    },
+    {
+      "filePath": "",
+      "kind": "BooleanLiteral",
+      "offset": 623,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1663,
+      "length": 3,
+      "value": "512"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1695,
+      "length": 3,
+      "value": "128"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1726,
+      "length": 3,
+      "value": "257"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1763,
+      "length": 1,
+      "value": "2"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1767,
+      "length": 3,
+      "value": "128"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1773,
+      "length": 1,
+      "value": "2"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1809,
+      "length": 5,
+      "value": "16000"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1886,
+      "length": 3,
+      "value": "125"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2068,
+      "length": 10,
+      "value": "\"Qlip.SDK\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2090,
+      "length": 15,
+      "value": "\"QlipNeuralAec\""
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2320,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2386,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2446,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2555,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2625,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2871,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 2965,
+      "length": 4,
+      "value": "80.0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 3213,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 3251,
+      "length": 4,
+      "value": "0.12"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 3436,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 3472,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 3519,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 3583,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 6311,
+      "length": 4,
+      "value": "0.12"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 12130,
+      "length": 10,
+      "value": "\"Qlip.SDK\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 12152,
+      "length": 16,
+      "value": "\"CoreMLDtlnStep\""
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 16761,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 16847,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 16933,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 17896,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 17906,
+      "length": 4,
+      "value": "4096"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 17937,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 17965,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 19199,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 19231,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 21967,
+      "length": 1,
+      "value": "7"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 22019,
+      "length": 5,
+      "value": "200.0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 22101,
+      "length": 6,
+      "value": "6000.0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 23991,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24038,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24048,
+      "length": 1,
+      "value": "3"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24077,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24112,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24141,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24190,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24200,
+      "length": 3,
+      "value": "512"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24230,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24259,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24298,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24336,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24369,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24471,
+      "length": 6,
+      "value": "0.0263"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24538,
+      "length": 7,
+      "value": "0.00032"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24601,
+      "length": 7,
+      "value": "0.00532"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24660,
+      "length": 3,
+      "value": "0.3"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24703,
+      "length": 5,
+      "value": "0.004"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 24761,
+      "length": 3,
+      "value": "250"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 24825,
+      "length": 4,
+      "value": "0.02"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 900,
+      "length": 21,
+      "value": "\"TheStageAI\/dtln-aec\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 957,
+      "length": 12,
+      "value": "\"neural-aec\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1210,
+      "length": 12,
+      "value": "\"TheStageAI\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1234,
+      "length": 18,
+      "value": "\"NeuralAecSession\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1870,
+      "length": 6,
+      "value": "\"main\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2838,
+      "length": 6,
+      "value": "\"main\""
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 4469,
+      "length": 2,
+      "value": "-1"
     },
     {
       "filePath": "",
@@ -85512,14 +88324,14 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2228,
+      "offset": 2617,
       "length": 10,
       "value": "\"Qlip.SDK\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2258,
+      "offset": 2647,
       "length": 22,
       "value": "\"Lfm2VlImageProcessor\""
     },
@@ -93793,14 +96605,14 @@
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 2212,
+      "offset": 2294,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 14735,
+      "offset": 17489,
       "length": 5,
       "value": "\"npu\""
     },
@@ -94131,7 +96943,7 @@
       "kind": "StringLiteral",
       "offset": 2881,
       "length": 7,
-      "value": "\"1.1.0\""
+      "value": "\"1.2.0\""
     },
     {
       "filePath": "",
@@ -94207,8 +97019,8 @@
       "filePath": "",
       "kind": "Dictionary",
       "offset": 2129,
-      "length": 1029,
-      "value": "[(\"TheStageAI\/Qwen3-0.6B\", \"v1.1\"), (\"TheStageAI\/gemma-3-1b-it\", \"v1.1\"), (\"TheStageAI\/LFM2.5-230M\", \"v1.1\"), (\"TheStageAI\/LFM2.5-350M\", \"v1.1\"), (\"TheStageAI\/thewhisper-large-v3-turbo\", \"v1.1\"), (\"TheStageAI\/Qwen3-ASR-0.6B\", \"v1.1\"), (\"TheStageAI\/neutts-nano-multilingual\", \"v1.1\"), (\"TheStageAI\/Qwen3-TTS-12Hz-0.6B-Base\", \"v1.1\"), (\"TheStageAI\/silero-vad\", \"v1.1\"), (\"TheStageAI\/smart-turn-v3\", \"v1.1\"), (\"TheStageAI\/redimnet2\", \"v1.1\"), (\"TheStageAI\/speaker-segmentation\", \"v1.1\")]"
+      "length": 1148,
+      "value": "[(\"TheStageAI\/Qwen3-0.6B\", \"v1.1\"), (\"TheStageAI\/gemma-3-1b-it\", \"v1.1\"), (\"TheStageAI\/LFM2.5-230M\", \"v1.1\"), (\"TheStageAI\/LFM2.5-350M\", \"v1.1\"), (\"TheStageAI\/thewhisper-large-v3-turbo\", \"v1.1\"), (\"TheStageAI\/Qwen3-ASR-0.6B\", \"v1.1\"), (\"TheStageAI\/neutts-nano-multilingual\", \"v1.1\"), (\"TheStageAI\/Qwen3-TTS-12Hz-0.6B-Base\", \"v1.1\"), (\"TheStageAI\/silero-vad\", \"v1.1\"), (\"TheStageAI\/smart-turn-v3\", \"v1.1\"), (\"TheStageAI\/redimnet2\", \"v1.1\"), (\"TheStageAI\/speaker-segmentation\", \"v1.1\"), (\"TheStageAI\/LFM2.5-VL-450M\", \"v1.2\")]"
     },
     {
       "filePath": "",
@@ -95752,99 +98564,106 @@
     },
     {
       "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 648,
+      "length": 5,
+      "value": "24000"
+    },
+    {
+      "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 593,
+      "offset": 694,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 634,
+      "offset": 890,
       "length": 3,
       "value": "250"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 923,
+      "offset": 1179,
       "length": 2,
       "value": "80"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 1409,
+      "offset": 1665,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 1840,
+      "offset": 2096,
       "length": 3,
       "value": "250"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 4230,
+      "offset": 4486,
       "length": 12,
       "value": "\"TheStageAI\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 4254,
+      "offset": 4510,
       "length": 17,
       "value": "\"AudioEngineNode\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 5531,
+      "offset": 5787,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 5692,
+      "offset": 5948,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 5890,
+      "offset": 6146,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 6433,
+      "offset": 6689,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 6827,
+      "offset": 7083,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 6973,
+      "offset": 7484,
       "length": 7,
       "value": "\"audio\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 7100,
+      "offset": 7611,
       "length": 7,
       "value": "\"audio\""
     },
@@ -97159,120 +99978,134 @@
     },
     {
       "filePath": "",
-      "kind": "BooleanLiteral",
-      "offset": 11897,
-      "length": 4,
-      "value": "true"
+      "kind": "IntegerLiteral",
+      "offset": 11988,
+      "length": 6,
+      "value": "16000"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 11950,
+      "offset": 12105,
+      "length": 6,
+      "value": "24000"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 12216,
+      "length": 6,
+      "value": "24000"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 13086,
       "length": 2,
       "value": "80"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 12183,
+      "offset": 13319,
       "length": 3,
       "value": "250"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 12412,
+      "offset": 13548,
       "length": 3,
       "value": "250"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 12937,
+      "offset": 14073,
       "length": 4,
       "value": "1000"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 13309,
+      "offset": 14445,
       "length": 3,
       "value": "600"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 13363,
+      "offset": 14499,
       "length": 4,
       "value": "\"en\""
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 14177,
+      "offset": 15313,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 15415,
+      "offset": 16551,
       "length": 5,
       "value": "\"cpu\""
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 15475,
+      "offset": 16611,
       "length": 4,
       "value": "0.75"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 15699,
+      "offset": 16835,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 17808,
+      "offset": 18944,
       "length": 12,
       "value": "\"TheStageAI\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 17832,
+      "offset": 18968,
       "length": 12,
       "value": "\"VoiceAgent\""
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 18522,
+      "offset": 19658,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 18588,
+      "offset": 19724,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 18743,
+      "offset": 19879,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 18786,
+      "offset": 19922,
       "length": 2,
       "value": "\"\""
     }

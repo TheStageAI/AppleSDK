@@ -90,6 +90,25 @@ final class FlutterBridgeNode: TheStageAgentNode, @unchecked Sendable {
         make_port(name).send(value)
     }
 
+    /// Publish a subset of bus events from Dart (`USER_REQUEST` today).
+    func publish_bus_event(_ event: [String: Any]) {
+        let kind = (event["kind"] as? String)?.uppercased() ?? ""
+        switch kind {
+        case "USER_REQUEST":
+            let text = event["text"] as? String ?? ""
+            let source_raw = (event["source"] as? String)?.lowercased()
+            let source: RequestSource
+            switch source_raw {
+            case "speech": source = .speech
+            case "system": source = .system
+            default: source = .text
+            }
+            publish(.USER_REQUEST(text: text, source: source))
+        default:
+            break
+        }
+    }
+
     func ensure_port_forward(
         _ name: String,
         sink: @escaping @Sendable ([String: Any]) -> Void

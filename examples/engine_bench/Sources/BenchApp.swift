@@ -28,7 +28,7 @@ struct BenchRow: Identifiable {
 // --------------------------------------------------------------------------------------
 @MainActor
 final class BenchModel: ObservableObject {
-    @Published var selected: CatalogModel = ModelCatalog.first
+    @Published var selected: BundledModel = ModelCatalog.first
     @Published var prompt = "List 25 facts about London."
     @Published var output = ""
     @Published var statsLine = ""
@@ -39,7 +39,7 @@ final class BenchModel: ObservableObject {
     @Published var maxNew = 128
     @Published var runs = 5
 
-    /// Model-load progress (HF download / extract / compile). `nil`
+    /// Model-load progress (HF download / extract / decrypt+compile). `nil`
     /// when no load is in flight; fraction is monotonic 0...1 across phases.
     @Published var loadPhase: String?
     @Published var loadFraction = 0.0
@@ -196,7 +196,7 @@ final class BenchModel: ObservableObject {
     }
 
     private static func summarize(
-        model: CatalogModel,
+        model: BundledModel,
         results: [LLMResult]
     ) -> BenchRow {
         let tps = results.map(\.tokens_per_second).sorted()
@@ -273,7 +273,7 @@ struct ContentView: View {
             if let phase = model.loadPhase {
                 VStack(alignment: .leading, spacing: 2) {
                     if phase == "loading" {
-                        // Compile phase: no granular progress
+                        // Decrypt + CoreML compile: no granular progress
                         // exists (the SDK's next event is `ready`), so an
                         // indeterminate spinner beats a bar frozen at 85%.
                         HStack(spacing: 8) {
@@ -386,6 +386,8 @@ struct EngineBenchApp: App {
                     .tabItem { Label("TTS", systemImage: "waveform") }
                 ASRBenchView()
                     .tabItem { Label("ASR", systemImage: "mic") }
+                VLMBenchView()
+                    .tabItem { Label("VLM", systemImage: "camera") }
             }
         }
     }

@@ -27,6 +27,7 @@ class MethodRoute {
   static const String initialize = 'initialize';
   static const String startModel = 'start_model';
   static const String stopModel = 'stop_model';
+  static const String prefetchEngines = 'prefetch_engines';
 
   static const String listComponents = 'list_components';
   static const String loadComponents = 'load_components';
@@ -62,4 +63,13 @@ class MethodRoute {
       'voice_agent.enroll_speaker';
   static const String voiceAgentSendNodePort =
       'voice_agent.send_node_port';
+  static const String voiceAgentPublishNodeEvent =
+      'voice_agent.publish_node_event';
+  static const String voiceAgentSendRequest =
+      'voice_agent.send_request';
+
+  static const String screenRecorderIsRecording =
+      'screen_recorder.is_recording';
+  static const String screenRecorderStart = 'screen_recorder.start';
+  static const String screenRecorderStop = 'screen_recorder.stop';
 }

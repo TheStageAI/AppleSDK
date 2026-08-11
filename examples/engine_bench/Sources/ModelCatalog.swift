@@ -5,7 +5,7 @@ import TheStageSDK
 /// (`TheStageAI/<repo>` + ``ModelRevisionMap``). Optional local
 /// `BundledModels/<name>/` is only for advanced offline demos — this
 /// public example is HF-first and does not ship model weights.
-struct CatalogModel: Identifiable, Hashable {
+struct BundledModel: Identifiable, Hashable {
     let name: String
     let displayName: String
     let template: ChatTemplate
@@ -16,11 +16,13 @@ struct CatalogModel: Identifiable, Hashable {
     var id: String { name }
 
     func enginesPath() -> String {
-        if let dir = bundledDir() { return dir.path }
+        if let dir = enginesURL() { return dir.path }
         return hfRepo
     }
 
-    private func bundledDir() -> URL? {
+    /// Path-based only: `Bundle.url(forResource:)` splits on `.`, so names
+    /// like `lfm2.5-230m` / `qwen3-0.6b` mis-resolve.
+    func enginesURL() -> URL? {
         let dir = Bundle.main.resourceURL?
             .appendingPathComponent("BundledModels", isDirectory: true)
             .appendingPathComponent(name, isDirectory: true)
@@ -32,29 +34,29 @@ struct CatalogModel: Identifiable, Hashable {
 }
 
 enum ModelCatalog {
-    static let all: [CatalogModel] = [
-        CatalogModel(
+    static let all: [BundledModel] = [
+        BundledModel(
             name: "lfm2.5-230m",
             displayName: "LFM2.5 230M",
             template: .lfm2,
             hfRepo: "TheStageAI/LFM2.5-230M",
             revision: nil
         ),
-        CatalogModel(
+        BundledModel(
             name: "lfm2.5-350m",
             displayName: "LFM2.5 350M",
             template: .lfm2,
             hfRepo: "TheStageAI/LFM2.5-350M",
             revision: nil
         ),
-        CatalogModel(
+        BundledModel(
             name: "qwen3-0.6b",
             displayName: "Qwen3 0.6B",
             template: .qwen2,
             hfRepo: "TheStageAI/Qwen3-0.6B",
             revision: nil
         ),
-        CatalogModel(
+        BundledModel(
             name: "gemma3-1b-it",
             displayName: "Gemma3 1B",
             template: .gemma3,
@@ -63,5 +65,5 @@ enum ModelCatalog {
         ),
     ]
 
-    static var first: CatalogModel { all[0] }
+    static var first: BundledModel { all[0] }
 }

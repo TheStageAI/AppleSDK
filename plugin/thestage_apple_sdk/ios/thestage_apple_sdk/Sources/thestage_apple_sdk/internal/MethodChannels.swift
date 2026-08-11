@@ -26,6 +26,7 @@ enum MethodRoute {
     static let initialize = "initialize"
     static let startModel = "start_model"
     static let stopModel = "stop_model"
+    static let prefetchEngines = "prefetch_engines"
 
     static let listComponents = "list_components"
     static let loadComponents = "load_components"
@@ -58,4 +59,11 @@ enum MethodRoute {
         "voice_agent.update_interrupt_config"
     static let voiceAgentEnrollSpeaker = "voice_agent.enroll_speaker"
     static let voiceAgentSendNodePort = "voice_agent.send_node_port"
+    static let voiceAgentPublishNodeEvent =
+        "voice_agent.publish_node_event"
+    static let voiceAgentSendRequest = "voice_agent.send_request"
+
+    static let screenRecorderIsRecording = "screen_recorder.is_recording"
+    static let screenRecorderStart = "screen_recorder.start"
+    static let screenRecorderStop = "screen_recorder.stop"
 }

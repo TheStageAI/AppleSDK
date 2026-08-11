@@ -104,6 +104,26 @@ class TheStageFlutterSDK {
     return _asMap(result);
   }
 
+  /// Download / extract engines to disk without loading into memory.
+  /// Returns the local engines directory path.
+  static Future<String> prefetch_engines({
+    required String repo_id,
+    String? model_type,
+    String? revision,
+    Map<String, dynamic>? config,
+  }) async {
+    final result = await _channel.invokeMethod<String>(
+      MethodRoute.prefetchEngines,
+      {
+        'repo_id': repo_id,
+        if (model_type != null) 'model_type': model_type,
+        if (revision != null) 'revision': revision,
+        if (config != null) 'config': config,
+      },
+    );
+    return result ?? '';
+  }
+
   // ---------------------------------------------------------------------------
   // Batch Inference
   // ---------------------------------------------------------------------------

@@ -14,6 +14,7 @@ enum TheStageAgentState {
   sleeping,
   listening,
   thinking,
+  tool_calling,
   speaking;
 
   static TheStageAgentState fromString(String value) {
@@ -145,15 +146,50 @@ class TheStageVoiceAgentFlutter {
     );
   }
 
-  Future<void> setVoice(String voice) async {
-    await _channel.invokeMethod(
-      MethodRoute.voiceAgentSetVoice,
-      {'voice': voice},
-    );
+  /// Hot-swap the TTS voice at runtime.
+  ///
+  /// Same shape as the standalone `TTSPipeline.set_voice(voice_dir:...)`:
+  /// pass any subset of [voiceId], [voiceDir] and [language]. `null`
+  /// fields are left unchanged on the agent config.
+  ///
+  /// Pass any subset of [voiceId], [voiceDir], and [language].
+  /// Dart does not allow mixing optional positional + named params, so
+  /// callers always use the named form:
+  ///
+  /// ```dart
+  /// // Pick a bundle voice by id (subfolder under `voices/`).
+  /// await agent.setVoice(voiceId: 'paul');
+  ///
+  /// // Use an external prepared pack — same folder shape as
+  /// // `Qwen3TTSPipeline(..., voice_dir:)` or NeuTTS `voice_dir`.
+  /// await agent.setVoice(voiceDir: '/path/to/prepared_pack');
+  ///
+  /// // NeuTTS multilingual: swap language on the same speaker.
+  /// await agent.setVoice(voiceId: 'paul', language: 'french');
+  /// ```
+  Future<void> setVoice({
+    String? voiceId,
+    String? voiceDir,
+    String? language,
+  }) async {
+    final args = <String, dynamic>{};
+    if (voiceId != null) args['voice_id'] = voiceId;
+    if (voiceDir != null) args['voice_dir'] = voiceDir;
+    if (language != null) args['language'] = language;
+    if (args.isEmpty) return;
+    await _channel.invokeMethod(MethodRoute.voiceAgentSetVoice, args);
   }
 
   Future<void> clearHistory() async {
     await _channel.invokeMethod(MethodRoute.voiceAgentClearHistory);
+  }
+
+  /// Hot-swap the LLM system prompt for subsequent turns (no agent restart).
+  Future<void> setSystemPrompt(String prompt) async {
+    await _channel.invokeMethod(
+      MethodRoute.voiceAgentSetSystemPrompt,
+      {'system_prompt': prompt},
+    );
   }
 
   /// Enroll or clear the speaker embedding used by speaker-id gating.

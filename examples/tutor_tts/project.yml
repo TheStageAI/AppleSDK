@@ -1,0 +1,74 @@
+name: TutorTTS
+options:
+  bundleIdPrefix: com.example.tutortts
+  deploymentTarget:
+    iOS: "18.0"
+packages:
+  # Local path into the AppleSDK checkout (Package.swift at repo root).
+  # Resolves the published TheStageCore.xcframework + TheStageSDK wrapper.
+  TheStageSDK:
+    path: ../..
+settings:
+  base:
+    # Set your Apple Developer Team in Xcode → Signing & Capabilities.
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.3.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  TutorTTS:
+    type: application
+    platform: iOS
+    configFiles:
+      Debug: Secrets.xcconfig
+      Release: Secrets.xcconfig
+    dependencies:
+      - package: TheStageSDK
+        product: TheStageSDK
+    sources:
+      - path: Sources
+      - path: Assets.xcassets
+      # Must not be named Resources/ — a top-level Resources dir breaks iOS codesign.
+      - path: VoicePacks
+        type: folder
+        buildPhase: resources
+    # SPM resource bundles (mlx metallib, ZipArchive privacy) are copied into the
+    # .app but not always signed by package targets — codesign then rejects the app.
+    postBuildScripts:
+      - name: Sign SPM resource bundles
+        basedOnDependencyAnalysis: false
+        script: |
+          set -euo pipefail
+          APP="${TARGET_BUILD_DIR}/${WRAPPER_NAME}"
+          IDENTITY="${EXPANDED_CODE_SIGN_IDENTITY:-}"
+          if [[ -z "$IDENTITY" || "$IDENTITY" == "-" ]]; then
+            exit 0
+          fi
+          if [[ ! -d "$APP" ]]; then
+            exit 0
+          fi
+          find "$APP" -name '*.bundle' -type d | while read -r bundle; do
+            /usr/bin/codesign --force --sign "$IDENTITY" --timestamp=none --generate-entitlement-der "$bundle"
+          done
+    info:
+      path: TutorTTS-Info.plist
+      properties:
+        CFBundleDisplayName: TutorTTS
+        UILaunchScreen: {}
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleIconName: AppIcon
+        ITSAppUsesNonExemptEncryption: false
+        UIBackgroundModes: []
+        TSAPIToken: "$(TS_API_TOKEN)"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.example.tutortts
+        CODE_SIGN_STYLE: Automatic
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1"
+        SWIFT_VERSION: "5.0"
+        SWIFT_OPTIMIZATION_LEVEL: "-O"
+        SWIFT_COMPILATION_MODE: "wholemodule"
+        ENABLE_TESTABILITY: "NO"
+        ONLY_ACTIVE_ARCH: "NO"
+        INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents: YES

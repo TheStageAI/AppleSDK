@@ -9,8 +9,8 @@ being generated.
 - `TheStageFlutterSDK.initialize(api_token:)`
 - `TheStageFlutterSDK.start_model(…)` for
   `TheStageAI/neutts-nano-multilingual` with HuggingFace engine prefetch.
-- `TheStageFlutterSDK.infer_stream(...)` in push mode (per-chunk audio
-  events).
+- `TTSController` → `TheStageFlutterSDK.infer_stream(...)` with
+  `{text}` input and per-chunk `Float32List` audio.
 - `TheStageAudioPlayer` for low-latency playback.
 
 ## Prerequisites
@@ -53,5 +53,5 @@ Use `flutter devices` to find the device id.
 - The first launch downloads the NeuTTS engines from HuggingFace
   (~hundreds of MB) and caches them under the app's Application
   Support directory. Subsequent launches start instantly.
-- Audio plays as 24 kHz mono float PCM. The streaming chunk cadence
-  can be tuned via `TTSStreamConfig` (see the in-app settings panel).
+- Audio plays as 24 kHz mono float PCM via `TheStageAudioPlayer`.
+  Voice switching reloads the model through `TTSController.switchVoice`.

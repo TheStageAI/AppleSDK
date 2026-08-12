@@ -10,7 +10,7 @@ let package = Package(
         // published tag.
         .package(
             url: "https://github.com/TheStageAI/AppleSDK.git",
-            exact: Version(1, 2, 0)
+            exact: Version(1, 3, 0)
         )
     ],
     targets: [

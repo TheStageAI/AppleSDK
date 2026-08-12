@@ -79,11 +79,24 @@ class VoiceAgentSettings extends ChangeNotifier {
   // Qwen TTS clone voice + LFM persona for the on-device Trump demo.
   String ttsVoice = 'donald_trump';
   String sttLanguage = 'en';
-  // Keep this short — small LFM will parrot long style guides / phrase lists.
-  // Ask for complete sentences so the model doesn't EOS after a 3-word stub.
+  // Voice + tools: model-agnostic persona. Wire format (Qwen XML / LFM
+  // python / Gemma tool_code) comes from the SDK tools section, not here.
+  // Keep short — small packs parrot long style guides.
   String systemPrompt =
-      'You are Donald Trump in a short voice chat. Stay in character. '
-      'Reply in 1–2 complete sentences, never a cut-off fragment.';
+      'You are a concise, friendly on-device voice assistant. '
+      'Always reply in complete sentences. Prefer tools for live facts '
+      '(weather, time, search). When using a tool: '
+      '1) say a short filler first ("Hmm, let me check that."), '
+      '2) emit the tool call using ONLY the exact markup from the tools '
+      'section (the app runs it — do not speak the markup aloud), '
+      '3) after the plain-text tool result, answer in 1–2 full sentences '
+      '("Oh, found it — it\'s 18 degrees in San Francisco."). '
+      'Never stop after one word. Never invent facts the tool did not '
+      'provide. Never read a tool result aloud as raw JSON.';
+
+  /// Built-in tool preset for local LLM: none | voice | web | phone.
+  /// Default `web` — small LFM packs degrade with the full voice+phone set.
+  String llmTools = 'web';
 
   // ── LLM provider ─────────────────────────────────────────────────────────
   // Local: llm_model is the start_model handle (bundled: [localLlmHandle];
@@ -129,8 +142,13 @@ class VoiceAgentSettings extends ChangeNotifier {
     }
   }
 
-  // Sliding chat window: last N user+assistant turns. System prompt is
-  // prepended every LLM call from [systemPrompt] (never trimmed with history).
+  // Sliding chat window: last N complete USER-led turns. System prompt is
+  // re-injected every LLM call from [systemPrompt] (not stored in history).
+  // The SDK also token-trims to the pack's max_cache_len (LFM2.5-350M ≈ 1256)
+  // via LLMChatEngine.fit_messages, so we do NOT need a tight app cap here —
+  // fit_messages drops oldest USER-led turns just enough to keep room for a
+  // filler + tool call + short answer. Setting a low N here only throws away
+  // memory that would otherwise fit.
   int chatMemoryMaxTurns = 10;
 
   // ── Endpointing (VAD) ────────────────────────────────────────────────────
@@ -241,10 +259,11 @@ class VoiceAgentSettings extends ChangeNotifier {
         'llm_endpoint': llmEndpoint,
         'llm_api_key': apiKey,
         'system_prompt': systemPrompt,
+        'llm_tools': llmTools,
         'chat_memory_max_turns': chatMemoryMaxTurns,
-        // Sampling belongs on the LLM bundle for local; only cloud needs these.
-        if (llmProvider != 'local') 'max_tokens': maxTokens,
-        if (llmProvider != 'local') 'temperature': temperature,
+        // Sampling overlays bundle defaults for local Path A too.
+        'max_tokens': maxTokens,
+        'temperature': temperature,
         // Local: load VAD/STT/TTS first, then LLM, then open the mic.
         if (llmProvider == 'local') 'auto_listen': false,
 

@@ -64,10 +64,11 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
         )
 
         // One-shot when the full input is already present: TTS `text` or
-        // LLM `prompt` -> generic `infer_stream`. The push streamer is only
-        // for incremental TTS where text is fed later via `send()`; routing
-        // an LLM (or one-shot TTS) there would hit `open_tts_streamer` and
-        // fail, so it must be reserved for the no-input-yet case alone.
+        // LLM / VLM `prompt` -> generic `infer_stream`. The push streamer
+        // is only for incremental TTS where text is fed later via
+        // `send()`; routing an LLM / VLM (or one-shot TTS) there would
+        // hit `open_tts_streamer` and fail, so it must be reserved for
+        // the no-input-yet case alone.
         if text.isEmpty && prompt.isEmpty {
             __start_push(
                 stream_id: stream_id,
@@ -220,6 +221,10 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
             "is_final": chunk.is_final,
         ]
         if let delta = chunk.delta { event["delta"] = delta }
+        if let name = chunk.name { event["name"] = name }
+        if let arguments = chunk.arguments { event["arguments"] = arguments }
+        if let content = chunk.content { event["content"] = content }
+        if let stop = chunk.stop_reason { event["stop_reason"] = stop }
         if let audio = chunk.audio {
             let data = audio.withUnsafeBufferPointer {
                 Data(buffer: $0)

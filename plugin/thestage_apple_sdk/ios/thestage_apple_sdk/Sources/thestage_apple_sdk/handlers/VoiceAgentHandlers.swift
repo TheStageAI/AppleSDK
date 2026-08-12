@@ -84,14 +84,24 @@ extension TheStageFlutterPlugin {
         _ call: FlutterMethodCall,
         result: @escaping FlutterResult
     ) {
-        guard let args = call.arguments as? [String: Any],
-              let voice = args["voice"] as? String
-        else {
-            __fail(result, msg: "Missing voice.")
+        let args = (call.arguments as? [String: Any]) ?? [:]
+        // Accept either the pre-`voice_dir` shape (`{"voice": "paul"}`) or
+        // the extended shape (`{"voice_id"/"voice_dir"/"language": ...}`).
+        // Legacy `voice` is treated as `voice_id`.
+        let voice_id = (args["voice_id"] as? String)
+            ?? (args["voice"] as? String)
+        let voice_dir = args["voice_dir"] as? String
+        let language = args["language"] as? String
+        if voice_id == nil && voice_dir == nil && language == nil {
+            __fail(result, msg: "Pass voice_id, voice_dir or language.")
             return
         }
         Task { @MainActor in
-            await __voice_agent_handler?.set_voice(voice)
+            await __voice_agent_handler?.set_voice(
+                voice_id: voice_id,
+                voice_dir: voice_dir,
+                language: language
+            )
             result(nil)
         }
     }
@@ -102,6 +112,22 @@ extension TheStageFlutterPlugin {
     ) {
         Task { [weak self] in
             await self?.__voice_agent_handler?.clear_history()
+            result(nil)
+        }
+    }
+
+    func __handle_voice_agent_set_system_prompt(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let args = call.arguments as? [String: Any],
+              let prompt = args["system_prompt"] as? String
+        else {
+            __fail(result, msg: "Missing system_prompt.")
+            return
+        }
+        Task { [weak self] in
+            await self?.__voice_agent_handler?.set_system_prompt(prompt)
             result(nil)
         }
     }

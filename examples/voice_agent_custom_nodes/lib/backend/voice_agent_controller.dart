@@ -106,6 +106,7 @@ class VoiceAgentController extends ChangeNotifier {
       state == TheStageAgentState.loading || _holdLoading;
   bool get canInterrupt =>
       state == TheStageAgentState.thinking ||
+      state == TheStageAgentState.tool_calling ||
       state == TheStageAgentState.speaking;
 
   // ── Commands (called by the UI) ──────────────────────────────────────────

@@ -148,6 +148,144 @@ final public class TTSSession : @unchecked Swift.Sendable {
 @_hasMissingDesignatedInitializers public class QlipModel {
   @objc deinit
 }
+public struct ChatEngineCapabilities : Swift.Sendable {
+  public var supports_tools: Swift.Bool
+  public var supports_images: Swift.Bool
+  public var supports_audio: Swift.Bool
+  public var supports_stream: Swift.Bool
+  public init(supports_tools: Swift.Bool = false, supports_images: Swift.Bool = false, supports_audio: Swift.Bool = false, supports_stream: Swift.Bool = true)
+}
+public enum ChatEngineError : Swift.Error, Swift.CustomStringConvertible {
+  case UNSUPPORTED_PART(Swift.String)
+  case EMPTY_TURN
+  case ENGINE(Swift.String)
+  public var description: Swift.String {
+    get
+  }
+}
+public protocol ChatEngine : Swift.Sendable {
+  var capabilities: TheStageCore.ChatEngineCapabilities { get }
+  func infer(messages: [TheStageCore.ChatMessage], system_prompt: Swift.String?, tools: [TheStageCore.Tool], config: TheStageCore.LLMGenerationConfig?) async throws -> TheStageCore.LLMResult
+  func infer_stream(messages: [TheStageCore.ChatMessage], system_prompt: Swift.String?, tools: [TheStageCore.Tool], config: TheStageCore.LLMGenerationConfig?) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
+}
+final public class LLMChatEngine : TheStageCore.ChatEngine, @unchecked Swift.Sendable {
+  final public let capabilities: TheStageCore.ChatEngineCapabilities
+  public init(llm: TheStageCore.TheStageLLM)
+  @objc deinit
+  final public func infer(messages: [TheStageCore.ChatMessage], system_prompt: Swift.String?, tools: [TheStageCore.Tool], config: TheStageCore.LLMGenerationConfig?) async throws -> TheStageCore.LLMResult
+  final public func infer_stream(messages: [TheStageCore.ChatMessage], system_prompt: Swift.String?, tools: [TheStageCore.Tool], config: TheStageCore.LLMGenerationConfig?) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
+  final public func fit_messages(_ messages: [TheStageCore.ChatMessage], system_prompt: Swift.String?, tools: [TheStageCore.Tool], config: TheStageCore.LLMGenerationConfig?) -> [TheStageCore.ChatMessage]
+}
+extension TheStageCore.TheStageLLM {
+  final public func chat_session(system_prompt: Swift.String? = nil, tools: [TheStageCore.Tool] = [], memory: TheStageCore.TheStageChatMemoryKind = .SLIDING(max_turns: 10)) -> TheStageCore.TheStageChatSession
+}
+public protocol TheStageChatMemory : Swift.Sendable {
+  mutating func append(_ message: TheStageCore.ChatMessage)
+  func messages() -> [TheStageCore.ChatMessage]
+  mutating func clear()
+  mutating func replace_all(_ messages: [TheStageCore.ChatMessage])
+  var count: Swift.Int { get }
+}
+extension TheStageCore.TheStageChatMemory {
+  public mutating func replace_all(_ messages: [TheStageCore.ChatMessage])
+}
+public enum TheStageChatMemoryKind : @unchecked Swift.Sendable {
+  case SLIDING(max_turns: Swift.Int)
+  case NONE
+  case CUSTOM(any TheStageCore.TheStageChatMemory)
+}
+public struct TheStageSlidingWindowMemory : TheStageCore.TheStageChatMemory, Swift.Sendable {
+  public var max_turns: Swift.Int
+  public init(max_turns: Swift.Int = 10)
+  public var count: Swift.Int {
+    get
+  }
+  public mutating func append(_ message: TheStageCore.ChatMessage)
+  public func messages() -> [TheStageCore.ChatMessage]
+  public mutating func clear()
+  public mutating func replace_all(_ messages: [TheStageCore.ChatMessage])
+}
+public enum ChatRole : Swift.String, Swift.Sendable {
+  case SYSTEM
+  case USER
+  case ASSISTANT
+  case TOOL
+  public init?(rawValue: Swift.String)
+  public typealias RawValue = Swift.String
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public struct ChatImageRef : @unchecked Swift.Sendable {
+  public var cg_image: CoreGraphics.CGImage?
+  public var url: Foundation.URL?
+  public var base64: Swift.String?
+  public var mime: Swift.String
+  public init(cg_image: CoreGraphics.CGImage? = nil, url: Foundation.URL? = nil, base64: Swift.String? = nil, mime: Swift.String = "image/jpeg")
+}
+public struct ChatAudioRef : Swift.Sendable {
+  public var pcm_mono_16k: [Swift.Float]?
+  public var url: Foundation.URL?
+  public var base64: Swift.String?
+  public var format: Swift.String
+  public init(pcm_mono_16k: [Swift.Float]? = nil, url: Foundation.URL? = nil, base64: Swift.String? = nil, format: Swift.String = "pcm_f32_16k")
+}
+public enum ChatContentPart : @unchecked Swift.Sendable {
+  case TEXT(Swift.String)
+  case IMAGE(TheStageCore.ChatImageRef)
+  case INPUT_AUDIO(TheStageCore.ChatAudioRef)
+  case TOOL_CALL(TheStageCore.ToolCall)
+  case TOOL_RESULT(name: Swift.String, content: Swift.String)
+}
+public struct ChatMessage : @unchecked Swift.Sendable {
+  public var role: TheStageCore.ChatRole
+  public var parts: [TheStageCore.ChatContentPart]
+  public var name: Swift.String?
+  public init(role: TheStageCore.ChatRole, parts: [TheStageCore.ChatContentPart], name: Swift.String? = nil)
+  public static func system(_ text: Swift.String) -> TheStageCore.ChatMessage
+  public static func user(_ text: Swift.String) -> TheStageCore.ChatMessage
+  public static func user(_ parts: [TheStageCore.ChatContentPart]) -> TheStageCore.ChatMessage
+  public static func assistant(_ text: Swift.String) -> TheStageCore.ChatMessage
+  public static func tool(name: Swift.String, content: Swift.String) -> TheStageCore.ChatMessage
+  public var text_content: Swift.String {
+    get
+  }
+  public func to_template_message() -> TheStageCore.ChatTemplate.Message
+}
+final public class TheStageChatSession : @unchecked Swift.Sendable {
+  final public var system_prompt: Swift.String?
+  final public var tools: [TheStageCore.Tool]
+  final public var capabilities: TheStageCore.ChatEngineCapabilities {
+    get
+  }
+  final public var can_attach_image: Swift.Bool {
+    get
+  }
+  final public var can_attach_audio: Swift.Bool {
+    get
+  }
+  final public var can_use_tools: Swift.Bool {
+    get
+  }
+  final public var pending_user_parts: [TheStageCore.ChatContentPart] {
+    get
+  }
+  final public var history: [TheStageCore.ChatMessage] {
+    get
+  }
+  public init(engine: any TheStageCore.ChatEngine, system_prompt: Swift.String? = nil, tools: [TheStageCore.Tool] = [], memory: TheStageCore.TheStageChatMemoryKind = .SLIDING(max_turns: 10))
+  @objc deinit
+  final public func add_text(_ text: Swift.String)
+  final public func attach_image(_ image: TheStageCore.ChatImageRef) throws
+  final public func attach_audio(_ audio: TheStageCore.ChatAudioRef) throws
+  final public func clear_pending()
+  final public func submit(config: TheStageCore.LLMGenerationConfig? = nil) async throws -> TheStageCore.LLMResult
+  final public func submit_stream(config: TheStageCore.LLMGenerationConfig? = nil) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
+  final public func infer(_ message: TheStageCore.ChatMessage, config: TheStageCore.LLMGenerationConfig? = nil) async throws -> TheStageCore.LLMResult
+  final public func infer_stream(_ message: TheStageCore.ChatMessage, config: TheStageCore.LLMGenerationConfig? = nil) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
+  final public func clear()
+  final public func cancel_in_flight()
+}
 @_hasMissingDesignatedInitializers final public class DebugLog : @unchecked Swift.Sendable {
   public struct LoadedModel : Swift.Sendable {
     public let model_name: Swift.String
@@ -421,7 +559,35 @@ public struct LLMMetrics : TheStageCore.TheStageMetrics, Swift.Equatable {
   public func encode(to encoder: any Swift.Encoder) throws
   public init(from decoder: any Swift.Decoder) throws
 }
-public struct InferenceStreamChunk : Swift.Sendable {
+public enum ImageIOHelpers {
+  public enum Error : Swift.Error, Foundation.LocalizedError, Swift.Sendable {
+    case cannotOpen(Foundation.URL)
+    case cannotDecode(Foundation.URL)
+    case cannotDecodeData
+    public var errorDescription: Swift.String? {
+      get
+    }
+  }
+  public static func load_cgimage(url: Foundation.URL) throws -> CoreGraphics.CGImage
+  public static func load_cgimage(path: Swift.String) throws -> CoreGraphics.CGImage
+  public static func load_cgimage(data: Foundation.Data) throws -> CoreGraphics.CGImage
+}
+public enum AudioIO {
+  public enum Error : Swift.Error, Foundation.LocalizedError, Swift.Sendable {
+    case cannotOpen(Foundation.URL)
+    case cannotCreateFormat
+    case cannotAllocateBuffer
+    case emptyFile(Foundation.URL)
+    public var errorDescription: Swift.String? {
+      get
+    }
+  }
+  public static func load_wav(url: Foundation.URL, target_sample_rate: Swift.Int = 16_000) throws -> [Swift.Float]
+  public static func load_wav(path: Swift.String, target_sample_rate: Swift.Int = 16_000) throws -> [Swift.Float]
+  public static func write_wav(samples: [Swift.Float], sample_rate: Swift.Int, url: Foundation.URL) throws
+  public static func write_wav(samples: [Swift.Float], sample_rate: Swift.Int, path: Swift.String) throws
+}
+public struct InferenceStreamChunk : @unchecked Swift.Sendable {
   public var kind: Swift.String
   public var index: Swift.Int
   public var is_final: Swift.Bool
@@ -433,6 +599,10 @@ public struct InferenceStreamChunk : Swift.Sendable {
   public var generated_tokens: Swift.Int?
   public var tokens_per_second: Swift.Double?
   public var total_seconds: Swift.Double?
+  public var name: Swift.String?
+  public var arguments: [Swift.String : Any]?
+  public var content: Swift.String?
+  public var stop_reason: Swift.String?
 }
 public struct ModelComponentStatus : Swift.Codable, Swift.Sendable {
   public let id: Swift.String
@@ -475,6 +645,7 @@ final public class ModelManager : @unchecked Swift.Sendable {
   final public func list_components(model_name: Swift.String) throws -> [TheStageCore.ModelComponentStatus]
   final public func load_components(model_name: Swift.String, ids: [Swift.String]) throws -> [TheStageCore.ModelComponentStatus]
   final public func unload_components(model_name: Swift.String, ids: [Swift.String]) throws -> [TheStageCore.ModelComponentStatus]
+  final public func the_stage_llm(model_name: Swift.String) throws -> TheStageCore.TheStageLLM
 }
 @_hasMissingDesignatedInitializers public class TheStageASRPipeline : TheStageCore.BasePipeline, @unchecked Swift.Sendable {
   final public let chunk_seconds: Swift.Int
@@ -666,6 +837,44 @@ public struct LLMHostConfig : Swift.Codable, Swift.Sendable {
   public func encode(to encoder: any Swift.Encoder) throws
   public init(from decoder: any Swift.Decoder) throws
 }
+@available(*, deprecated, renamed: "ToolCallStyle")
+public typealias LLMToolCallStyle = TheStageCore.ToolCallStyle
+@available(*, deprecated, renamed: "ToolCallingFormat")
+public typealias LLMToolCallingFormat = TheStageCore.ToolCallingFormat
+@available(*, deprecated, renamed: "ToolCallingTags")
+public typealias LLMToolCallingTags = TheStageCore.ToolCallingTags
+@available(*, deprecated, renamed: "ToolCallingSpec")
+public typealias LLMToolCallingSpec = TheStageCore.ToolCallingSpec
+@available(*, deprecated, renamed: "ToolDefinition")
+public typealias LLMToolDefinition = TheStageCore.ToolDefinition
+@available(*, deprecated, renamed: "ToolCall")
+public typealias LLMToolCall = TheStageCore.ToolCall
+@available(*, deprecated, renamed: "ParsedAssistantTurn")
+public typealias LLMParsedAssistantTurn = TheStageCore.ParsedAssistantTurn
+@available(*, deprecated, renamed: "ToolCallingError")
+public typealias LLMToolCallingError = TheStageCore.ToolCallingError
+@available(*, deprecated, renamed: "ToolCalling")
+public typealias LLMToolCalling = TheStageCore.ToolCalling
+@available(*, deprecated, renamed: "ToolExecutor")
+public typealias LLMToolExecutor = TheStageCore.ToolExecutor
+@available(*, deprecated, renamed: "MapToolExecutor")
+public typealias LLMMapToolExecutor = TheStageCore.MapToolExecutor
+@available(*, deprecated, renamed: "ToolDefinition")
+public typealias Qwen3ToolDefinition = TheStageCore.ToolDefinition
+@available(*, deprecated, renamed: "ToolCall")
+public typealias Qwen3ToolCall = TheStageCore.ToolCall
+@available(*, deprecated, renamed: "ParsedAssistantTurn")
+public typealias Qwen3ParsedAssistantTurn = TheStageCore.ParsedAssistantTurn
+@available(*, deprecated, message: "Use ToolCalling.render_system/tool_message with format: .qwen3")
+public enum Qwen3ToolCalling {
+  public static func renderSystem(tools: [TheStageCore.ToolDefinition], baseSystem: Swift.String = "You are a helpful assistant.") -> Swift.String
+  public static func renderToolResponse(_ content: Swift.String) -> Swift.String
+  public static func toolMessage(_ content: Swift.String) -> TheStageCore.ChatTemplate.Message
+}
+@available(*, deprecated, message: "Use ToolCalling.parse(_:format: .qwen3)")
+public enum Qwen3ToolCallParser {
+  public static func parse(_ text: Swift.String) -> TheStageCore.ParsedAssistantTurn
+}
 public struct LLMResult : Swift.Sendable {
   public let text: Swift.String
   public let prompt_tokens: Swift.Int
@@ -675,7 +884,10 @@ public struct LLMResult : Swift.Sendable {
   public let decode_step_count: Swift.Int
   public let decode_forward_seconds: Swift.Double
   public let stop_reason: Swift.String
-  public init(text: Swift.String, prompt_tokens: Swift.Int, generated_tokens: Swift.Int, prefill_seconds: Swift.Double, decode_seconds: Swift.Double, decode_step_count: Swift.Int = 0, decode_forward_seconds: Swift.Double = 0, stop_reason: Swift.String)
+  public let tool_calls: [TheStageCore.ToolCall]
+  public let thinking: Swift.String?
+  public let final_text: Swift.String
+  public init(text: Swift.String, prompt_tokens: Swift.Int, generated_tokens: Swift.Int, prefill_seconds: Swift.Double, decode_seconds: Swift.Double, decode_step_count: Swift.Int = 0, decode_forward_seconds: Swift.Double = 0, stop_reason: Swift.String, tool_calls: [TheStageCore.ToolCall] = [], thinking: Swift.String? = nil, final_text: Swift.String? = nil)
   public var tokens_per_second: Swift.Double {
     get
   }
@@ -707,6 +919,11 @@ public struct LLMStreamChunk : Swift.Sendable {
   final public let chat_template: TheStageCore.ChatTemplate
   final public let default_system_prompt: Swift.String
   final public let stop_token_ids: [Swift.Int]
+  final public let supports_tool_calling: Swift.Bool
+  final public let tool_calling_spec: TheStageCore.ToolCallingSpec?
+  final public var tool_calling_format: TheStageCore.ToolCallingFormat? {
+    get
+  }
   final public let generation_defaults: TheStageCore.LLMGenerationConfig
   final public var eos_token_id: Swift.Int? {
     get
@@ -717,6 +934,10 @@ public struct LLMStreamChunk : Swift.Sendable {
   final public var decoder_spec: TheStageCore.Seq2SeqDecoderSpec {
     get
   }
+  final public var max_cache_len: Swift.Int {
+    get
+  }
+  final public func count_tokens(_ text: Swift.String) -> Swift.Int
   final public func release()
   final public var last_prefill_seconds: Swift.Double {
     get
@@ -733,13 +954,205 @@ public struct LLMStreamChunk : Swift.Sendable {
   public init(engines_path: Swift.String, device: Swift.String = "gpu", max_context_size: Swift.Int = 2048, chat_template: TheStageCore.ChatTemplate? = nil, default_system_prompt: Swift.String? = nil, eos_token_id: Swift.Int? = nil, revision: Swift.String? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
   @objc deinit
   final public func reset()
+  final public func infer(prompt: Swift.String, system_prompt: Swift.String? = nil, tools: [TheStageCore.ToolDefinition]? = nil, config: TheStageCore.LLMGenerationConfig) throws -> TheStageCore.LLMResult
+  final public func infer(prompt: Swift.String, tools: [TheStageCore.ToolDefinition], executor: any TheStageCore.ToolExecutor, system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig, max_tool_rounds: Swift.Int = 4) async throws -> TheStageCore.LLMResult
+  final public func infer(prompt: Swift.String, tools: [TheStageCore.Tool], system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig, max_tool_rounds: Swift.Int = 4) async throws -> TheStageCore.LLMResult
   final public func infer(prompt: Swift.String, system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig) -> TheStageCore.LLMResult
   @available(*, deprecated, message: "Use infer(prompt:system_prompt:config:) with LLMGenerationConfig.")
   final public func infer(prompt: Swift.String, system_prompt: Swift.String? = nil, max_new_tokens: Swift.Int = 512, temperature: Swift.Float = 0.7, top_k: Swift.Int = 20, seed: Swift.UInt64? = nil, enable_thinking: Swift.Bool = true) -> TheStageCore.LLMResult
   final public func infer_stream(prompt: Swift.String, system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig) -> _Concurrency.AsyncStream<TheStageCore.LLMStreamChunk>
+  final public func infer_stream(messages: [TheStageCore.ChatTemplate.Message], system_prompt: Swift.String? = nil, tools: [TheStageCore.ToolDefinition]? = nil, config: TheStageCore.LLMGenerationConfig) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamChunk>
+  final public func infer_stream(messages: [TheStageCore.ChatTemplate.Message], tools: [TheStageCore.ToolDefinition], executor: (any TheStageCore.ToolExecutor)? = nil, system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig, max_tool_rounds: Swift.Int = 4) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
   final public func infer_stream(messages: [TheStageCore.ChatTemplate.Message], system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig) -> _Concurrency.AsyncStream<TheStageCore.LLMStreamChunk>
+  final public func infer_stream(prompt: Swift.String, tools: [TheStageCore.ToolDefinition], executor: (any TheStageCore.ToolExecutor)? = nil, system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig, max_tool_rounds: Swift.Int = 4) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
+  final public func infer_stream(messages: [TheStageCore.ChatTemplate.Message], tools: [TheStageCore.Tool], system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig, max_tool_rounds: Swift.Int = 4) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
+  final public func infer_stream(prompt: Swift.String, tools: [TheStageCore.Tool], system_prompt: Swift.String? = nil, config: TheStageCore.LLMGenerationConfig, max_tool_rounds: Swift.Int = 4) throws -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
   @available(*, deprecated, message: "Use infer_stream(prompt:system_prompt:config:) with LLMGenerationConfig.")
   final public func infer_stream(prompt: Swift.String, system_prompt: Swift.String? = nil, max_new_tokens: Swift.Int = 512, temperature: Swift.Float = 0.7, top_k: Swift.Int = 20, seed: Swift.UInt64? = nil, enable_thinking: Swift.Bool = true) -> _Concurrency.AsyncStream<TheStageCore.LLMStreamChunk>
+}
+public enum DefaultTools {
+  public static let voice_system_prompt: Swift.String
+  public static var web: [TheStageCore.Tool] {
+    get
+  }
+  public static var phone: [TheStageCore.Tool] {
+    get
+  }
+  public static var voice: [TheStageCore.Tool] {
+    get
+  }
+  public static var all: [TheStageCore.Tool] {
+    get
+  }
+  public static var get_weather: TheStageCore.Tool {
+    get
+  }
+  public static var get_local_time: TheStageCore.Tool {
+    get
+  }
+  public static var web_search: TheStageCore.Tool {
+    get
+  }
+  public static var wikipedia_summary: TheStageCore.Tool {
+    get
+  }
+  public static var calculate: TheStageCore.Tool {
+    get
+  }
+  public static var open_url: TheStageCore.Tool {
+    get
+  }
+  public static var dial_phone: TheStageCore.Tool {
+    get
+  }
+  public static var open_maps: TheStageCore.Tool {
+    get
+  }
+  public static var compose_sms: TheStageCore.Tool {
+    get
+  }
+  public static var compose_email: TheStageCore.Tool {
+    get
+  }
+  public static var copy_to_clipboard: TheStageCore.Tool {
+    get
+  }
+  public static var get_battery: TheStageCore.Tool {
+    get
+  }
+}
+@available(*, deprecated, renamed: "DefaultTools")
+public typealias DemoTools = TheStageCore.DefaultTools
+public enum LLMStreamEvent : Swift.Sendable {
+  case text_delta(Swift.String)
+  case thinking_delta(Swift.String)
+  case tool_call(TheStageCore.ToolCall)
+  case tool_round(assistant_raw: Swift.String)
+  case tool_result(name: Swift.String, content: Swift.String)
+  case final(stop_reason: Swift.String?, prompt_tokens: Swift.Int?, generated_tokens: Swift.Int?, tokens_per_second: Swift.Double?, total_seconds: Swift.Double?, raw_text: Swift.String?)
+}
+public struct Tool : Swift.Sendable {
+  public typealias Handler = @Sendable (TheStageCore.ToolCall) async throws -> Swift.String
+  public var definition: TheStageCore.ToolDefinition
+  public var execute: TheStageCore.Tool.Handler
+  public init(name: Swift.String, description: Swift.String, parameters: [Swift.String : Any] = [:], execute: TheStageCore.Tool.Handler? = nil)
+  public init(definition: TheStageCore.ToolDefinition, execute: TheStageCore.Tool.Handler? = nil)
+  public static func mock_result(name: Swift.String, call: TheStageCore.ToolCall) -> Swift.String
+}
+extension Swift.Array where Element == TheStageCore.Tool {
+  public var definitions: [TheStageCore.ToolDefinition] {
+    get
+  }
+  public var executor: TheStageCore.MapToolExecutor {
+    get
+  }
+}
+public struct ToolDefinition : Swift.Sendable, Swift.Equatable {
+  public var name: Swift.String
+  public var description: Swift.String
+  public var parameters: [Swift.String : Any]
+  public init(name: Swift.String, description: Swift.String, parameters: [Swift.String : Any] = [:])
+  public static func == (lhs: TheStageCore.ToolDefinition, rhs: TheStageCore.ToolDefinition) -> Swift.Bool
+}
+public struct ToolCall : Swift.Sendable, Swift.Equatable {
+  public var name: Swift.String
+  public var arguments: [Swift.String : Any]
+  public init(name: Swift.String, arguments: [Swift.String : Any] = [:])
+  public static func == (lhs: TheStageCore.ToolCall, rhs: TheStageCore.ToolCall) -> Swift.Bool
+}
+public struct ParsedAssistantTurn : Swift.Sendable, Swift.Equatable {
+  public var thinking: Swift.String?
+  public var tool_calls: [TheStageCore.ToolCall]
+  public var final_text: Swift.String
+  public init(thinking: Swift.String? = nil, tool_calls: [TheStageCore.ToolCall] = [], final_text: Swift.String = "")
+  public var has_tool_calls: Swift.Bool {
+    get
+  }
+  public static func == (lhs: TheStageCore.ParsedAssistantTurn, rhs: TheStageCore.ParsedAssistantTurn) -> Swift.Bool
+}
+public enum ToolCallingError : Swift.Error, Foundation.LocalizedError, Swift.Sendable {
+  case unsupported(template: Swift.String, detail: Swift.String)
+  case unknownFormat(Swift.String)
+  public var errorDescription: Swift.String? {
+    get
+  }
+}
+public enum ToolCalling {
+  public static var spoken_before_tools_instruction: Swift.String {
+    get
+  }
+  public static func render_system(tools: [TheStageCore.ToolDefinition], base_system: Swift.String = "You are a helpful assistant.", spec: TheStageCore.ToolCallingSpec) -> Swift.String
+  public static func render_system(tools: [TheStageCore.ToolDefinition], base_system: Swift.String = "You are a helpful assistant.", format: TheStageCore.ToolCallingFormat) -> Swift.String
+  public static func parse(_ text: Swift.String, spec: TheStageCore.ToolCallingSpec, known_tool_names: Swift.Set<Swift.String>? = nil) -> TheStageCore.ParsedAssistantTurn
+  public static func parse(_ text: Swift.String, format: TheStageCore.ToolCallingFormat, known_tool_names: Swift.Set<Swift.String>? = nil) -> TheStageCore.ParsedAssistantTurn
+  public static func render_tool_response(_ content: Swift.String, spec: TheStageCore.ToolCallingSpec) -> Swift.String
+  public static func render_tool_response(_ content: Swift.String, format: TheStageCore.ToolCallingFormat) -> Swift.String
+  public static func tool_message(_ content: Swift.String, spec: TheStageCore.ToolCallingSpec) -> TheStageCore.ChatTemplate.Message
+  public static func tool_message(_ content: Swift.String, format: TheStageCore.ToolCallingFormat) -> TheStageCore.ChatTemplate.Message
+  public static func resolve_capability(supports: Swift.Bool?, format_raw: Swift.String?, chat_template: TheStageCore.ChatTemplate) -> (supports: Swift.Bool, format: TheStageCore.ToolCallingFormat?)
+}
+public enum ToolCallStyle : Swift.String, Swift.Codable, Swift.Sendable, Swift.CaseIterable {
+  case qwen_xml
+  case python
+  case json
+  case gemma_tool_code
+  public init?(rawValue: Swift.String)
+  public typealias AllCases = [TheStageCore.ToolCallStyle]
+  public typealias RawValue = Swift.String
+  nonisolated public static var allCases: [TheStageCore.ToolCallStyle] {
+    get
+  }
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public enum ToolCallingFormat : Swift.String, Swift.Codable, Swift.Sendable, Swift.CaseIterable {
+  case qwen3
+  case lfm2
+  case gemma3
+  public init?(rawValue: Swift.String)
+  public typealias AllCases = [TheStageCore.ToolCallingFormat]
+  public typealias RawValue = Swift.String
+  nonisolated public static var allCases: [TheStageCore.ToolCallingFormat] {
+    get
+  }
+  public var rawValue: Swift.String {
+    get
+  }
+}
+public struct ToolCallingTags : Swift.Sendable, Swift.Equatable, Swift.Codable {
+  public var tools_open: Swift.String?
+  public var tools_close: Swift.String?
+  public var call_open: Swift.String?
+  public var call_close: Swift.String?
+  public var response_open: Swift.String?
+  public var response_close: Swift.String?
+  public init(tools_open: Swift.String? = nil, tools_close: Swift.String? = nil, call_open: Swift.String? = nil, call_close: Swift.String? = nil, response_open: Swift.String? = nil, response_close: Swift.String? = nil)
+  public static func == (a: TheStageCore.ToolCallingTags, b: TheStageCore.ToolCallingTags) -> Swift.Bool
+  public func encode(to encoder: any Swift.Encoder) throws
+  public init(from decoder: any Swift.Decoder) throws
+}
+public struct ToolCallingSpec : Swift.Sendable, Swift.Equatable {
+  public var enabled: Swift.Bool
+  public var call_style: TheStageCore.ToolCallStyle
+  public var tags: TheStageCore.ToolCallingTags
+  public var tools_preamble: Swift.String
+  public var tool_role: Swift.String
+  public var format: TheStageCore.ToolCallingFormat?
+  public init(enabled: Swift.Bool, call_style: TheStageCore.ToolCallStyle, tags: TheStageCore.ToolCallingTags, tools_preamble: Swift.String = "", tool_role: Swift.String = "tool", format: TheStageCore.ToolCallingFormat? = nil)
+  public static func preset(_ format: TheStageCore.ToolCallingFormat) -> TheStageCore.ToolCallingSpec
+  public static func == (a: TheStageCore.ToolCallingSpec, b: TheStageCore.ToolCallingSpec) -> Swift.Bool
+}
+public protocol ToolExecutor : Swift.Sendable {
+  func execute(_ call: TheStageCore.ToolCall) async throws -> Swift.String
+}
+public struct MapToolExecutor : TheStageCore.ToolExecutor, Swift.Sendable {
+  public typealias Handler = @Sendable (TheStageCore.ToolCall) async throws -> Swift.String
+  public var handlers: [Swift.String : TheStageCore.MapToolExecutor.Handler]
+  public var on_unknown: TheStageCore.MapToolExecutor.Handler?
+  public init(handlers: [Swift.String : TheStageCore.MapToolExecutor.Handler], on_unknown: TheStageCore.MapToolExecutor.Handler? = nil)
+  public init(tools: [TheStageCore.Tool], on_unknown: TheStageCore.MapToolExecutor.Handler? = nil)
+  public func execute(_ call: TheStageCore.ToolCall) async throws -> Swift.String
 }
 public struct MultimodalFeatures : @unchecked Swift.Sendable {
   public let array: CoreML.MLMultiArray
@@ -796,8 +1209,9 @@ public struct MultimodalFeatures : @unchecked Swift.Sendable {
   override final public func infer(codes: [Swift.Int]) -> [Swift.Float]
 }
 @_hasMissingDesignatedInitializers final public class NeuTTSMultilingualPipeline : TheStageCore.TheStageTTSPipeline, @unchecked Swift.Sendable {
-  public init(engines_path: Swift.String, voice_id: Swift.String = "paul", language: Swift.String? = "english", device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, decoder: (any TheStageCore.Seq2SeqDecoding)? = nil, normaliser: (any TheStageCore.TextNormaliser)? = nil, revision: Swift.String? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
+  public init(engines_path: Swift.String, voice_id: Swift.String = "paul", voice_dir: Swift.String? = nil, language: Swift.String? = "english", device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, decoder: (any TheStageCore.Seq2SeqDecoding)? = nil, normaliser: (any TheStageCore.TextNormaliser)? = nil, revision: Swift.String? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
   @objc deinit
+  override final public func set_voice(voice_dir: Swift.String? = nil, voice_id: Swift.String = "paul", language: Swift.String? = nil) throws
 }
 @_hasMissingDesignatedInitializers final public class NeuTTSNanoPipeline : TheStageCore.TheStageTTSPipeline, @unchecked Swift.Sendable {
   public init(engines_path: Swift.String, voice_id: Swift.String = "dave", device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, decoder: (any TheStageCore.Seq2SeqDecoding)? = nil, phonemizer: (any TheStageCore.Phonemizer)? = nil, normaliser: (any TheStageCore.TextNormaliser)? = nil, revision: Swift.String? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
@@ -814,8 +1228,9 @@ public struct MultimodalFeatures : @unchecked Swift.Sendable {
   public static var recommended_stream_config: TheStageCore.TTSStreamConfig {
     get
   }
-  public init(engines_path: Swift.String, voice_id: Swift.String = "b_ref", language: Swift.String? = nil, device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, revision: Swift.String? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
+  public init(engines_path: Swift.String, voice_id: Swift.String = "b_ref", voice_dir: Swift.String? = nil, language: Swift.String? = nil, device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, revision: Swift.String? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
   @objc deinit
+  override final public func set_voice(voice_dir: Swift.String? = nil, voice_id: Swift.String = "b_ref", language: Swift.String? = nil) throws
 }
 public enum Qwen3TTSError : Swift.Error, Foundation.LocalizedError, Swift.CustomStringConvertible, Swift.Sendable {
   case missingFile(Swift.String)
@@ -1126,7 +1541,9 @@ public struct TTSGenerationConfig : Swift.Sendable {
   public var max_context_length: Swift.Int?
   public var seed: Swift.UInt64?
   public var return_debug_info: Swift.Bool
-  public init(temperature: Swift.Double? = nil, top_k: Swift.Int? = nil, min_new_tokens: Swift.Int? = nil, max_context_length: Swift.Int? = nil, seed: Swift.UInt64? = nil, return_debug_info: Swift.Bool = false)
+  public var sample_rate_out: Swift.Int?
+  public init(temperature: Swift.Double? = nil, top_k: Swift.Int? = nil, min_new_tokens: Swift.Int? = nil, max_context_length: Swift.Int? = nil, seed: Swift.UInt64? = nil, return_debug_info: Swift.Bool = false, sample_rate_out: Swift.Int? = nil)
+  public static func frame_budget(for text: Swift.String, hard_cap: Swift.Int) -> Swift.Int
 }
 public struct TTSStreamConfig : Swift.Sendable {
   public var frames_per_chunk: Swift.Int
@@ -1163,6 +1580,7 @@ public struct TTSTokenConfig : Swift.Sendable {
   public var sample_rate: Swift.Int {
     get
   }
+  public func set_voice(voice_dir: Swift.String? = nil, voice_id: Swift.String = "", language: Swift.String? = nil) throws
   @objc deinit
   public func infer(text: Swift.String, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig()) -> TheStageCore.TTSResult
   public func infer(text: Swift.String, voice: TheStageCore.TTSVoiceRef, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig()) throws -> TheStageCore.TTSResult
@@ -1198,9 +1616,7 @@ final public class TTSStreamer : @unchecked Swift.Sendable {
   final public let config: TheStageCore.TTSStreamConfig
   final public let voice: TheStageCore.TTSVoiceRef
   final public let output: _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
-  final public var sample_rate: Swift.Int {
-    get
-  }
+  final public let sample_rate: Swift.Int
   public init(_ pipeline: TheStageCore.TheStageTTSPipeline, voice: TheStageCore.TTSVoiceRef, config: TheStageCore.TTSStreamConfig = TTSStreamConfig(), generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter()) throws
   @objc deinit
   final public func send(_ text: Swift.String)
@@ -1326,6 +1742,7 @@ public enum ModelRevisionMap {
   @_Concurrency.MainActor final public func unload_components(model_name: Swift.String, ids: [Swift.String]) throws -> [TheStageCore.ModelComponentStatus]
   nonisolated final public func infer(model_name: Swift.String, input_json: [Swift.String : Any]) throws -> [[Swift.String : Any]]
   nonisolated final public func infer_stream(model_name: Swift.String, input_json: [Swift.String : Any]) throws -> _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
+  nonisolated final public func the_stage_llm(model_name: Swift.String) throws -> TheStageCore.TheStageLLM
   nonisolated final public func open_tts_streamer(model_name: Swift.String, generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig = TTSStreamConfig()) throws -> TheStageCore.TTSStreamer
   nonisolated public static func configure_logging(_ config: TheStageCore.TheStageLogConfig)
   nonisolated public static var log_level: TheStageCore.TheStageLogLevel {
@@ -1374,6 +1791,22 @@ public struct LoadProgress : Swift.Sendable, Swift.Equatable {
   public static func == (a: TheStageCore.LoadProgress, b: TheStageCore.LoadProgress) -> Swift.Bool
 }
 public typealias LoadProgressHandler = @Sendable (TheStageCore.LoadProgress) -> Swift.Void
+extension TheStageCore.AgentMessage {
+  public func to_chat_message() -> TheStageCore.ChatMessage
+  public static func from_chat_message(_ message: TheStageCore.ChatMessage) -> TheStageCore.AgentMessage?
+}
+public struct AgentMessageSlidingWindowMemory : Swift.Sendable {
+  public var max_turns: Swift.Int
+  public init(max_turns: Swift.Int = 10)
+  public var count: Swift.Int {
+    get
+  }
+  public mutating func append(_ message: TheStageCore.AgentMessage)
+  public func messages(system_prompt: Swift.String) -> [TheStageCore.AgentMessage]
+  public mutating func clear()
+}
+@available(*, deprecated, renamed: "AgentMessageSlidingWindowMemory")
+public typealias TheStageVoiceChatMemory = TheStageCore.AgentMessageSlidingWindowMemory
 public protocol AudioSource : Swift.Sendable {
   var stream: _Concurrency.AsyncStream<[Swift.Float]> { get }
   var sample_rate: Swift.Double { get }
@@ -1443,22 +1876,6 @@ final public class TeeAudioSink : TheStageCore.AudioSink, @unchecked Swift.Senda
   final public func stop()
   @objc deinit
 }
-public protocol TheStageChatMemory : Swift.Sendable {
-  mutating func append(_ message: TheStageCore.AgentMessage)
-  func messages(system_prompt: Swift.String) -> [TheStageCore.AgentMessage]
-  mutating func clear()
-  var count: Swift.Int { get }
-}
-public struct TheStageSlidingWindowMemory : TheStageCore.TheStageChatMemory, Swift.Sendable {
-  public var max_turns: Swift.Int
-  public init(max_turns: Swift.Int = 10)
-  public var count: Swift.Int {
-    get
-  }
-  public mutating func append(_ message: TheStageCore.AgentMessage)
-  public func messages(system_prompt: Swift.String) -> [TheStageCore.AgentMessage]
-  public mutating func clear()
-}
 final public class AgentChannel<Element> : @unchecked Swift.Sendable where Element : Swift.Sendable {
   public init()
   final public func send(_ value: Element)
@@ -1511,6 +1928,8 @@ public enum AgentEvent : Swift.Sendable {
   case USER_REQUEST(text: Swift.String, source: TheStageCore.RequestSource)
   case RESPONSE_STARTED
   case RESPONSE_DONE(text: Swift.String, reason: TheStageCore.EndReason)
+  case TOOL_STARTED(name: Swift.String, arguments_json: Swift.String)
+  case TOOL_ENDED(name: Swift.String, content: Swift.String)
   case SYNTHESIS_DONE(reason: TheStageCore.EndReason)
   case PLAYBACK_STARTED
   case PLAYBACK_ENDED(reason: TheStageCore.EndReason)
@@ -1765,6 +2184,7 @@ public struct InterruptConfig : Swift.Sendable {
   public var interrupt_min_playback_ms: Swift.Int
   public var interrupt_initial_lockout_ms: Swift.Int
   public var interrupt_thinking_lockout_ms: Swift.Int
+  public var interrupt_post_tool_lockout_ms: Swift.Int
   public var interrupt_min_speech_ms: Swift.Int
   public var interrupt_onset_ms: Swift.Int
   public var pre_roll_ms: Swift.Int
@@ -1844,16 +2264,25 @@ public struct LLMRequestConfig : Swift.Sendable {
   public init(system_prompt: Swift.String = "You are a helpful assistant.", max_tokens: Swift.Int = 256, temperature: Swift.Double = 0.7)
 }
 public protocol TheStageLLMProvider : Swift.Sendable {
-  func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<Swift.String>
+  var chat_session: TheStageCore.TheStageChatSession? { get }
+  func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
+}
+extension TheStageCore.TheStageLLMProvider {
+  public var chat_session: TheStageCore.TheStageChatSession? {
+    get
+  }
 }
 final public class TheStageLocalLLMProvider : TheStageCore.TheStageLLMProvider, @unchecked Swift.Sendable {
-  public init(model_path: Swift.String, model_type: Swift.String? = nil, revision: Swift.String? = nil)
-  final public func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<Swift.String>
+  final public var chat_session: TheStageCore.TheStageChatSession? {
+    get
+  }
+  public init(model_path: Swift.String, model_type: Swift.String? = nil, revision: Swift.String? = nil, tools: [TheStageCore.Tool] = [], system_prompt: Swift.String? = nil, memory: TheStageCore.TheStageChatMemoryKind = .SLIDING(max_turns: 10))
+  final public func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
   @objc deinit
 }
 final public class TheStageOpenAICompatibleProvider : TheStageCore.TheStageLLMProvider, @unchecked Swift.Sendable {
   public init(endpoint: Swift.String = "https://api.openai.com/v1/chat/completions", api_key: Swift.String, model: Swift.String = "gpt-4o-mini")
-  final public func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<Swift.String>
+  final public func respond(messages: [TheStageCore.AgentMessage], config: TheStageCore.LLMRequestConfig) -> _Concurrency.AsyncStream<TheStageCore.LLMStreamEvent>
   @objc deinit
 }
 public enum TimelineLog {
@@ -1866,6 +2295,7 @@ public enum TheStageAgentState : Swift.String, Swift.Sendable {
   case sleeping
   case listening
   case thinking
+  case tool_calling
   case speaking
   public init?(rawValue: Swift.String)
   public typealias RawValue = Swift.String
@@ -1901,6 +2331,8 @@ public struct TheStageAgentEvent : @unchecked Swift.Sendable {
     case user_request_partial
     case user_request
     case response_delta
+    case tool_started
+    case tool_ended
     case response_done
     case playback_started
     case playback_ended
@@ -1928,6 +2360,8 @@ public struct TheStageAgentConfig : @unchecked Swift.Sendable {
   public var stt_device: Swift.String
   public var stt_devices: [Swift.String : Swift.String]?
   public var tts_voice: Swift.String
+  public var tts_voice_dir: Swift.String?
+  public var tts_language: Swift.String?
   public var tts_revision: Swift.String?
   public var tts_device: Swift.String
   public var tts_devices: [Swift.String : Swift.String]?
@@ -1936,7 +2370,9 @@ public struct TheStageAgentConfig : @unchecked Swift.Sendable {
   public var system_prompt: Swift.String
   public var max_tokens: Swift.Int
   public var temperature: Swift.Double
-  public var chat_memory: any TheStageCore.TheStageChatMemory
+  public var chat_memory: TheStageCore.AgentMessageSlidingWindowMemory
+  public var llm_tools: Swift.String
+  public var on_load_progress: TheStageCore.LoadProgressHandler?
   public var vad_threshold: Swift.Double
   public var vad_onset_ms: Swift.Int
   public var silence_timeout_ms: Swift.Int
@@ -2045,9 +2481,11 @@ final public class TheStageVoiceAgent : @unchecked Swift.Sendable {
   final public func interrupt()
   final public func say(_ text: Swift.String)
   final public func send_request(_ text: Swift.String)
+  @_Concurrency.MainActor final public func set_voice(voice_id: Swift.String? = nil, voice_dir: Swift.String? = nil, language: Swift.String? = nil) async
   @_Concurrency.MainActor final public func set_voice(_ voice: Swift.String) async
   final public func history() async -> [TheStageCore.AgentMessage]
   final public func clear_history() async
+  final public func set_system_prompt(_ prompt: Swift.String) async
   final public func enroll_speaker(_ embedding: [Swift.Double]?) async
   final public func update_interrupt_config(min_speech_ms: Swift.Int? = nil, min_playback_ms: Swift.Int? = nil, mode: TheStageCore.InterruptTrigger? = nil, onset_ms: Swift.Int? = nil, threshold: Swift.Double? = nil) async
   final public func update_interrupt_config(min_speech_ms: Swift.Int? = nil, min_playback_ms: Swift.Int? = nil, interrupt_mode mode: TheStageCore.InterruptMode? = nil, onset_ms: Swift.Int? = nil, threshold: Swift.Double? = nil) async
@@ -2056,6 +2494,9 @@ final public class TheStageVoiceAgent : @unchecked Swift.Sendable {
 extension TheStageCore.AECMethod : Swift.Equatable {}
 extension TheStageCore.AECMethod : Swift.Hashable {}
 extension TheStageCore.AECMethod : Swift.RawRepresentable {}
+extension TheStageCore.ChatRole : Swift.Equatable {}
+extension TheStageCore.ChatRole : Swift.Hashable {}
+extension TheStageCore.ChatRole : Swift.RawRepresentable {}
 extension TheStageCore.TheStageLogLevel : Swift.Hashable {}
 extension TheStageCore.TheStageLogLevel : Swift.RawRepresentable {}
 extension TheStageCore.TheStageLogRedaction : Swift.Equatable {}
@@ -2063,6 +2504,12 @@ extension TheStageCore.TheStageLogRedaction : Swift.Hashable {}
 extension TheStageCore.ChatTemplate : Swift.Equatable {}
 extension TheStageCore.ChatTemplate : Swift.Hashable {}
 extension TheStageCore.ChatTemplate : Swift.RawRepresentable {}
+extension TheStageCore.ToolCallStyle : Swift.Equatable {}
+extension TheStageCore.ToolCallStyle : Swift.Hashable {}
+extension TheStageCore.ToolCallStyle : Swift.RawRepresentable {}
+extension TheStageCore.ToolCallingFormat : Swift.Equatable {}
+extension TheStageCore.ToolCallingFormat : Swift.Hashable {}
+extension TheStageCore.ToolCallingFormat : Swift.RawRepresentable {}
 extension TheStageCore.Seq2SeqBackend : Swift.Equatable {}
 extension TheStageCore.Seq2SeqBackend : Swift.Hashable {}
 extension TheStageCore.Seq2SeqBackend : Swift.RawRepresentable {}

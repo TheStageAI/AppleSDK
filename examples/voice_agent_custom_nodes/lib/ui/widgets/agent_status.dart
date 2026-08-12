@@ -22,6 +22,8 @@ Color agentStateColor(TheStageAgentState state) {
       return const Color(0xFF34C759); // systemGreen
     case TheStageAgentState.thinking:
       return const Color(0xFF007AFF); // systemBlue
+    case TheStageAgentState.tool_calling:
+      return const Color(0xFF5856D6); // systemIndigo
     case TheStageAgentState.speaking:
       return const Color(0xFF0A84FF);
   }
@@ -45,6 +47,8 @@ String agentStateLabel(VoiceAgentController c) {
       return 'Listening…';
     case TheStageAgentState.thinking:
       return 'Thinking…';
+    case TheStageAgentState.tool_calling:
+      return 'Calling tool…';
     case TheStageAgentState.speaking:
       return 'Speaking…';
   }

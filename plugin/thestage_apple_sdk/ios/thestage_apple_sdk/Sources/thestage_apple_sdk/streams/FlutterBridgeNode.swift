@@ -192,6 +192,18 @@ final class FlutterBridgeNode: TheStageAgentNode, @unchecked Sendable {
                 "text": text,
                 "reason": reason.rawValue,
             ]
+        case .TOOL_STARTED(let name, let arguments_json):
+            return [
+                "kind": "TOOL_STARTED",
+                "name": name,
+                "arguments": arguments_json,
+            ]
+        case .TOOL_ENDED(let name, let content):
+            return [
+                "kind": "TOOL_ENDED",
+                "name": name,
+                "content": content,
+            ]
         case .SYNTHESIS_DONE(let reason):
             return ["kind": "SYNTHESIS_DONE", "reason": reason.rawValue]
         case .PLAYBACK_STARTED:

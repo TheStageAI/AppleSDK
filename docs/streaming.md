@@ -18,7 +18,7 @@ try await ai.initialize(apiToken: "your_api_token")
 
 try await ai.start_model(
     model_name: "tts",
-    engines_path: "TheStageAI/neutts-multilingual",
+    engines_path: "TheStageAI/neutts-nano-multilingual",
     config: ["voice_id": "dave"],
 )
 
@@ -51,7 +51,7 @@ import TheStageSDK
 let ai = TheStageAI.shared
 try await ai.start_model(
     model_name: "tts",
-    engines_path: "TheStageAI/neutts-multilingual",
+    engines_path: "TheStageAI/neutts-nano-multilingual",
     config: ["voice_id": "paul"]
 )
 
@@ -107,7 +107,7 @@ try await ai.start_model(
 )
 try await ai.start_model(
     model_name: "tts",
-    engines_path: "TheStageAI/neutts-multilingual",
+    engines_path: "TheStageAI/neutts-nano-multilingual",
     config: ["voice_id": "dave"]
 )
 
@@ -298,11 +298,13 @@ sizes for VAD vs ASR vs TTS) see [Audio I/O Contract](./README.md#audio-io-contr
 | `tokens_per_second` | `Double?` | Decode speed: `steps / sum_of_step_durations` (measured inside decoder) |
 | `total_seconds` | `Double?` | Wall-clock time from stream start to last chunk (final only) |
 
-### LLM Chunks
+### LLM Chunks (no tools)
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `delta` (Swift & Flutter) | `String?` | Decoded token text (nil on the final sentinel) |
+| `text` (`TheStageLLM` / VLM) | `String` | Decoded token text on non-final chunks |
+| `delta` (singleton / Flutter) | `String?` | Same role for `InferenceStreamChunk` / JSON |
+| `kind` | `String` | `"text"` for plain LLM streams |
 | `index` | `Int` | Position in sequence |
 | `is_final` | `Bool` | `true` for the sentinel chunk |
 | `time_to_first_token` | `Double?` | Seconds to first token (final only) |
@@ -310,6 +312,25 @@ sizes for VAD vs ASR vs TTS) see [Audio I/O Contract](./README.md#audio-io-contr
 | `generated_tokens` | `Int?` | Output token count (final only) |
 | `tokens_per_second` | `Double?` | Generation speed (final only) |
 | `total_seconds` | `Double?` | Wall-clock time (final only) |
+
+### LLM tool events (`tools` in input / `LLMStreamEvent`)
+
+Swift Path A (preferred): `infer_stream(..., tools: [Tool])` or
+`DefaultTools.*` — SDK runs handlers, emits `tool_result`, continues
+(same stream; `max_tool_rounds` default 4).
+
+Swift Path B / Flutter: definitions only (`executor: nil` or
+`input_json['tools']`) — you run tools and call again.
+
+| `kind` | Payload |
+|--------|---------|
+| `text_delta` | `delta` — UI / TTS safe |
+| `thinking_delta` | `delta` — Qwen think body |
+| `tool_call` | `name`, `arguments` (map) |
+| `tool_result` | `name`, `content` (Path A only) |
+| `final` | metrics; `raw_text` / `delta` for Path B history |
+
+See [llm.md — tools](./llm.md#how-do-i-pass-tools-and-read-tool-calls).
 
 ---
 
@@ -322,7 +343,7 @@ await TheStageFlutterSDK.initialize(api_token: 'your_token');
 
 await TheStageFlutterSDK.start_model(
   model_name: 'tts',
-  engines_path: 'TheStageAI/neutts-multilingual',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
   // model_type optional — omit or use 'thestage_tts' (bundle auto-routes)
   config: {'voice_id': 'dave'},
 );
@@ -463,7 +484,7 @@ final stream = TheStageFlutterSDK.infer_stream(
 );
 ```
 
-See [NeuTTS — Streaming Hyperparameters](./tts.md#streaming-hyperparameters)
+See [TTS — Stream / clearer speech](./tts.md#how-do-i-get-clearer-speech--faster-first-audio)
 for the full field reference.
 
 ## Agent checklist

@@ -9,13 +9,20 @@ leaves the device** — there is no server in the hot path.
 
 | | |
 | --- | --- |
-| Version | **`1.2.0`** (pin this tag / SwiftPM `exact:`) |
+| Version | **`1.3.0`** (pin this tag / SwiftPM `exact:`) |
 | Platforms | iOS **18+**, macOS **15+**, Apple Silicon only |
 | Surfaces | Native Swift (`TheStageSDK`) · Flutter plugin (iOS) |
-| Engines | Hugging Face `TheStageAI/*` @ **`v1.2`** |
+| Engines | Hugging Face `TheStageAI/*` @ **`v1.3`** |
 | Token | [app.thestage.ai](https://app.thestage.ai) — online `initialize` required |
 
 > **Not supported:** iOS Simulator, Intel Macs, Android, server-side inference.
+
+### Known issues (1.3.0)
+
+- **Voice tool-call streaming / parsing:** filler text and tool-call markup
+  can appear interleaved on the same stream, so TTS may start speaking while
+  a tool call is still being recognized or executed. Some edge cases in tool
+  call parsing remain. **Planned fix in the next release.**
 
 ---
 
@@ -31,8 +38,7 @@ and sustained chat / voice agents remain practical.
 drain. **~5.1×** less power on M3 Max and **~3.5×** on iPhone 13 vs MLX
 (GPU). Lower is better.*
 
-Speed and latency charts live under [Performance](#performance). Numeric
-tables: [benchmarks.md](./docs/benchmarks.md).
+Speed and latency charts live under [Performance](#performance).
 
 ---
 
@@ -47,7 +53,7 @@ when something breaks.
 touch. Hard rules:
 
 1. Always `initialize` **before** any pipeline / `start_model`.
-2. Pin the SDK to tag **`1.2.0`** (do not float `from:`).
+2. Pin the SDK to tag **`1.3.0`** (do not float `from:`).
 3. Pass HF repo ids like `"TheStageAI/Qwen3-0.6B"` — omit `revision` unless
    you intentionally override (defaults track this SDK line).
 4. Audio is **mono `Float` / `Float32List` in `[-1.0, 1.0]`** — never
@@ -102,7 +108,7 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 
 ## Capabilities & model fleet
 
-Everything below is the **production `@v1.2`**
+Everything below is the **production `@v1.3`**
 fleet. Pass the HF id as `engines_path` (or construct the typed pipeline
 with the same string).
 
@@ -129,8 +135,7 @@ Model cards (contracts + acknowledgments):
 ## Performance
 
 Release-build comparisons vs common on-device stacks. Device class and thermals
-matter — treat these as relative guidance, not an SLA. Full metric tables:
-[benchmarks.md](./docs/benchmarks.md).
+matter — treat these as relative guidance, not an SLA.
 
 ### Decode throughput vs MLX (GPU)
 
@@ -226,7 +231,7 @@ Xcode → **File → Add Package Dependencies…** → this repo URL → product
 ```swift
 .package(
     url: "https://github.com/TheStageAI/AppleSDK.git",
-    exact: Version(1, 2, 0)
+    exact: Version(1, 3, 0)
 )
 ```
 
@@ -265,7 +270,7 @@ dependencies:
     git:
       url: https://github.com/TheStageAI/AppleSDK.git
       path: plugin/thestage_apple_sdk
-      ref: 1.2.0
+      ref: 1.3.0
 ```
 
 ```bash
@@ -315,8 +320,8 @@ path to a working UI: copy an `examples/` app.
 ### Revisions
 
 Omit `revision:` in normal apps. This build resolves HF tags via an
-internal map aligned with SDK **`1.2.0`** → fleet
-**`v1.2`**. Override only when
+internal map aligned with SDK **`1.3.0`** → fleet
+**`v1.3`**. Override only when
 you intentionally pin an older engine tag.
 
 ### Init & seats (product)
@@ -389,7 +394,6 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | [speaker_embedding.md](./docs/speaker_embedding.md) | Enroll / verify |
 | [licensing.md](./docs/licensing.md) | Token, seats, offline rules |
 | [logging.md](./docs/logging.md) | Support breadcrumbs |
-| [benchmarks.md](./docs/benchmarks.md) | Metric definitions |
 | [product_terms.md](./docs/product_terms.md) | Commercial / legal pointer |
 
 ---
@@ -404,8 +408,9 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | First infer very slow | HF download | Wait for `ready`; later runs use cache |
 | Flutter audio glitches / NaNs | `Float64List` or wrong rate | Use `Float32List`; match table above |
 | TTS / ASR “wrong” model type | Bundle auto-route | Pass the correct HF repo; see tts.md |
-| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.2.0` |
+| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.3.0` |
 | Voice agent never commits turn | Thresholds / mode | See smart-turn knobs in voice_agent.md |
+| Tool call + spoken filler overlap / odd parse | Known 1.3.0 streaming gap | See [Known issues](#known-issues-130); fix planned next release |
 
 ---
 

@@ -55,6 +55,7 @@ enum MethodRoute {
     static let voiceAgentSay = "voice_agent.say"
     static let voiceAgentSetVoice = "voice_agent.set_voice"
     static let voiceAgentClearHistory = "voice_agent.clear_history"
+    static let voiceAgentSetSystemPrompt = "voice_agent.set_system_prompt"
     static let voiceAgentUpdateInterruptConfig =
         "voice_agent.update_interrupt_config"
     static let voiceAgentEnrollSpeaker = "voice_agent.enroll_speaker"

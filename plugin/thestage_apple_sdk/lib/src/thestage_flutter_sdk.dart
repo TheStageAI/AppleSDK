@@ -152,7 +152,9 @@ class TheStageFlutterSDK {
   /// Stream inference results (TTS audio chunks or LLM text tokens).
   ///
   /// Audio chunks: `{kind: 'audio', audio: Float32List, sample_rate, is_final}`
-  /// Text chunks: `{kind: 'text', delta: String, is_final}`
+  /// Text chunks (no tools): `{kind: 'text', delta: String, is_final}`
+  /// LLM tools path (Path B): `{kind: 'text_delta'|'thinking_delta'|'tool_call'|'tool_result'|'final', ...}`
+  /// — `tool_call` includes `name` + `arguments`; `final` may include raw assistant text in `delta`.
   ///
   /// `input_json` accepts model-specific keys. For TTS pipelines you may
   /// pass an optional nested `stream_config` map to tune codec-side audio
@@ -175,8 +177,11 @@ class TheStageFlutterSDK {
   /// );
   /// ```
   ///
-  /// Pass `text: ''` to start a push-mode stream driven by `send` /
-  /// `finish_stream`. Unknown keys are ignored.
+  /// Pass `text: ''` to start a push-mode TTS stream driven by `send` /
+  /// `finish_stream`. For LLM / VLM, pass a non-empty `prompt` (and for
+  /// VLM an `image` / `image_base64` / …) — that routes to one-shot
+  /// `infer_stream` token deltas (`delta` / `is_final`), not the TTS
+  /// push streamer. Unknown keys are ignored.
   static Stream<Map<String, dynamic>> infer_stream({
     required String model_name,
     required Map<String, dynamic> input_json,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
@@ -36,6 +38,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    s.systemPrompt = _systemPromptCtrl.text;
+    s.llmModel = _llmModelCtrl.text;
+    s.llmEndpoint = _llmEndpointCtrl.text;
+    unawaited(widget.agent.setSystemPrompt(s.systemPrompt));
     s.removeListener(_refresh);
     _systemPromptCtrl.dispose();
     _llmModelCtrl.dispose();
@@ -123,7 +129,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _textField(
             'System Prompt',
             _systemPromptCtrl,
-            (v) => s.update((s) => s.systemPrompt = v),
+            (v) {
+              s.update((s) => s.systemPrompt = v);
+              unawaited(widget.agent.setSystemPrompt(v));
+            },
             maxLines: 3,
           ),
           _slider('Chat memory (turns)', s.chatMemoryMaxTurns.toDouble(), 2, 30,

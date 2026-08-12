@@ -12,6 +12,7 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     // Private Attributes
     // ----------------------------------------------------------------------------------
     private var __event_sink: FlutterEventSink?
+    private var __progress_sink: FlutterEventSink?
     private var __agent: TheStageVoiceAgent?
     private var __event_task: Task<Void, Never>?
     private var __taps: [VoiceAgentBroadcastStream] = []
@@ -32,6 +33,10 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     ) {
         __node_channel = node_channel
         __port_stream = port_stream
+    }
+
+    func set_progress_sink(_ sink: FlutterEventSink?) {
+        __progress_sink = sink
     }
 
     func register_tap(_ tap: VoiceAgentBroadcastStream) {
@@ -63,11 +68,23 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     // Lifecycle
     // ----------------------------------------------------------------------------------
     func start(config: [String: Any]) async throws {
-        let agent_config = Self.__parse_config(
+        var agent_config = Self.__parse_config(
             config,
             node_channel: __node_channel,
             bridge_nodes: &__bridge_nodes
         )
+        // Same progress EventChannel as start_model — VAD/STT/TTS download %.
+        if let sink = __progress_sink {
+            agent_config.on_load_progress = { event in
+                DispatchQueue.main.async {
+                    sink([
+                        "model_name": event.model,
+                        "phase": event.phase.rawValue,
+                        "progress": event.fraction,
+                    ] as [String: Any])
+                }
+            }
+        }
         let agent = TheStageVoiceAgent(config: agent_config)
         __agent = agent
 
@@ -120,8 +137,28 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         await __agent?.set_voice(voice)
     }
 
+    /// Extended hot-swap used by the Flutter `setVoice` channel — accepts
+    /// any subset of `voice_id` / `voice_dir` / `language` (same shape as
+    /// standalone `TTSPipeline.set_voice`). Passing `nil` for all three
+    /// is a no-op.
+    func set_voice(
+        voice_id: String?,
+        voice_dir: String?,
+        language: String?
+    ) async {
+        await __agent?.set_voice(
+            voice_id: voice_id,
+            voice_dir: voice_dir,
+            language: language
+        )
+    }
+
     func clear_history() async {
         await __agent?.clear_history()
+    }
+
+    func set_system_prompt(_ prompt: String) async {
+        await __agent?.set_system_prompt(prompt)
     }
 
     func update_interrupt_config(
@@ -174,9 +211,22 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         let provider_type =
             dict["llm_provider"] as? String ?? "openai_compatible"
 
+        let tools_preset =
+            (dict["llm_tools"] as? String ?? "voice").lowercased()
+        let tools = Self.__tools(for: tools_preset)
+        let max_turns = (dict["chat_memory_max_turns"] as? Int).flatMap {
+            $0 > 0 ? $0 : nil
+        } ?? 10
+        let system_prompt =
+            dict["system_prompt"] as? String
+            ?? DefaultTools.voice_system_prompt
+
         if provider_type == "local" {
             llm = TheStageLocalLLMProvider(
-                model_path: dict["llm_model"] as? String ?? ""
+                model_path: dict["llm_model"] as? String ?? "",
+                tools: tools,
+                system_prompt: system_prompt,
+                memory: .SLIDING(max_turns: max_turns)
             )
         } else {
             llm = TheStageOpenAICompatibleProvider(
@@ -200,12 +250,17 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         if let v = dict["tts_voice"] as? String {
             config.tts_voice = v
         }
-        if let v = dict["system_prompt"] as? String {
-            config.system_prompt = v
+        if let v = dict["tts_voice_dir"] as? String, !v.isEmpty {
+            config.tts_voice_dir = v
         }
-        if let v = dict["chat_memory_max_turns"] as? Int, v > 0 {
-            config.chat_memory = TheStageSlidingWindowMemory(max_turns: v)
+        if let v = dict["tts_language"] as? String, !v.isEmpty {
+            config.tts_language = v
         }
+        config.system_prompt = system_prompt
+        config.llm_tools = tools_preset
+        config.chat_memory = AgentMessageSlidingWindowMemory(
+            max_turns: max_turns
+        )
         if let v = dict["max_tokens"] as? Int {
             config.max_tokens = v
         }
@@ -419,5 +474,20 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         }
 
         return config
+    }
+
+    private static func __tools(for preset: String) -> [Tool] {
+        switch preset {
+        case "none", "off", "false":
+            return []
+        case "web":
+            return DefaultTools.web
+        case "phone":
+            return DefaultTools.phone
+        case "voice", "all", "true":
+            return DefaultTools.voice
+        default:
+            return DefaultTools.voice
+        }
     }
 }

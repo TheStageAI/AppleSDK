@@ -57,6 +57,8 @@ class MethodRoute {
   static const String voiceAgentSetVoice = 'voice_agent.set_voice';
   static const String voiceAgentClearHistory =
       'voice_agent.clear_history';
+  static const String voiceAgentSetSystemPrompt =
+      'voice_agent.set_system_prompt';
   static const String voiceAgentUpdateInterruptConfig =
       'voice_agent.update_interrupt_config';
   static const String voiceAgentEnrollSpeaker =

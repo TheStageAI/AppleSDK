@@ -106271,7 +106271,7 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 44705,
+      "offset": 44763,
       "length": 14,
       "value": "\"thestage_llm\""
     },
@@ -106292,56 +106292,56 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1405,
-      "length": 733,
-      "value": "\"You are a concise, friendly on-device voice assistant. Always speak in complete sentences (at least one full sentence per turn). Prefer tools for live facts (weather, time, search, wiki, calc).\n\nTool pattern (always):\n1) Say a short filler first (\"Hmm, let me check that.\").\n2) Emit the tool call markup (the app runs it — you do not speak tags or raw JSON).\n3) After the tool result, answer in 1–2 full sentences using that plain-text result (\"Oh, found it — it's 18 degrees and cloudy in San Francisco.\"). Never stop after a single word. Never invent braces or JSON — tools already return speakable answers.\""
+      "offset": 1425,
+      "length": 816,
+      "value": "\"You are a concise, friendly on-device voice assistant. Always speak in complete sentences (at least one full sentence per turn). Prefer tools for live facts (weather, time, search, wiki, calc).\n\nTool pattern (always):\n1) Say a short filler first (\"Hmm, let me check that.\").\n2) Emit the tool call using ONLY the exact markup from the tools section (the app runs it — do not speak the markup aloud).\n3) After the plain-text tool result, answer in 1–2 full sentences (\"Oh, found it — it's 18 degrees and cloudy in San Francisco.\"). Never stop after a single word. Never invent facts the tool did not provide. Never read a tool result aloud as raw JSON — results are already speakable.\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 15754,
+      "offset": 15835,
       "length": 72,
       "value": "\"TheStageSDK-DefaultTools\/1.0 (+https:\/\/thestage.ai; voice-agent tools)\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1925,
+      "offset": 1974,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1964,
+      "offset": 2013,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2004,
+      "offset": 2053,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 2046,
+      "offset": 2095,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2080,
+      "offset": 2129,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 2134,
+      "offset": 2183,
       "length": 2,
       "value": "[]"
     },
@@ -106397,9 +106397,9 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 13068,
-      "length": 614,
-      "value": "\"Tool-use speaking pattern (always follow this order):\n1) First speak one short filler sentence the user can hear (\"Hmm, okay — let me search for that.\", \"One sec, looking that up.\").\n2) Then emit the tool call markup (do not speak tags or raw JSON — the runtime executes the call for you).\n3) After the tool result, you MUST answer in 1–2 complete spoken sentences that paraphrase the result (\"Oh, found it — …\"). Never stop after one word. Never read the JSON aloud.\nNever skip step 1 when a tool is needed.\""
+      "offset": 13787,
+      "length": 717,
+      "value": "\"Tool-use speaking pattern (always follow this order):\n1) First speak one short filler sentence the user can hear (\"Hmm, okay — let me search for that.\", \"One sec, looking that up.\").\n2) Then emit the tool call using ONLY the exact markup format from the tools section (required machine markup — do not speak it aloud).\n3) After the tool result, you MUST answer in 1–2 complete spoken sentences that paraphrase the result (\"Oh, found it — …\"). Never stop after one word. Never invent facts the tool did not provide. Never read a tool result aloud as raw JSON. Never skip step 1 when a tool is needed.\""
     },
     {
       "filePath": "",

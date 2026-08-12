@@ -79,17 +79,20 @@ class VoiceAgentSettings extends ChangeNotifier {
   // Qwen TTS clone voice + LFM persona for the on-device Trump demo.
   String ttsVoice = 'donald_trump';
   String sttLanguage = 'en';
-  // Voice + tools: filler before tool call, then brief spoken answer.
-  // Keep short — small LFM will parrot long style guides.
+  // Voice + tools: model-agnostic persona. Wire format (Qwen XML / LFM
+  // python / Gemma tool_code) comes from the SDK tools section, not here.
+  // Keep short — small packs parrot long style guides.
   String systemPrompt =
       'You are a concise, friendly on-device voice assistant. '
       'Always reply in complete sentences. Prefer tools for live facts '
       '(weather, time, search). When using a tool: '
       '1) say a short filler first ("Hmm, let me check that."), '
-      '2) emit the tool call (do not speak tags or raw JSON — the app runs it), '
-      '3) after the plain-text result, answer in 1–2 full sentences '
+      '2) emit the tool call using ONLY the exact markup from the tools '
+      'section (the app runs it — do not speak the markup aloud), '
+      '3) after the plain-text tool result, answer in 1–2 full sentences '
       '("Oh, found it — it\'s 18 degrees in San Francisco."). '
-      'Never stop after one word; never invent braces or JSON.';
+      'Never stop after one word. Never invent facts the tool did not '
+      'provide. Never read a tool result aloud as raw JSON.';
 
   /// Built-in tool preset for local LLM: none | voice | web | phone.
   /// Default `web` — small LFM packs degrade with the full voice+phone set.

@@ -29,6 +29,8 @@ import '../models/chat_message.dart';
 //   user_request           ◄ASR finalized your turn    [messages] (user)
 //   response_delta         ◄LLM streamed token         [streamingResponse]
 //   response_done          ◄LLM final reply            [messages] (assistant)
+//   tool_started           ◄Path A tool invoke         [messages] (tool)
+//   tool_ended             ◄Path A tool result         [messages] (tool)
 //   error                       something failed       [error]
 //   metrics                     mic level / loader      [vadLevel] / loading*
 //
@@ -106,6 +108,7 @@ class VoiceAgentController extends ChangeNotifier {
       state == TheStageAgentState.loading || _holdLoading;
   bool get canInterrupt =>
       state == TheStageAgentState.thinking ||
+      state == TheStageAgentState.tool_calling ||
       state == TheStageAgentState.speaking;
 
   // ── Commands (called by the UI) ──────────────────────────────────────────
@@ -266,6 +269,24 @@ class VoiceAgentController extends ChangeNotifier {
         }
         streamingResponse = '';
 
+      case 'tool_started':
+        final name = event['name']?.toString() ?? 'tool';
+        final args = event['arguments']?.toString() ?? '{}';
+        messages.add(ChatMessage(
+          role: MessageRole.tool,
+          text: '⚙ $name\n$args',
+          meta: {'name': name, 'phase': 'started', 'content': args},
+        ));
+
+      case 'tool_ended':
+        final name = event['name']?.toString() ?? 'tool';
+        final content = event['content']?.toString() ?? '';
+        messages.add(ChatMessage(
+          role: MessageRole.tool,
+          text: '✓ $name →\n$content',
+          meta: {'name': name, 'phase': 'ended', 'content': content},
+        ));
+
       case 'error':
         error = event['message']?.toString();
 
@@ -290,14 +311,17 @@ class VoiceAgentController extends ChangeNotifier {
           currentLoadingModel = model;
           if (!loadingModels.contains(model)) loadingModels.add(model);
           downloadProgress = 0.0;
-          loadPhase = '';
+          // Default until the first progress event arrives (cache hits
+          // often jump straight to compiling).
+          loadPhase = 'loading';
         }
     }
     notifyListeners();
   }
 
-  /// Progress always belongs to the model currently loading (loads are
-  /// sequential), so we apply it to [currentLoadingModel].
+  /// Progress belongs to the model currently loading (loads are sequential).
+  /// Friendly display names come from `metrics.loading_model`; this only
+  /// updates phase / fraction so we don't clobber "VAD (…)" with "vad".
   void _onProgress(Map<String, dynamic> event) {
     downloadProgress = (event['progress'] as num?)?.toDouble() ?? 0.0;
     loadPhase = event['phase']?.toString() ?? '';

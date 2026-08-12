@@ -14,19 +14,23 @@
 ## Core symbols
 - TheStageAI (singleton): start_model, stop_model, infer, infer_stream, open_tts_streamer, prefetch_engines, logging helpers
 - TheStageLLM
+- TheStageChatSession (llm.chat_session) — multi-turn memory + Path A tools
 - TheStageVLM
-- WhisperPipeline
+- WhisperPipeline, Qwen3ASRPipeline
 - NeuTTSMultilingualPipeline, Qwen3TTSPipeline
-  (English espeak NeuTTSNano / TheStageAI/neutts out of this release)
+  (prefer neutts-nano-multilingual; full neutts-multilingual temporarily out)
 - SileroVAD
 - TheStageVoiceAgent, TheStageAgentConfig, TheStageLocalLLMProvider, TheStageOpenAICompatibleProvider
 - SpeakerEmbedding (family thestage_speaker_embedding; often model_name speaker_id)
+- Tool / ToolDefinition / ToolCall / ToolCalling / DefaultTools
+  (Path A: chat_session / infer_stream(tools: [Tool]); Path B: definitions + executor: nil)
+- AudioIO (load_wav / write_wav), ImageIOHelpers (load_cgimage)
 - AECMethod (vpio / neural / none) on agent audio config
 
 ## Pages
 - llm.md — TheStageLLM
 - vlm.md — TheStageVLM (LFM2.5-VL)
-- whisper.md — WhisperPipeline ASR
+- asr.md — WhisperPipeline + Qwen3ASRPipeline
 - tts.md — NeuTTS + Qwen3-TTS
 - vad.md — SileroVAD
 - streaming.md — stream contracts
@@ -35,12 +39,13 @@
 - licensing.md — initialize registers; seat pair
 - product_terms.md — pointer to full Product Terms
 - logging.md — session log / debugReport
-- benchmarks.md — metric defs + illustrative numbers
 
 ## Audio rates
 - VAD / Whisper / speaker embedding input: 16 kHz mono Float
 - VAD frame: 512 samples
 - TTS codec output (NeuTTS / Qwen3-TTS): 24 kHz mono Float
+- Standalone TTS: TTSGenerationConfig.sample_rate_out (Hz) polyphase-resamples
+  infer / infer_stream (JSON also accepts sample_rate_out_khz)
 - Voice agent: sample_rate_in / sample_rate_out / tts_sample_rate;
   AudioEngineNode resamples TTS → sample_rate_out
 - Speaker embedding window: 2.0 s

@@ -149,6 +149,7 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
         eventSink events: @escaping FlutterEventSink
     ) -> FlutterError? {
         __progress_sink = events
+        __voice_agent_handler?.set_progress_sink(events)
         return nil
     }
 
@@ -156,6 +157,7 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
         withArguments arguments: Any?
     ) -> FlutterError? {
         __progress_sink = nil
+        __voice_agent_handler?.set_progress_sink(nil)
         return nil
     }
 
@@ -225,6 +227,8 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
             __handle_voice_agent_set_voice(call, result: result)
         case MethodRoute.voiceAgentClearHistory:
             __handle_voice_agent_clear_history(call, result: result)
+        case MethodRoute.voiceAgentSetSystemPrompt:
+            __handle_voice_agent_set_system_prompt(call, result: result)
         case MethodRoute.voiceAgentUpdateInterruptConfig:
             __handle_voice_agent_update_interrupt_config(
                 call, result: result

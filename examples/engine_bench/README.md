@@ -1,6 +1,6 @@
 # EngineBench
 
-iOS benchmark app for the **TheStage Apple SDK `1.2.0`**.
+iOS benchmark app for the **TheStage Apple SDK `1.3.0`**.
 Measure LLM decode tok/s + TTFT, streaming TTS, ASR, and VLM (camera /
 gallery) on a physical iPhone — all engines load from **Hugging Face**
 (`TheStageAI/*`) via ``ModelRevisionMap`` (no model weights are shipped
@@ -8,7 +8,7 @@ in this example).
 
 | | |
 | --- | --- |
-| Example version | **`1.2.0`** (see [`VERSION`](./VERSION)) |
+| Example version | **`1.3.0`** (see [`VERSION`](./VERSION)) |
 | SDK pin | Local `Package.swift` at repo root (`import TheStageSDK`) |
 | Platforms | iPhone, **iOS 18+** (no Simulator) |
 | Models | HF only — first launch downloads + caches per model |
@@ -28,7 +28,7 @@ in this example).
 3. API token from [app.thestage.ai](https://app.thestage.ai)
 4. This example lives inside a checkout of
    [TheStageAI/AppleSDK](https://github.com/TheStageAI/AppleSDK) at tag
-   **`1.2.0`** (the `project.yml` depends on `../..`)
+   **`1.3.0`** (the `project.yml` depends on `../..`)
 
 ## Setup (once)
 

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
@@ -36,6 +38,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    // Flush text fields even if the last keystroke didn't fire onChanged
+    // (e.g. paste then immediately pop) — otherwise Start still sees the
+    // previous system prompt.
+    s.systemPrompt = _systemPromptCtrl.text;
+    s.llmModel = _llmModelCtrl.text;
+    s.llmEndpoint = _llmEndpointCtrl.text;
+    // Hot-swap on a running agent so the next turn uses the new persona
+    // without requiring Stop / Start.
+    unawaited(widget.agent.setSystemPrompt(s.systemPrompt));
     s.removeListener(_refresh);
     _systemPromptCtrl.dispose();
     _llmModelCtrl.dispose();
@@ -123,7 +134,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _textField(
             'System Prompt',
             _systemPromptCtrl,
-            (v) => s.update((s) => s.systemPrompt = v),
+            (v) {
+              s.update((s) => s.systemPrompt = v);
+              // Apply live while the agent is running (no restart needed).
+              unawaited(widget.agent.setSystemPrompt(v));
+            },
             maxLines: 3,
           ),
           _slider('Chat memory (turns)', s.chatMemoryMaxTurns.toDouble(), 2, 30,
@@ -131,9 +146,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             s.update((s) => s.chatMemoryMaxTurns = v.round());
           }),
           _note(
-            'Keeps the last N user+assistant turns. System prompt is prepended '
-            'every call (not trimmed). Local sampling comes from the LLM bundle '
-            'generation config, not the cloud sliders below.',
+            'Keeps the last N user+assistant turns. System prompt applies on '
+            'the next LLM turn (also flushed when you leave this screen). '
+            'Local sampling comes from the LLM bundle generation config, not '
+            'the cloud sliders below.',
           ),
 
           _sectionHeader('LLM Provider'),

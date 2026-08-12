@@ -1,0 +1,5 @@
+Secrets.xcconfig
+TutorTTS.xcodeproj/
+build/
+.DS_Store
+DerivedData/

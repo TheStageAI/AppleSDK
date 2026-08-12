@@ -1,7 +1,7 @@
 # voice_agent_custom_nodes
 
 Flutter demo for **custom voice-agent nodes** on TheStage Apple SDK
-**`1.2.0`**.
+**`1.3.0`**.
 
 Shows how to attach host-owned nodes (`extraNodes`), caption images with
 an ephemeral VLM, tune sample rates / AEC, and park resident models
@@ -9,8 +9,8 @@ around a quiet-state burst.
 
 | | |
 | --- | --- |
-| Example version | **`1.2.0`** (see [`VERSION`](./VERSION)) |
-| SDK pin | Flutter plugin `ref: 1.2.0` |
+| Example version | **`1.3.0`** (see [`VERSION`](./VERSION)) |
+| SDK pin | Flutter plugin `ref: 1.3.0` |
 | Platforms | Physical iPhone, **iOS 18+** |
 
 ## What it demonstrates

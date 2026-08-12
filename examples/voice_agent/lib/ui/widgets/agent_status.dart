@@ -22,6 +22,8 @@ Color agentStateColor(TheStageAgentState state) {
       return const Color(0xFF34C759); // systemGreen
     case TheStageAgentState.thinking:
       return const Color(0xFF007AFF); // systemBlue
+    case TheStageAgentState.tool_calling:
+      return const Color(0xFF5856D6); // systemIndigo
     case TheStageAgentState.speaking:
       return const Color(0xFF0A84FF);
   }
@@ -45,6 +47,8 @@ String agentStateLabel(VoiceAgentController c) {
       return 'Listening…';
     case TheStageAgentState.thinking:
       return 'Thinking…';
+    case TheStageAgentState.tool_calling:
+      return 'Calling tool…';
     case TheStageAgentState.speaking:
       return 'Speaking…';
   }
@@ -57,15 +61,20 @@ String agentPhaseLabel(VoiceAgentController c) {
       final pct = (c.downloadProgress * 100).clamp(0, 100).toStringAsFixed(0);
       return 'Downloading $pct%';
     case 'extracting':
-      return 'Preparing…';
+      return 'Extracting…';
     case 'loading':
-      return 'Loading…';
+      return 'Compiling…';
+    case 'ready':
+      return 'Ready';
     default:
       return 'Preparing…';
   }
 }
 
 /// Determinate progress while downloading; `null` = indeterminate bar.
+///
+/// Download maps to 0–70% of the bar; extract/compile leave the bar
+/// indeterminate so we never look "stuck at 70%" during CoreML compile.
 double? agentLoadProgressValue(VoiceAgentController c) {
   if (!c.isStartupLoading && c.state != TheStageAgentState.loading) {
     return null;
@@ -73,7 +82,7 @@ double? agentLoadProgressValue(VoiceAgentController c) {
   if (c.loadPhase == 'downloading' && c.downloadProgress > 0) {
     return c.downloadProgress.clamp(0.0, 1.0);
   }
-  // Extract / open phases have no useful fraction — animate.
+  // Extract / compile — no useful byte fraction; animate.
   return null;
 }
 

@@ -1,0 +1,5 @@
+# Public deps only — encode Qwen3-TTS voice packs
+qwen-tts
+soundfile
+torch
+numpy

@@ -1,8 +1,23 @@
 import Foundation
 import TheStageSDK
 
+// --------------------------------------------------------------------------------------
+// TutorModel — load Qwen3-TTS, parse tagged script, stream PCM via AudioStreamPlayer
+// --------------------------------------------------------------------------------------
+/// Demo flow:
+/// 1) Load HF / bundled Qwen3-TTS once.
+/// 2) Parse the editable tagged script (`<en>…</en><es>…</es>` …).
+/// 3) For each span: `set_voice` from ``VoicePacks/tutor_<tag>`` (clone identity),
+///    then `infer_stream` the span text into ``AudioStreamPlayer``.
+///
+/// Voice packs are **not** the demo phrases — they only supply clone
+/// `ref_text` / codes / embedding. Spoken lines live in ``TutorPhraseBook``.
 @MainActor
 final class TutorModel: ObservableObject {
+
+    // ----------------------------------------------------------------------------------
+    // Public Attributes (UI bindings)
+    // ----------------------------------------------------------------------------------
     @Published var selected: TutorPhrase = TutorPhraseBook.all[0]
     @Published var status = "Load model, then Play"
     @Published var stats = ""
@@ -13,20 +28,36 @@ final class TutorModel: ObservableObject {
     @Published var loadFraction = 0.0
     @Published var loadPhase: String?
 
-    private var tts: Qwen3TTSPipeline?
-    private var player: StreamPlayer?
-    private var playTask: Task<Void, Never>?
-
-    private let model_name = "qwen3-tts-12hz-0.6b-base"
-    private let hf_repo = "TheStageAI/Qwen3-TTS-12Hz-0.6B-Base"
-    private let gap_ms = 250
-    private let onset_ms = 25
-    private let sample_rate = 24_000
-
     var phrases: [TutorPhrase] {
         TutorPhraseBook.all + [TutorPhraseBook.lesson]
     }
 
+    // ----------------------------------------------------------------------------------
+    // Private Attributes
+    // ----------------------------------------------------------------------------------
+    private var __tts: Qwen3TTSPipeline?
+    private var __player: AudioStreamPlayer?
+    private var __play_task: Task<Void, Never>?
+
+    private let __model_name = "qwen3-tts-12hz-0.6b-base"
+    private let __hf_repo = "TheStageAI/Qwen3-TTS-12Hz-0.6B-Base"
+    /// Silence inserted between language spans (ms).
+    private let __gap_ms = 250
+    /// Soft fade on the first PCM of each span (ms).
+    private let __onset_ms = 25
+    private let __sample_rate = 24_000
+
+    /// Editable editor text wins; empty editor falls back to the picker phrase.
+    private var __script_to_play: String {
+        let edited = taggedPreview.trimmingCharacters(
+            in: .whitespacesAndNewlines
+        )
+        return edited.isEmpty ? selected.tagged : taggedPreview
+    }
+
+    // ----------------------------------------------------------------------------------
+    // Public Methods
+    // ----------------------------------------------------------------------------------
     func select(_ phrase: TutorPhrase) {
         guard !running else { return }
         selected = phrase
@@ -35,110 +66,117 @@ final class TutorModel: ObservableObject {
         status = loaded ? "ready — \(phrase.title)" : "Load model, then Play"
     }
 
-    /// Play uses the editable tagged script (dropdown only seeds it).
-    private var script_to_play: String {
-        let edited = taggedPreview.trimmingCharacters(
-            in: .whitespacesAndNewlines
-        )
-        return edited.isEmpty ? selected.tagged : taggedPreview
-    }
-
     func load() {
-        guard !loading, tts == nil else { return }
+        guard !loading, __tts == nil else { return }
         loading = true
         status = "loading Qwen3-TTS…"
         loadFraction = 0
-        Task {
-            do {
-                let token = (Bundle.main.object(forInfoDictionaryKey: "TSAPIToken")
-                    as? String)?
-                    .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-                try await TheStageAI.shared.initialize(apiToken: token)
-
-                let engines = Self.engines_path(
-                    model_name: model_name, hf_repo: hf_repo
-                )
-                let first_pack = Self.voice_pack_path(tag: "en")
-                // revision: nil → ModelRevisionMap (v1.1 .thestage), not
-                // legacy engines.zip on `main`.
-                let pipe = try await Qwen3TTSPipeline(
-                    engines_path: engines,
-                    voice_id: "b_ref",
-                    voice_dir: first_pack,
-                    language: "english",
-                    device: "npu",
-                    revision: nil,
-                    on_load_progress: { [weak self] p in
-                        Task { @MainActor [weak self] in
-                            self?.loadFraction = p.fraction
-                            self?.loadPhase = p.phase == .ready
-                                ? nil : "\(p.phase)"
-                        }
-                    }
-                )
-                self.tts = pipe
-                self.loadPhase = nil
-                self.loading = false
-                self.loaded = true
-                self.status = "ready — pick a phrase"
-            } catch {
-                self.loading = false
-                self.loadPhase = nil
-                self.loaded = false
-                self.status = "load error: \(error.localizedDescription)"
-            }
-        }
+        Task { await __load_pipeline() }
     }
 
     func play() {
         guard !running else { return }
-        guard let tts else {
+        guard let tts = __tts else {
             status = "tap Load model first"
             return
         }
         running = true
         stats = ""
         status = "streaming…"
-        let script = script_to_play
-        playTask?.cancel()
-        playTask = Task { await self.stream(script: script, tts: tts) }
+        let script = __script_to_play
+        __play_task?.cancel()
+        __play_task = Task { await self.__stream(script: script, tts: tts) }
     }
 
     func stop() {
-        playTask?.cancel()
-        playTask = nil
-        player?.stop()
-        player = nil
+        __play_task?.cancel()
+        __play_task = nil
+        // Prefer flush over stop: AudioStreamPlayer.stop() deactivates
+        // AVAudioSession on iOS and the next play can enqueue into a dead
+        // graph (UI shows "playing…" with no audio).
+        if let player = __player {
+            player.flush()
+        }
         running = false
         status = "stopped"
     }
 
-    private func stream(script: String, tts: Qwen3TTSPipeline) async {
+    // ----------------------------------------------------------------------------------
+    // Private Methods
+    // ----------------------------------------------------------------------------------
+    private func __load_pipeline() async {
+        do {
+            let token = (Bundle.main.object(forInfoDictionaryKey: "TSAPIToken")
+                as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            try await TheStageAI.shared.initialize(apiToken: token)
+
+            let engines = Self.__engines_path(
+                model_name: __model_name, hf_repo: __hf_repo
+            )
+            // Seed voice from the English pack; each span calls set_voice again.
+            let first_pack = Self.__voice_pack_path(tag: "en")
+            // revision: nil → ModelRevisionMap (v1.1 .thestage), not
+            // legacy engines.zip on `main`.
+            let pipe = try await Qwen3TTSPipeline(
+                engines_path: engines,
+                voice_id: "b_ref",
+                voice_dir: first_pack,
+                language: "english",
+                device: "npu",
+                revision: nil,
+                on_load_progress: { [weak self] p in
+                    Task { @MainActor [weak self] in
+                        self?.loadFraction = p.fraction
+                        self?.loadPhase = p.phase == .ready
+                            ? nil : "\(p.phase)"
+                    }
+                }
+            )
+            __tts = pipe
+            loadPhase = nil
+            loading = false
+            loaded = true
+            status = "ready — pick a phrase"
+        } catch {
+            loading = false
+            loadPhase = nil
+            loaded = false
+            status = "load error: \(error.localizedDescription)"
+        }
+    }
+
+    /// Parse tags → set_voice per span → enqueue PCM on SDK AudioStreamPlayer.
+    private func __stream(script: String, tts: Qwen3TTSPipeline) async {
         defer {
             running = false
-            playTask = nil
+            __play_task = nil
         }
         do {
             let segments = try LangTagParser.parse(script)
-            player?.stop()
-            let localPlayer = StreamPlayer(rate: Double(sample_rate))
-            player = localPlayer
+            // Reuse one player across plays. Tearing it down with stop()
+            // deactivates AVAudioSession and the next turn goes silent.
+            let player = __ensure_player()
+
             let gap = [Float](
-                repeating: 0, count: sample_rate * gap_ms / 1000
+                repeating: 0, count: __sample_rate * __gap_ms / 1000
             )
             var total_samples = 0
             var first_ttfa: Double?
             let t_all = CFAbsoluteTimeGetCurrent()
-            let splitter = NLSentenceSplitter()
 
             for (i, seg) in segments.enumerated() {
                 if Task.isCancelled { break }
-                let pack = Self.voice_pack_path(tag: seg.tag)
+
+                // Clone identity for this language (not the spoken phrase text).
+                let pack = Self.__voice_pack_path(tag: seg.tag)
                 try tts.set_voice(
-                    voice_dir: pack, voice_id: "b_ref",
+                    voice_dir: pack,
+                    voice_id: "b_ref",
                     language: seg.qwen_language
                 )
-                status = "[\(i + 1)/\(segments.count)] \(seg.tag): \(seg.text)"
+                status =
+                    "[\(i + 1)/\(segments.count)] \(seg.tag): \(seg.text)"
 
                 var cfg = TTSGenerationConfig()
                 cfg.seed = 42
@@ -149,11 +187,11 @@ final class TutorModel: ObservableObject {
                 cfg.min_new_tokens = n <= 20 ? 14 : (n <= 40 ? 10 : 4)
 
                 let t0 = CFAbsoluteTimeGetCurrent()
-                var first = true
+                var first_chunk = true
+                // splitter defaults to NLSentenceSplitter()
                 let stream = tts.infer_stream(
                     text: seg.text,
                     config: cfg,
-                    splitter: splitter,
                     stream_config: Qwen3TTSPipeline.recommended_stream_config
                 )
                 for await chunk in stream {
@@ -162,33 +200,36 @@ final class TutorModel: ObservableObject {
                     if first_ttfa == nil {
                         first_ttfa = CFAbsoluteTimeGetCurrent() - t0
                     }
-                    if first, onset_ms > 0 {
-                        Self.fade_in(&pcm, ms: onset_ms, rate: sample_rate)
-                        first = false
-                    } else {
-                        first = false
+                    if first_chunk, __onset_ms > 0 {
+                        Self.__fade_in(
+                            &pcm, ms: __onset_ms, rate: __sample_rate
+                        )
                     }
+                    first_chunk = false
                     total_samples += pcm.count
-                    localPlayer.enqueue(pcm)
+                    player.enqueue(pcm)
                 }
                 if Task.isCancelled { break }
+
                 if i + 1 < segments.count, !gap.isEmpty {
-                    localPlayer.enqueue(gap)
+                    player.enqueue(gap)
                     total_samples += gap.count
                 }
             }
 
-            let audio_s = Double(total_samples) / Double(sample_rate)
+            let audio_s = Double(total_samples) / Double(__sample_rate)
             let wall = CFAbsoluteTimeGetCurrent() - t_all
             stats = String(
-                format: "%.1fs audio · first TTFA %.2fs · wall %.1fs · %d spans",
+                format:
+                    "%.1fs audio · first TTFA %.2fs · wall %.1fs · %d spans",
                 audio_s, first_ttfa ?? 0, wall, segments.count
             )
-            // Wait only for leftover playback — not another full audio_s
-            // (generation already covered most of realtime on device).
+
+            // Drain leftover scheduled buffers (generation already ran realtime).
+            // Keep the player alive afterward — do not stop()/setActive(false).
             if !Task.isCancelled {
                 status = "playing…"
-                await localPlayer.waitUntilDrained()
+                await player.drain()
             }
             status = Task.isCancelled ? "stopped" : "done"
         } catch {
@@ -196,9 +237,24 @@ final class TutorModel: ObservableObject {
         }
     }
 
-    // MARK: - Paths
+    /// Live player for gapless PCM; flush leftovers, never tear down session
+    /// between tutor turns.
+    private func __ensure_player() -> AudioStreamPlayer {
+        if let player = __player, player.is_playing {
+            player.flush()
+            return player
+        }
+        __player?.stop()
+        let player = AudioStreamPlayer(sample_rate: Double(__sample_rate))
+        player.start()
+        __player = player
+        return player
+    }
 
-    private static func engines_path(model_name: String, hf_repo: String) -> String {
+    /// Bundled engines dir if present; otherwise HF repo id for download.
+    private static func __engines_path(
+        model_name: String, hf_repo: String
+    ) -> String {
         if let dir = Bundle.main.resourceURL?
             .appendingPathComponent("BundledModels", isDirectory: true)
             .appendingPathComponent(model_name, isDirectory: true),
@@ -209,14 +265,18 @@ final class TutorModel: ObservableObject {
         return hf_repo
     }
 
-    /// Prepared ICL pack folder shipped under VoicePacks/tutor_<tag>.
-    static func voice_pack_path(tag: String) -> String? {
+    /// Prepared ICL pack folder: `VoicePacks/tutor_<tag>/voice.json`.
+    /// Contains clone ref only — not the demo phrase book.
+    private static func __voice_pack_path(tag: String) -> String? {
         let name = "tutor_\(tag.lowercased())"
         let roots: [URL?] = [
             Bundle.main.resourceURL?
                 .appendingPathComponent("VoicePacks", isDirectory: true),
-            Bundle.main.url(forResource: name, withExtension: nil,
-                            subdirectory: "VoicePacks"),
+            Bundle.main.url(
+                forResource: name,
+                withExtension: nil,
+                subdirectory: "VoicePacks"
+            ),
         ]
         for root in roots {
             guard let root else { continue }
@@ -231,7 +291,7 @@ final class TutorModel: ObservableObject {
         return nil
     }
 
-    private static func fade_in(
+    private static func __fade_in(
         _ pcm: inout [Float], ms: Int, rate: Int
     ) {
         let n = min(pcm.count, rate * ms / 1000)

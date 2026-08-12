@@ -1,6 +1,12 @@
 import Foundation
 
-/// One stock tutor line: display title + tagged script for streaming synth.
+// --------------------------------------------------------------------------------------
+// TutorPhraseBook — demo scripts only (not VoicePacks clone transcripts)
+// --------------------------------------------------------------------------------------
+/// One stock tutor line: picker title + tagged script for streaming synth.
+///
+/// Spoken content lives here. ``VoicePacks/tutor_*/voice.json`` only holds
+/// clone identity (`ref_text` / codes / embedding) for `set_voice`.
 struct TutorPhrase: Identifiable, Hashable {
     let id: String
     let title: String
@@ -9,6 +15,10 @@ struct TutorPhrase: Identifiable, Hashable {
 }
 
 enum TutorPhraseBook {
+
+    // ----------------------------------------------------------------------------------
+    // Public Attributes
+    // ----------------------------------------------------------------------------------
     /// Mixed-language drills — keep target spans long enough that ICL
     /// padding does not rush or clip the clone (prefer ~one full sentence).
     static let all: [TutorPhrase] = [

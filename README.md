@@ -17,6 +17,13 @@ leaves the device** — there is no server in the hot path.
 
 > **Not supported:** iOS Simulator, Intel Macs, Android, server-side inference.
 
+### Known issues (1.3.0)
+
+- **Voice tool-call streaming / parsing:** filler text and tool-call markup
+  can appear interleaved on the same stream, so TTS may start speaking while
+  a tool call is still being recognized or executed. Some edge cases in tool
+  call parsing remain. **Planned fix in the next release.**
+
 ---
 
 ## Built for battery — not just tok/s
@@ -403,6 +410,7 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | TTS / ASR “wrong” model type | Bundle auto-route | Pass the correct HF repo; see tts.md |
 | SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.3.0` |
 | Voice agent never commits turn | Thresholds / mode | See smart-turn knobs in voice_agent.md |
+| Tool call + spoken filler overlap / odd parse | Known 1.3.0 streaming gap | See [Known issues](#known-issues-130); fix planned next release |
 
 ---
 

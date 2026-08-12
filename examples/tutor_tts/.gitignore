@@ -3,3 +3,4 @@ TutorTTS.xcodeproj/
 build/
 .DS_Store
 DerivedData/
+build-clean/

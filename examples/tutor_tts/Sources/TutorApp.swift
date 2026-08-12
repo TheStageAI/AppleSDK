@@ -1,5 +1,8 @@
 import SwiftUI
 
+// --------------------------------------------------------------------------------------
+// TutorApp — SwiftUI shell for the mixed-language streaming TTS demo
+// --------------------------------------------------------------------------------------
 @main
 struct TutorApp: App {
     @StateObject private var model = TutorModel()
@@ -12,6 +15,9 @@ struct TutorApp: App {
     }
 }
 
+// --------------------------------------------------------------------------------------
+// TutorRootView
+// --------------------------------------------------------------------------------------
 struct TutorRootView: View {
     @EnvironmentObject private var model: TutorModel
 
@@ -20,7 +26,7 @@ struct TutorRootView: View {
             VStack(spacing: 0) {
                 Form {
                     Section {
-                        Picker("Phrase", selection: phraseBinding) {
+                        Picker("Phrase", selection: __phrase_binding) {
                             ForEach(model.phrases) { phrase in
                                 Text(phrase.title).tag(phrase)
                             }
@@ -52,21 +58,24 @@ struct TutorRootView: View {
                         }
                     }
                 }
-                controls
+                __controls
             }
             .navigationTitle("Tutor TTS")
             .navigationBarTitleDisplayMode(.inline)
         }
     }
 
-    private var phraseBinding: Binding<TutorPhrase> {
+    // ----------------------------------------------------------------------------------
+    // Private Methods / Views
+    // ----------------------------------------------------------------------------------
+    private var __phrase_binding: Binding<TutorPhrase> {
         Binding(
             get: { model.selected },
             set: { model.select($0) }
         )
     }
 
-    private var controls: some View {
+    private var __controls: some View {
         HStack(spacing: 12) {
             Button {
                 model.load()

@@ -1,0 +1,5 @@
+# Public deps only — encode NeuTTS multilingual voice packs
+neucodec
+librosa
+torch
+numpy

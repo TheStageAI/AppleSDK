@@ -33,8 +33,8 @@ already running) and its first inference costs no compilation.
 ## What one call guarantees
 
 1. **One copy per bundle on disk.** A model lives once under the SDK's
-   Application Support folder, encrypted, with its keys in the Keychain. The
-   downloaded archive is deleted when the model is promoted; nothing is kept twice.
+   Application Support folder. The downloaded archive is deleted once the
+   model is ready; nothing is kept twice.
 2. **No member of the sequence is unloaded to load the next.** The set is admitted
    as a whole; if memory is short you are told before anything downloads.
 3. **Loaded means specialized.** Warm-up runs every engine once, so the Neural

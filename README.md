@@ -395,7 +395,6 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | [voice_agent.md](./docs/voice_agent.md) | Full loop, barge-in, smart-turn knobs |
 | [loading.md](./docs/loading.md) | `load_models`, warm-up, staying specialized |
 | [types.md](./docs/types.md) | Shared configs, results, `SamplingParams` |
-| [durability_guarantees.md](./docs/durability_guarantees.md) | What survives a crash, an update, a cache purge |
 | [speaker_embedding.md](./docs/speaker_embedding.md) | Enroll / verify |
 | [licensing.md](./docs/licensing.md) | Token, seats, offline rules |
 | [logging.md](./docs/logging.md) | Support breadcrumbs |

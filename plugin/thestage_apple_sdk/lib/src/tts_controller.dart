@@ -63,7 +63,7 @@ class TTSController extends ChangeNotifier {
   final int sampleRate;
   final List<String> availableVoices;
 
-  final TheStageAudioPlayer _player;
+  final TSAudioPlayer _player;
 
   // -------------------------------------------------------------------------
   // State
@@ -113,7 +113,7 @@ class TTSController extends ChangeNotifier {
     this.availableVoices = const ['dave', 'jo', 'paul'],
     String? defaultVoice,
   })  : _selectedVoice = defaultVoice ?? 'dave',
-        _player = TheStageAudioPlayer(sampleRate: sampleRate);
+        _player = TSAudioPlayer(sampleRate: sampleRate);
 
   // -------------------------------------------------------------------------
   // Lifecycle

@@ -1,494 +1,456 @@
 # Streaming
 
-Real-time streaming inference for TTS, LLM, and ASR pipelines.
+Every pipeline can deliver results while it is still working: LLM tokens
+as they are generated, TTS audio sentence by sentence, ASR text while the
+user is still talking. The perceived wait drops from seconds to
+milliseconds, and it uses the same model packs as batch — nothing extra
+to load.
 
----
+This page is the one place that shows the three streams side by side and
+how to chain them. Each pipeline's own page has the full API.
 
-## TTS Streaming
+> **Main features**
+>
+> - **Same packs, no extra setup**: anything you load with `start_model`
+>   already streams.
+> - **Three streams, one shape**: LLM tokens, TTS audio chunks, ASR turns
+>   — all consumed with `for await` / `listen`.
+> - **Chainable**: LLM tokens feed straight into a TTS stream; the first
+>   words play before the reply is finished.
+> - **Cancellable**: stop any stream mid-generation when the user
+>   interrupts or leaves.
+> - **Tunable first chunk**: trade a shorter first audio chunk for a
+>   faster start.
 
-Yields audio chunks as sentences are synthesized — much lower time-to-first-audio than batch mode.
+## In this page
 
-### Swift — Simple Consumer
+Here we will cover the following topics:
+
+- [Batch or stream?](#batch-or-stream): when each is right.
+- [The three streams](#the-three-streams): LLM, TTS and ASR streaming — Swift and Flutter side by side.
+- [Chunk reference](#chunk-reference): what each stream's chunk carries.
+- [Usage Guides](#usage-guides): speak an LLM reply as it is written, cut latency to first audio, stop on interrupt.
+- [Troubleshooting](#troubleshooting): symptom → cause → fix.
+
+## Batch or stream?
+
+![Batch versus streaming: when the user gets results back](./assets/streaming.svg)
+
+|  | Batch (`infer`) | Stream (`infer_stream` / `open_stream`) |
+|---|---|---|
+| You get the result | all at once, at the end | piece by piece, as it is made |
+| Use it for | short prompts, cached audio, tests | anything a person is waiting on |
+| First output after | the whole job | tens of milliseconds |
+| Code shape | one call, one value | a loop you must keep draining |
+
+> [!TIP]
+> **Start the consumer before you start producing.** The loop that reads
+> chunks must be running before you send text or start generation.
+> Attach it afterwards and the first chunks are gone — for TTS that
+> means silence.
+
+## The three streams
+
+### LLM tokens
+
+**Swift**
 
 ```swift
-import TheStageSDK
+let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
+var config = llm.generation_defaults
+config.enable_thinking = false
 
-let ai = TheStageAI.shared
-try await ai.initialize(apiToken: "your_api_token")
-
-try await ai.start_model(
-    model_name: "tts",
-    engines_path: "TheStageAI/neutts-nano-multilingual",
-    config: ["voice_id": "dave"],
-)
-
-let stream = try ai.infer_stream(
-    model_name: "tts",
-    input_json: ["text": "A long paragraph of text to speak aloud."]
-)
-
-for await chunk in stream {
-    guard let audio = chunk.audio else { continue }
-    play_audio(audio, sample_rate: chunk.sample_rate ?? 24000)
-
-    if chunk.is_final {
-        print("Decode tokens: \(chunk.generated_tokens ?? 0)")
-        print("Tok/s: \(chunk.tokens_per_second ?? 0)")
-        print("First chunk: \(chunk.time_to_first_token ?? 0)s")
-        print("Total wall-clock: \(chunk.total_seconds ?? 0)s")
-    }
+for await chunk in llm.infer_stream(prompt: prompt, config: config) {
+    if chunk.is_final { print(chunk.tokens_per_second ?? 0, "tok/s") }
+    else              { bubble.text += chunk.text }
 }
 ```
 
-### Swift — Producer / Consumer with AudioStreamPlayer
+**Flutter**
 
-Two concurrent tasks: one drives TTS inference, the other plays audio
-as chunks arrive. This is the recommended pattern for low-latency playback.
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'llm',
+  engines_path: 'TheStageAI/Qwen3-0.6B',
+);
+
+await for (final chunk in TheStageFlutterSDK.infer_stream(
+  model_name: 'llm', input_json: {'prompt': prompt})) {
+  if (chunk['is_final'] == true) break;
+  bubble.value += chunk['delta'] as String? ?? '';
+}
+```
+
+Full API: [LLM](./llm.md).
+
+### TTS audio
+
+**Swift**
 
 ```swift
-import TheStageSDK
-
-let ai = TheStageAI.shared
-try await ai.start_model(
-    model_name: "tts",
+let tts = try await NeuTTSMultilingualPipeline(
     engines_path: "TheStageAI/neutts-nano-multilingual",
-    config: ["voice_id": "paul"]
+    voice_id: "dave",
+    language: "english"
 )
 
-let player = AudioStreamPlayer(
-    config: AudioStreamConfig(
-        sample_rate: 24000,
-        channels: 1,
-        buffer_size: 512
-    )
-)
+let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
 player.start()
 
-let stream = try ai.infer_stream(
-    model_name: "tts",
-    input_json: ["text": "Hello! This is a streaming demo with real-time audio."]
-)
-
-for await chunk in stream {
-    guard let audio = chunk.audio, !audio.isEmpty else { continue }
-    player.enqueue(audio)
+let speech = tts.open_stream()
+let consumer = Task {
+    for await chunk in speech.output {
+        if let pcm = chunk.audio { player.enqueue(pcm) }
+    }
 }
-
+speech.send("A long paragraph to speak aloud.")
+speech.close()
+await consumer.value
 await player.drain()
 player.stop()
 ```
 
-### AudioStreamConfig Options
-
-| Parameter | Type | Default | Description |
-|-----------|------|---------|-------------|
-| `sample_rate` | `Double` | 24000 | Audio sample rate in Hz |
-| `channels` | `UInt32` | 1 | Number of audio channels |
-| `buffer_size` | `UInt32` | 512 | I/O buffer size (iOS only) |
-| `category` | `AVAudioSession.Category` | `.playback` | Audio session category (iOS only) |
-| `mode` | `AVAudioSession.Mode` | `.default` | Audio session mode (iOS only) |
-
-### Swift — Push-Based (LLM → TTS)
-
-Feed text incrementally as it arrives from another model. The streamer
-splits sentences internally and produces audio as complete sentences are
-ready. Use `TheStageAI.shared.open_tts_streamer(model_name:)` to pull a
-fresh streamer per turn — there is no need (or way) to construct
-`TTSStreamer` directly from outside the SDK module.
-
-```swift
-import TheStageSDK
-
-let ai = TheStageAI.shared
-
-try await ai.start_model(
-    model_name: "llm",
-    engines_path: "TheStageAI/Qwen3-0.6B"
-)
-try await ai.start_model(
-    model_name: "tts",
-    engines_path: "TheStageAI/neutts-nano-multilingual",
-    config: ["voice_id": "dave"]
-)
-
-let player = AudioStreamPlayer(sample_rate: 24000)
-player.start()
-
-let streamer = try ai.open_tts_streamer(model_name: "tts")
-
-// Audio consumer task
-Task {
-    for await chunk in streamer.output {
-        if let pcm = chunk.audio, !pcm.isEmpty {
-            player.enqueue(pcm)
-        }
-    }
-    await player.drain()
-    player.stop()
-}
-
-// LLM → TTS producer
-let llm_stream = try ai.infer_stream(
-    model_name: "llm",
-    input_json: [
-        "prompt": "Tell me a joke",
-        "max_new_tokens": 256
-    ]
-)
-
-for await chunk in llm_stream {
-    if let delta = chunk.delta, !delta.isEmpty {
-        streamer.send(delta)
-    }
-    if chunk.is_final {
-        streamer.stop_stream()   // flush tail + close output cleanly
-    }
-}
-```
-
-`streamer.stop_stream()` flushes any partial sentence buffered inside
-the splitter before closing the output stream. Use `streamer.cancel()`
-instead if you want to abort an in-flight turn (e.g. on barge-in) —
-that drops the buffer and closes immediately.
-
-This is exactly what `TheStageVoiceAgent` does internally: its
-`TTSNode` opens one `TTSStreamingSession` (backed by a `TTSStreamer`)
-per turn, pumps LLM deltas straight in, and `cancel()`s on barge-in.
-
----
-
-## Flutter — TTS Streaming
-
-### Simple Usage
+**Flutter**
 
 ```dart
-final stream = TheStageFlutterSDK.infer_stream(
+await TheStageFlutterSDK.start_model(
   model_name: 'tts',
-  input_json: {'text': 'A long paragraph of text to speak aloud.'},
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
 );
 
-final player = TheStageAudioPlayer(sampleRate: 24000);
+final player = TSAudioPlayer(sampleRate: 24000);
 await player.start();
 
-await for (final chunk in stream) {
+final speech = await TTSStream.open(model_name: 'tts');
+final consumer = speech.output.listen((chunk) {
   final audio = chunk['audio'] as Float32List?;
-  if (audio != null && audio.isNotEmpty) {
-    player.enqueue(audio);
-  }
-  if (chunk['is_final'] == true) break;
-}
-
+  if (audio != null) player.enqueue(audio);
+});
+await speech.send('A long paragraph to speak aloud.');
+await speech.close();
+await consumer.asFuture();
 await player.drain();
 await player.stop();
 ```
 
-### Push-Based (LLM → TTS)
+Full API: [TTS](./tts.md).
+
+### ASR turns
+
+**Swift**
+
+```swift
+let engine = ASREngine(config: TSAgentConfig(
+    vad: "TheStageAI/silero-vad",
+    stt: "TheStageAI/thewhisper-large-v3-turbo"))
+
+let captions = Task {
+    for await turn in engine.turns.recv() {
+        committedLabel.text  = turn.committed
+        hypothesisLabel.text = turn.end_of_turn ? "" : turn.hypothesis
+    }
+}
+try await engine.start()
+```
+
+**Flutter**
 
 ```dart
-final ttsStream = TheStageFlutterSDK.infer_stream(
+final asr = TSASREngine();
+asr.turns.listen((turn) {
+  committed.value  = turn.committed;
+  hypothesis.value = turn.end_of_turn ? '' : turn.hypothesis;
+});
+await asr.start(config: {
+  'vad': 'TheStageAI/silero-vad',
+  'stt': 'TheStageAI/thewhisper-large-v3-turbo',
+});
+```
+
+Full API: [ASR](./asr.md).
+
+### Important API
+
+| Stream | Swift | Flutter |
+|---|---|---|
+| LLM | `llm.infer_stream(prompt:config:)` → `LLMStreamChunk` | `infer_stream(model_name:input_json:)` → `Map` |
+| TTS | `tts.open_stream()` → `TTSStream` (`send` / `close` / `cancel`, `output`) | `TTSStream.open(model_name:)` → same |
+| ASR | `ASREngine(config:)` → `turns` channel; or `open_stream` → `ASRStream` | `TSASREngine` → `turns`; or `ASRStream.open` |
+| Player | `AudioStreamPlayer` | `TSAudioPlayer` |
+
+## Chunk reference
+
+| Stream | Swift type | Fields you use |
+|---|---|---|
+| LLM | `LLMStreamChunk` (Flutter: `kind: 'text'`) | `text` (Flutter `delta`), `is_final`; on the final chunk `tokens_per_second`, `stop_reason`, `time_to_first_token`. |
+| LLM with tools | `LLMStreamEvent` (Flutter: `kind`) | `text_delta`, `tool_call` (`name`, `arguments`), `tool_result`, `thinking_delta`, `final`. Render only `text_delta`. |
+| TTS | `InferenceStreamChunk` (Flutter: `kind: 'audio'`) | `audio` (mono float, nil on the final marker), `sample_rate`, `is_final`. |
+| ASR | `ASRTurn` (Flutter: `TSASRTurn` / `kind: 'turn'`) | `committed`, `hypothesis`, `display`, `end_of_turn`. |
+
+## Usage Guides
+
+### Speak an LLM reply as it is written
+
+> **Problem**
+>
+> **Building** — a voice assistant whose answers come from an on-device
+> LLM.
+>
+> **Users want** — to hear the first sentence while the rest is still
+> being written.
+>
+> **Hard part** — tokens arrive one at a time and sentences must be
+> found before they can be spoken; a consumer that starts late loses
+> audio.
+
+**Solution — what to use**
+
+- `tts.open_stream()` — a `TTSStream` that splits sentences itself.
+- `llm.infer_stream(prompt:config:)` — `send` each token's text into
+  the TTS stream.
+- `AudioStreamPlayer` — start the consumer of `speech.output` before
+  the first `send`.
+- `speech.close()` at the end; `await player.drain()` before tearing
+  down.
+
+![A reply being spoken while it is still being written](./assets/ui_tts_stream.svg)
+
+**Swift**
+
+```swift
+let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+
+let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
+player.start()
+
+let speech = tts.open_stream()
+// consumer first
+let consumer = Task {
+    for await chunk in speech.output {
+        if let pcm = chunk.audio { player.enqueue(pcm) }
+    }
+}
+
+var config = llm.generation_defaults
+config.enable_thinking = false
+// the user's question (typed, or an ASR transcript)
+let question = "Where is the nearest station?"
+for await token in llm.infer_stream(prompt: question, config: config) {
+    if !token.is_final { speech.send(token.text) }
+}
+speech.close()
+await consumer.value
+await player.drain()
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'llm',
+  engines_path: 'TheStageAI/Qwen3-0.6B',
+);
+await TheStageFlutterSDK.start_model(
   model_name: 'tts',
-  input_json: {'text': ''},
-  stream_id: 'voice_agent_tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
 );
 
-final player = TheStageAudioPlayer(sampleRate: 24000);
+final player = TSAudioPlayer(sampleRate: 24000);
 await player.start();
 
-ttsStream.listen((chunk) {
+final speech = await TTSStream.open(model_name: 'tts');
+// consumer first
+final consumer = speech.output.listen((chunk) {
   final audio = chunk['audio'] as Float32List?;
   if (audio != null) player.enqueue(audio);
 });
 
-final llmStream = TheStageFlutterSDK.infer_stream(
+// the user's question (typed, or an ASR transcript)
+const question = 'Where is the nearest station?';
+await for (final token in TheStageFlutterSDK.infer_stream(
   model_name: 'llm',
-  input_json: {
-    'prompt': 'Tell me a joke',
-    'max_new_tokens': 256,
-  },
-);
-
-await for (final chunk in llmStream) {
-  if (chunk['kind'] == 'text' && chunk['delta'] != null) {
-    await TheStageFlutterSDK.send(
-      stream_id: 'voice_agent_tts',
-      text: chunk['delta'],
-    );
-  }
-  if (chunk['is_final'] == true) {
-    await TheStageFlutterSDK.finish_stream(stream_id: 'voice_agent_tts');
-  }
+  input_json: {'prompt': question, 'enable_thinking': false})) {
+  if (token['is_final'] == true) break;
+  await speech.send(token['delta'] as String? ?? '');
 }
-
+await speech.close();
+await consumer.asFuture();
 await player.drain();
-await player.stop();
 ```
 
----
+> [!TIP]
+> - Send tokens, not sentences — sentence detection is inside TTS.
+> - With tools on the LLM, send only `text_delta` events; never
+>   `tool_result`.
+> - The complete loop with a microphone, echo cancellation and barge-in
+>   is the [Voice Agent](./voice_agent.md). Use it instead of wiring this
+>   by hand.
 
-## Streaming ASR (Speech-to-Text)
+### Cut the wait before the first audio
 
-The inverse direction: push microphone audio in, read transcripts out.
-`WhisperPipeline.open_streamer()` returns an `ASRStreamer` that mirrors the
-TTS streamer's shape — `send(_:)` audio, drain stable partials off
-`partials`, `finish()` for the authoritative transcript. A single serial
-worker re-decodes the growing buffer and commits stable text via
-LocalAgreement, so it is safe to drive from a live capture.
+> **Problem**
+>
+> **Building** — an assistant that already streams.
+>
+> **Users want** — no visible pause before the first syllable.
+>
+> **Hard part** — the first chunk must be fully rendered before
+> anything can play; making every chunk small costs quality.
 
-### Swift — Producer / Consumer
+**Solution — what to use**
+
+- `TTSStreamConfig(first_frames_per_chunk: 8)` — only the first chunk
+  is short (default 25).
+- `overlap_frames` 2–3 if joins click; `frames_per_chunk` 40 if
+  callbacks are too frequent.
+- Warm the pipeline once at launch.
+
+**Swift**
 
 ```swift
-import TheStageSDK
-
-let ai = TheStageAI.shared
-try await ai.initialize(apiToken: "your_api_token")
-
-let stt = try await WhisperPipeline(
-    engines_path: "TheStageAI/thewhisper-large-v3-turbo",
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
 )
 
-// One streamer per turn. Audio is 16 kHz mono Float (same as `infer`).
-let streamer = stt.open_streamer(language: "en", partial_interval_ms: 600)
-
-// Consume partials concurrently with sending audio.
-let captions = Task {
-    for await text in streamer.partials {
-        print("partial: \(text)")   // committed-so-far, grows monotonically
-    }
-}
-
-// Push mic frames as they arrive (any size; e.g. 100 ms blocks).
-for await frame in microphone_frames {          // [Float] @ 16 kHz mono
-    streamer.send(frame)
-    if vad_detected_pause { streamer.flush() }   // finalize segment + trim
-}
-
-let final_text = await streamer.finish()         // closes `partials`
-await captions.value
-print("final: \(final_text)")
+let speech = tts.open_stream(
+    // default 25
+    config: TTSStreamConfig(first_frames_per_chunk: 8)
+)
 ```
 
-`partials` is the live/cosmetic caption; `finish()` is the trusted result and
-always covers the complete utterance (including the last word). Call
-`flush()` at VAD pauses to keep per-pass latency flat on long turns, and
-`cancel()` to abort a turn (barge-in) without a final decode. Convert mic
-input to 16 kHz mono Float32 first — it is **not** resampled.
-
-> Streaming ASR is a **Swift-direct** API on `WhisperPipeline` — there is no
-> singleton/JSON or Flutter streaming-ASR entry point. For live speech-to-text
-> on Flutter, use the Voice Agent ([voice_agent.md](./voice_agent.md)), which
-> runs the same streaming ASR internally.
-
----
-
-## Stream Chunk Format
-
-For the SDK-wide audio format contract (sample rates, mono Float, frame
-sizes for VAD vs ASR vs TTS) see [Audio I/O Contract](./README.md#audio-io-contract).
-
-### TTS Chunks
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `audio` | `[Float]` / `Float32List` | PCM audio samples, 24 kHz mono, normalized to `[-1.0, 1.0]` |
-| `sample_rate` | `Int` | Always 24000 |
-| `index` | `Int` | Sequential chunk number |
-| `is_final` | `Bool` | `true` on the sentinel (empty) last chunk |
-| `time_to_first_token` | `Double?` | Seconds to first audio chunk |
-| `generated_tokens` | `Int?` | Decode step count (excludes prefill) |
-| `tokens_per_second` | `Double?` | Decode speed: `steps / sum_of_step_durations` (measured inside decoder) |
-| `total_seconds` | `Double?` | Wall-clock time from stream start to last chunk (final only) |
-
-### LLM Chunks (no tools)
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `text` (`TheStageLLM` / VLM) | `String` | Decoded token text on non-final chunks |
-| `delta` (singleton / Flutter) | `String?` | Same role for `InferenceStreamChunk` / JSON |
-| `kind` | `String` | `"text"` for plain LLM streams |
-| `index` | `Int` | Position in sequence |
-| `is_final` | `Bool` | `true` for the sentinel chunk |
-| `time_to_first_token` | `Double?` | Seconds to first token (final only) |
-| `prompt_tokens` | `Int?` | Input token count (final only) |
-| `generated_tokens` | `Int?` | Output token count (final only) |
-| `tokens_per_second` | `Double?` | Generation speed (final only) |
-| `total_seconds` | `Double?` | Wall-clock time (final only) |
-
-### LLM tool events (`tools` in input / `LLMStreamEvent`)
-
-Swift Path A (preferred): `infer_stream(..., tools: [Tool])` or
-`DefaultTools.*` — SDK runs handlers, emits `tool_result`, continues
-(same stream; `max_tool_rounds` default 4).
-
-Swift Path B / Flutter: definitions only (`executor: nil` or
-`input_json['tools']`) — you run tools and call again.
-
-| `kind` | Payload |
-|--------|---------|
-| `text_delta` | `delta` — UI / TTS safe |
-| `thinking_delta` | `delta` — Qwen think body |
-| `tool_call` | `name`, `arguments` (map) |
-| `tool_result` | `name`, `content` (Path A only) |
-| `final` | metrics; `raw_text` / `delta` for Path B history |
-
-See [llm.md — tools](./llm.md#how-do-i-pass-tools-and-read-tool-calls).
-
----
-
-## Flutter API Reference
-
-### Lifecycle
+**Flutter**
 
 ```dart
-await TheStageFlutterSDK.initialize(api_token: 'your_token');
-
 await TheStageFlutterSDK.start_model(
   model_name: 'tts',
   engines_path: 'TheStageAI/neutts-nano-multilingual',
-  // model_type optional — omit or use 'thestage_tts' (bundle auto-routes)
-  config: {'voice_id': 'dave'},
+  config: {'voice_id': 'dave', 'language': 'english'},
 );
 
-await TheStageFlutterSDK.stop_model(model_name: 'tts');
-```
-
-### Streaming
-
-```dart
-final stream = TheStageFlutterSDK.infer_stream(
+final speech = await TTSStream.open(
   model_name: 'tts',
-  input_json: {'text': 'Hello world.'},
+  stream_config: const TTSStreamConfig(first_frames_per_chunk: 8),
 );
-
-await TheStageFlutterSDK.send(stream_id: id, text: 'more text');
-await TheStageFlutterSDK.finish_stream(stream_id: id);
-await TheStageFlutterSDK.stop_stream(stream_id: id);
 ```
 
-### Audio Player
+| Goal | Change | Trade-off |
+|---|---|---|
+| Faster first audio | `first_frames_per_chunk` 25 → 8–12 | Shorter first segment |
+| Smoother sentence joins | `overlap_frames` 1 → 2–3 | Slightly more latency per chunk |
+| Fewer callbacks | `frames_per_chunk` 25 → 40 | More latency per chunk |
+
+> [!TIP]
+> - Below `6` the first chunk starts to sound clipped.
+> - Warm the pipeline once at launch; the first synthesis after load is
+>   always the slowest.
+
+### Stop a stream when the user interrupts
+
+> **Problem**
+>
+> **Building** — an assistant with barge-in, a Stop button, or a back
+> gesture.
+>
+> **Users want** — silence *now* when they tap or start talking — not
+> after the sentence finishes.
+>
+> **Hard part** — three things are generating at once (LLM, TTS,
+> playback) and each has its own way to stop; a stream that was
+> cancelled cannot be reused.
+
+**Solution — what to use**
+
+- `speech.cancel()` + `player.stop()` — TTS and playback together.
+- `replyTask.cancel()` — cancelling the consuming `Task` ends LLM
+  generation.
+- `stream.cancel()` on an `ASRStream` you own.
+- Open a **new** stream for the next utterance — streams are single-use.
+- `close()` instead of `cancel()` when the text simply finished.
+
+![A reply stopped mid-sentence as the user starts speaking](./assets/ui_streaming_interrupt.svg)
+
+**Swift**
+
+```swift
+let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
+player.start()
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+let speech = tts.open_stream()
+let stt = try await WhisperPipeline(
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
+)
+let silero = try SileroVAD(engines_path: "TheStageAI/silero-vad")
+let engine = ASREngine(pipeline: stt, vad: silero)
+let stream = try await engine.open_stream(
+    ASRGenerationConfig(language: "en", timestamps: .WORD)
+)
+
+// TTS
+speech.cancel()
+player.stop()
+
+// LLM: stop consuming — cancelling the Task that runs
+// llm.infer_stream (see the first guide) ends generation
+replyTask.cancel()
+
+// ASR push stream
+stream.cancel()
+```
+
+**Flutter**
 
 ```dart
-final player = TheStageAudioPlayer(sampleRate: 24000);
+final player = TSAudioPlayer(sampleRate: 24000);
 await player.start();
-player.enqueue(audioData);
-await player.pause();
-await player.resume();
-await player.drain();
-await player.stop();
-```
-
----
-
-## Cancellation
-
-Cancel any active stream at any time:
-
-```swift
-// Swift — break from the for-await loop, or call streamer.cancel()
-```
-
-```dart
-// Flutter
-await TheStageFlutterSDK.stop_stream(stream_id: 'my_stream');
-```
-
-The stream will emit a final event with `kind: 'cancelled'` and close.
-
----
-
-## Architecture
-
-### TTSStreamer — Single Token Stream with Sentinels
-
-```
-Producer Task                          Consumer Task
-─────────────                          ─────────────
-sentence_stream                        token_stream
-    │                                      │
-    ▼                                      ▼
-┌──────────┐                         ┌───────────┐
-│preprocess│                         │is sentinel?│
-└────┬─────┘                         └─┬───────┬─┘
-     │                                 no      yes
-     ▼                                 │        │
-┌──────────────┐                       ▼        ▼
-│decoder       │                  accumulate   flush
-│  .prefill()  │                  codes        + fade-out
-│  .decode_step│                       │        + reset
-│  (loop)      │                       ▼
-└────┬─────────┘                  ┌─────────┐
-     │                            │codec.infer│
-     ▼                            │(autorelease)│
-yield tokens                      └────┬────┘
-     │                                 │
-     ▼                                 ▼
-yield sentinel                    OLA + emit
-```
-
-The producer runs ahead — while the consumer decodes audio for the
-current sentence, the producer is already preprocessing and generating
-tokens for the next one. This eliminates inter-sentence pauses.
-
----
-
-## Engine Requirements
-
-Streaming and batch inference use the same model bundle — no extra
-setup. Just use `infer_stream` instead of `infer`, or pull a push-based
-`TTSStreamer` via `TheStageAI.shared.open_tts_streamer(...)`.
-
-## Tuning the TTS Streamer
-
-`TTSStreamConfig` exposes the codec-side chunking knobs that decide
-time-to-first-audio and how seams between sentences sound. Defaults
-match what the SDK ships with — only override these when you need to
-trade latency against smoothness.
-
-**Swift:**
-
-```swift
-let streamer = tts.open_streamer(
-    config: TTSStreamConfig(
-        frames_per_chunk: 25,
-        first_frames_per_chunk: 12,   // smaller first chunk → faster first audio
-        lookforward: 5,
-        lookback: 50,
-        overlap_frames: 1
-    )
-)
-
-// Or via the singleton:
-let s2 = try ai.open_tts_streamer(
-    model_name: "tts",
-    config: TTSStreamConfig(first_frames_per_chunk: 12)
-)
-```
-
-`infer_stream(text:stream_config:)` accepts the same struct when you
-already have the full text up front.
-
-**Flutter** — pass a nested `stream_config` map inside `input_json`:
-
-```dart
-final stream = TheStageFlutterSDK.infer_stream(
+await TheStageFlutterSDK.start_model(
   model_name: 'tts',
-  input_json: {
-    'text': 'Hello, world.',
-    'stream_config': {
-      'first_frames_per_chunk': 12,
-      'frames_per_chunk': 25,
-      'lookforward': 5,
-      'lookback': 50,
-      'overlap_frames': 1,
-    },
-  },
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
 );
+final speech = await TTSStream.open(model_name: 'tts');
+
+// TTS
+await speech.cancel();
+await player.stop();
+
+// LLM: cancel the StreamSubscription returned by
+// infer_stream(...).listen (see the first guide)
+await replySub.cancel();
+
+// ASR push stream (ASRStream.open, see the ASR page)
+final stream = await ASRStream.open(
+  model_name: 'stt',
+  vad_model_name: 'vad',
+);
+await stream.cancel();
 ```
 
-See [TTS — Stream / clearer speech](./tts.md#how-do-i-get-clearer-speech--faster-first-audio)
-for the full field reference.
+> [!TIP]
+> - `cancel()` discards pending audio; `close()` lets it drain. Use
+>   `close()` when the text is simply finished.
+> - After a cancel, open a **new** stream for the next utterance —
+>   streams are single-use.
 
-## Agent checklist
+## Troubleshooting
 
-- TTS: drain stream concurrently with `send` / `finish_stream`.
-- LLM: consume token chunks until final / stop reason.
-- Flutter: never use `Float64List` for PCM — always `Float32List`.
+| Symptom | Cause | Fix |
+|---|---|---|
+| No audio during streaming | Consumer attached after the first `send`. | Start the read loop first. |
+| Audio starts, then silence | `cancel()` where `close()` was meant. | `close()` to finish; `cancel()` only to abort. |
+| Choppy audio between sentences | Chunk seams; or the player was created per chunk. | `overlap_frames: 2`–`3`; one player for the session. |
+| Long pause before first audio | Batch call, or a large first chunk, or a cold pipeline. | Stream; `first_frames_per_chunk: 8`; warm at launch. |
+| Stream never ends | Producer never called `close()`. | Always `close()` (or `cancel()`) the stream you opened. |
+| Wrong speed | Player rate ≠ chunk `sample_rate`. | Read the rate off the chunk. |

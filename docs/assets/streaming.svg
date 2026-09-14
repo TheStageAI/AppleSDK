@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 358" width="900" height="358" role="img" aria-label="Batch and streaming, same model">
+  <style>
+  .bg{fill:#131313}
+  .dot{fill:#1F1F1F}
+  .card{fill:#1A1A1A;stroke:#303030;stroke-width:1}
+  .card-accent{fill:#1F1714;stroke:#FF885A;stroke-width:1.5}
+  .card-hi{fill:#FFF844;stroke:#FFF844;stroke-width:1.5}
+  .card-muted{fill:#161616;stroke:#242424;stroke-width:1}
+  .h{fill:#FFFFFF;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  .b{fill:#646464;font:400 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px}
+  .m{fill:#6F6F6F;font:11px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .hi-t{fill:#131313;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  .hi-b{fill:#131313;font:400 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px;opacity:.72}
+  .hi-m{fill:#3D3A10;font:11px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .ttl{fill:#FFFFFF;font:500 20px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.8px}
+  .sub{fill:#646464;font:400 13px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px}
+  .edge{stroke:#4A4A4A;stroke-width:1.5;fill:none}
+  .ah{fill:#4A4A4A}
+  .edge-d{stroke:#4A4A4A;stroke-width:1.5;fill:none;stroke-dasharray:4 4}
+  .el{fill:#646464;font:400 10.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.2px}
+  .badge{fill:#242424;stroke:#303030}
+  .badge-t{fill:#8A8A8A;font:500 10px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.2px}
+  .num{fill:#646464;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  </style>
+  <defs>
+  <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+    <circle class="dot" cx="1" cy="1" r="1"/></pattern>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+    <path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="bg" width="900" height="358" rx="14"/>
+  <rect width="900" height="358" rx="14" fill="url(#dots)"/>
+  <text class="ttl" x="28" y="40">Batch and streaming, same model</text>
+  <text class="sub" x="28" y="62">Both modes use the pack you already loaded. The difference is when the user gets something back.</text>
+  <rect class="card-muted" x="28.0" y="92" width="391.0" height="129" rx="14"/>
+  <text class="h" x="46.0" y="123.0">Batch  ·  one result at the end</text>
+  <text class="b" x="46.0" y="143.0">Nothing is delivered until the whole clip is</text>
+  <text class="b" x="46.0" y="161.0">synthesised or the whole reply is generated.</text>
+  <text class="m" x="46.0" y="185.0">infer(...)</text>
+  <text class="m" x="46.0" y="201.0">fine for a short phrase</text>
+  <rect class="card-accent" x="481.0" y="92" width="391.0" height="129" rx="14"/>
+  <text class="h" x="499.0" y="123.0">Streaming  ·  chunks as they are made</text>
+  <text class="b" x="499.0" y="143.0">Audio starts playing while later sentences are</text>
+  <text class="b" x="499.0" y="161.0">still being made; tokens land in the UI as they come.</text>
+  <text class="m" x="499.0" y="185.0">infer_stream(...) · TTSStream</text>
+  <text class="m" x="499.0" y="201.0">first chunk in milliseconds</text>
+  <rect class="card-hi" x="28" y="251" width="844" height="89" rx="14"/>
+  <text class="hi-t" x="46" y="282.0">Start the consumer before you start producing</text>
+  <text class="hi-b" x="46" y="302.0">Attach the listener first, then kick off generation. Chunks emitted</text>
+  <text class="hi-b" x="46" y="320.0">before anyone is reading them are gone — often heard as no audio at all.</text>
+</svg>

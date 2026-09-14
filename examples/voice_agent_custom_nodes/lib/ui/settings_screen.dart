@@ -41,7 +41,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     s.systemPrompt = _systemPromptCtrl.text;
     s.llmModel = _llmModelCtrl.text;
     s.llmEndpoint = _llmEndpointCtrl.text;
-    unawaited(widget.agent.setSystemPrompt(s.systemPrompt));
+    unawaited(widget.agent.set_system_prompt(s.systemPrompt));
     s.removeListener(_refresh);
     _systemPromptCtrl.dispose();
     _llmModelCtrl.dispose();
@@ -131,7 +131,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             _systemPromptCtrl,
             (v) {
               s.update((s) => s.systemPrompt = v);
-              unawaited(widget.agent.setSystemPrompt(v));
+              unawaited(widget.agent.set_system_prompt(v));
             },
             maxLines: 3,
           ),
@@ -247,8 +247,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 (v) {
               s.update((s) => s.turnMinSpeechMs = v.round());
             }),
-            _slider('ASR Silence Hangover (ms)',
-                s.turnAsrSilenceHangoverMs.toDouble(), 0, 800, (v) {
+            // Null means "let the SDK use the loaded model's tuned policy",
+            // which is the default. 96 is only where the handle sits until
+            // someone moves it — nothing is sent while this is null, so the
+            // number here cannot drift away from what the SDK ships.
+            _slider(
+                s.turnAsrSilenceHangoverMs == null
+                    ? 'ASR Silence Hangover (auto — model policy)'
+                    : 'ASR Silence Hangover (ms)',
+                (s.turnAsrSilenceHangoverMs ?? 96).toDouble(), 0, 800, (v) {
               s.update((s) => s.turnAsrSilenceHangoverMs = v.round());
             }),
           ],
@@ -296,14 +303,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 'Interrupt Mode', s.interruptMode, ['speech_only', 'wake_word'],
                 (v) {
               s.update((s) => s.interruptMode = v);
-              widget.agent.updateInterruptConfig(interruptMode: v);
+              widget.agent.update_interrupt_config(interrupt_mode: v);
             }),
             _slider('Min Speech to Interrupt (ms)',
                 s.interruptMinSpeechMs.toDouble(), 100, 1500, (v) {
               final ms = v.round();
               s.update((s) => s.interruptMinSpeechMs = ms);
               widget.agent
-                  .updateInterruptConfig(interruptMinSpeechMs: ms);
+                  .update_interrupt_config(interrupt_min_speech_ms: ms);
             }),
             // Number of consecutive positive VAD frames (~32 ms each) to fire
             // a barge-in. 0 = use the ms value above. Higher + a high
@@ -313,12 +320,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 s.interruptOnsetMs.toDouble(), 0, 640, (v) {
               final ms = v.round();
               s.update((s) => s.interruptOnsetMs = ms);
-              widget.agent.updateInterruptConfig(interruptOnsetMs: ms);
+              widget.agent.update_interrupt_config(interrupt_onset_ms: ms);
             }),
             // Strict barge-in threshold, separate from the capture threshold.
             _slider('Interrupt Threshold', s.interruptThreshold, 0.5, 0.96, (v) {
               s.update((s) => s.interruptThreshold = v);
-              widget.agent.updateInterruptConfig(interruptThreshold: v);
+              widget.agent.update_interrupt_config(interrupt_threshold: v);
             }, decimals: 2),
             _note('Lockouts below apply on next Start.'),
             // Per-message grace at TTS start so AEC can re-converge.

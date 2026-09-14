@@ -13,7 +13,7 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
     // ----------------------------------------------------------------------------------
     private var __event_sink: FlutterEventSink?
     private var __tasks: [String: Task<Void, Never>] = [:]
-    private var __streamers: [String: TTSStreamer] = [:]
+    private var __streams: [String: TTSStream] = [:]
 
     // ----------------------------------------------------------------------------------
     // FlutterStreamHandler
@@ -23,17 +23,17 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
         eventSink events: @escaping FlutterEventSink
     ) -> FlutterError? {
         self.__event_sink = events
+        on_sink?(events)
         return nil
     }
 
     func onCancel(
         withArguments arguments: Any?
     ) -> FlutterError? {
-        for task in __tasks.values { task.cancel() }
-        __tasks.removeAll()
-        for streamer in __streamers.values { streamer.stop_stream() }
-        __streamers.removeAll()
+        // Dropping the EventChannel listener must not cancel other
+        // sessions — Dart filters by stream_id on a shared sink.
         __event_sink = nil
+        on_sink?(nil)
         return nil
     }
 
@@ -41,6 +41,7 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
     // Public Methods
     // ----------------------------------------------------------------------------------
     var has_sink: Bool { __event_sink != nil }
+    var on_sink: ((FlutterEventSink?) -> Void)?
 
     /// Begin a TTS stream. When `input_json["text"]` is empty the
     /// handler runs in push mode (Dart drives `send` / `finish_stream`);
@@ -52,8 +53,8 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
     ) {
         __tasks[stream_id]?.cancel()
         __tasks[stream_id] = nil
-        __streamers[stream_id]?.stop_stream()
-        __streamers[stream_id] = nil
+        __streams[stream_id]?.cancel()
+        __streams[stream_id] = nil
 
         guard let events = __event_sink else { return }
 
@@ -88,18 +89,22 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
     }
 
     func send(stream_id: String, text: String) {
-        __streamers[stream_id]?.send(text)
+        __streams[stream_id]?.send(text)
+    }
+
+    func flush(stream_id: String) {
+        __streams[stream_id]?.flush()
     }
 
     func finish_stream(stream_id: String) {
-        __streamers[stream_id]?.stop_stream()
+        __streams[stream_id]?.close()
     }
 
     func cancel(stream_id: String) {
         __tasks[stream_id]?.cancel()
         __tasks[stream_id] = nil
-        __streamers[stream_id]?.stop_stream()
-        __streamers[stream_id] = nil
+        __streams[stream_id]?.cancel()
+        __streams[stream_id] = nil
         guard let events = __event_sink else { return }
         events([
             "stream_id": stream_id,
@@ -107,6 +112,10 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
             "index": -1,
             "is_final": true,
         ])
+    }
+
+    func has(_ stream_id: String) -> Bool {
+        __streams[stream_id] != nil || __tasks[stream_id] != nil
     }
 
     // ----------------------------------------------------------------------------------
@@ -151,13 +160,15 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
     ) {
         let generation = __parse_tts_generation_config(input_json)
         do {
-            let streamer = try TheStageAI.shared.open_tts_streamer(
-                model_name: model_name,
-                generation: generation,
+            let pipeline = try TheStageAI.shared.tts_pipeline(
+                model_name: model_name
+            )
+            let stream = pipeline.open_stream(
+                generation,
                 config: stream_config
             )
-            __streamers[stream_id] = streamer
-            let output = streamer.output
+            __streams[stream_id] = stream
+            let output = stream.output
             __tasks[stream_id] = Task.detached { [weak self] in
                 await Self.__drain(
                     stream_id: stream_id,
@@ -165,7 +176,7 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
                     events: events,
                     on_complete: { [weak self] in
                         self?.__tasks[stream_id] = nil
-                        self?.__streamers[stream_id] = nil
+                        self?.__streams[stream_id] = nil
                     }
                 )
             }

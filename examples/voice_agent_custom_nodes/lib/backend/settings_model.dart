@@ -151,7 +151,12 @@ class VoiceAgentSettings extends ChangeNotifier {
   int turnMinSpeechMs = 250;
   // Trailing silence still fed to the streaming decoder after speech stops;
   // the smart-turn model still sees the full pause. Bounds "mm"/"?" filler.
-  int turnAsrSilenceHangoverMs = 200;
+  //
+  // `null` — the default — lets the SDK derive it from the loaded model's
+  // streaming policy, where the value is actually tuned. It was hardcoded
+  // 200 here and sent on every start, so the tuned value could never reach
+  // the agent no matter what the SDK shipped. Set it to override.
+  int? turnAsrSilenceHangoverMs;
 
   // ── Streaming ASR (live caption partials) ────────────────────────────────
   // The committed transcript is identical whether this is on or off; it only
@@ -289,7 +294,10 @@ class VoiceAgentSettings extends ChangeNotifier {
         'turn_max_silence_ms': turnMaxSilenceMs,
         'turn_window_ms': turnWindowMs,
         'turn_min_speech_ms': turnMinSpeechMs,
-        'turn_asr_silence_hangover_ms': turnAsrSilenceHangoverMs,
+        // Omitted when null so the SDK derives it; sending the key at all is
+        // what used to override the tuned policy.
+        if (turnAsrSilenceHangoverMs != null)
+          'turn_asr_silence_hangover_ms': turnAsrSilenceHangoverMs,
 
         // ── Streaming ASR (live captions) ──
         'asr_streaming': asrStreaming,

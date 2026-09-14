@@ -11,7 +11,7 @@ final class VoiceAgentPortStream: NSObject, FlutterStreamHandler {
     // ----------------------------------------------------------------------------------
     // Private Attributes
     // ----------------------------------------------------------------------------------
-    private var __agent_provider: (@MainActor () -> TheStageVoiceAgent?)?
+    private var __agent_provider: (@MainActor () -> TSVoiceAgent?)?
     private var __sink: FlutterEventSink?
     private var __disconnects: [() -> Void] = []
 
@@ -19,7 +19,7 @@ final class VoiceAgentPortStream: NSObject, FlutterStreamHandler {
     // Public Methods
     // ----------------------------------------------------------------------------------
     func configure(
-        agent_provider: @escaping @MainActor () -> TheStageVoiceAgent?
+        agent_provider: @escaping @MainActor () -> TSVoiceAgent?
     ) {
         __agent_provider = agent_provider
         if __sink != nil, let agent = agent_provider() {
@@ -27,7 +27,7 @@ final class VoiceAgentPortStream: NSObject, FlutterStreamHandler {
         }
     }
 
-    func bind(agent: TheStageVoiceAgent) {
+    func bind(agent: TSVoiceAgent) {
         if __sink != nil {
             __bind(agent: agent)
         }
@@ -70,7 +70,7 @@ final class VoiceAgentPortStream: NSObject, FlutterStreamHandler {
     // ----------------------------------------------------------------------------------
     // Private Methods
     // ----------------------------------------------------------------------------------
-    private func __bind(agent: TheStageVoiceAgent) {
+    private func __bind(agent: TSVoiceAgent) {
         __teardown()
         guard let sink = __sink else { return }
 
@@ -88,6 +88,11 @@ final class VoiceAgentPortStream: NSObject, FlutterStreamHandler {
         __connect_double_channel(
             agent.vad_probabilities,
             "vad.probability",
+            emit: emit
+        )
+        __connect_double_channel(
+            agent.tts_levels,
+            "tts.level",
             emit: emit
         )
     }

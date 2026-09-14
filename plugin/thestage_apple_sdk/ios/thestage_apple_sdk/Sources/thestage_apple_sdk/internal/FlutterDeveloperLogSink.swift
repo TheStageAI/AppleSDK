@@ -5,10 +5,10 @@ import TheStageCore
 // --------------------------------------------------------------------------------------
 // FlutterDeveloperLogSink
 // --------------------------------------------------------------------------------------
-/// Forwards non-Security ``TheStageLog`` events to a Flutter
+/// Forwards non-Security ``TSLog`` events to a Flutter
 /// ``EventChannel`` so `flutter run` can ``debugPrint`` them.
 /// Unified Logging alone is invisible in the Flutter console.
-final class FlutterDeveloperLogSink: TheStageLogSink, @unchecked Sendable {
+final class FlutterDeveloperLogSink: TSLogSink, @unchecked Sendable {
     private let __lock = NSLock()
     private var __event_sink: FlutterEventSink?
 
@@ -19,7 +19,7 @@ final class FlutterDeveloperLogSink: TheStageLogSink, @unchecked Sendable {
     }
 
     func log(
-        level: TheStageLogLevel,
+        level: TSLogLevel,
         category: String,
         event: String,
         message: String

@@ -13,7 +13,7 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     // ----------------------------------------------------------------------------------
     private var __event_sink: FlutterEventSink?
     private var __progress_sink: FlutterEventSink?
-    private var __agent: TheStageVoiceAgent?
+    private var __agent: TSVoiceAgent?
     private var __event_task: Task<Void, Never>?
     private var __taps: [VoiceAgentBroadcastStream] = []
     private var __bridge_nodes: [FlutterBridgeNode] = []
@@ -24,7 +24,7 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
     // Public Methods
     // ----------------------------------------------------------------------------------
     var has_sink: Bool { __event_sink != nil }
-    var agent: TheStageVoiceAgent? { __agent }
+    var agent: TSVoiceAgent? { __agent }
     var bridge_nodes: [FlutterBridgeNode] { __bridge_nodes }
 
     func configure(
@@ -85,7 +85,7 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
                 }
             }
         }
-        let agent = TheStageVoiceAgent(config: agent_config)
+        let agent = TSVoiceAgent(config: agent_config)
         __agent = agent
 
         for tap in __taps { tap.bind(agent: agent) }
@@ -109,6 +109,19 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
 
         try await agent.start()
         __port_stream?.bind(agent: agent)
+    }
+
+    func capabilitiesPayload() -> [String: Any] {
+        guard let caps = __agent?.capabilities else {
+            return [:]
+        }
+        return [
+            "listening": caps.listening,
+            "transcribing": caps.transcribing,
+            "responding": caps.responding,
+            "speaking": caps.speaking,
+            "reasons": caps.reasons,
+        ]
     }
 
     func begin_listening() async throws {
@@ -205,9 +218,9 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         _ dict: [String: Any],
         node_channel: FlutterMethodChannel?,
         bridge_nodes: inout [FlutterBridgeNode]
-    ) -> TheStageAgentConfig {
+    ) -> TSAgentConfig {
         bridge_nodes.removeAll()
-        let llm: TheStageLLMProvider
+        let llm: TSLLMProvider
         let provider_type =
             dict["llm_provider"] as? String ?? "openai_compatible"
 
@@ -222,14 +235,14 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
             ?? DefaultTools.voice_system_prompt
 
         if provider_type == "local" {
-            llm = TheStageLocalLLMProvider(
+            llm = TSLocalLLMProvider(
                 model_path: dict["llm_model"] as? String ?? "",
                 tools: tools,
                 system_prompt: system_prompt,
                 memory: .SLIDING(max_turns: max_turns)
             )
         } else {
-            llm = TheStageOpenAICompatibleProvider(
+            llm = TSOpenAICompatibleProvider(
                 endpoint: dict["llm_endpoint"] as? String
                     ?? "https://api.openai.com/v1/chat/completions",
                 api_key: dict["llm_api_key"] as? String ?? "",
@@ -237,7 +250,7 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
             )
         }
 
-        var config = TheStageAgentConfig(
+        var config = TSAgentConfig(
             vad: dict["vad"] as? String ?? "TheStageAI/silero-vad",
             stt: dict["stt"] as? String
                 ?? "TheStageAI/thewhisper-large-v3-turbo",
@@ -256,6 +269,9 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         if let v = dict["tts_language"] as? String, !v.isEmpty {
             config.tts_language = v
         }
+        if let v = dict["require_full_stack"] as? Bool {
+            config.require_full_stack = v
+        }
         config.system_prompt = system_prompt
         config.llm_tools = tools_preset
         config.chat_memory = AgentMessageSlidingWindowMemory(
@@ -263,9 +279,33 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         )
         if let v = dict["max_tokens"] as? Int {
             config.max_tokens = v
+        } else if let v = dict["max_tokens"] as? NSNumber {
+            config.max_tokens = v.intValue
         }
         if let v = dict["temperature"] as? Double {
             config.temperature = v
+        } else if let v = dict["temperature"] as? NSNumber {
+            config.temperature = v.doubleValue
+        }
+        if let v = dict["top_k"] as? Int {
+            config.top_k = v
+        } else if let v = dict["top_k"] as? NSNumber {
+            config.top_k = v.intValue
+        }
+        if let v = dict["top_p"] as? Double {
+            config.top_p = v
+        } else if let v = dict["top_p"] as? NSNumber {
+            config.top_p = v.doubleValue
+        }
+        if let v = dict["min_p"] as? Double {
+            config.min_p = v
+        } else if let v = dict["min_p"] as? NSNumber {
+            config.min_p = v.doubleValue
+        }
+        if let v = dict["repetition_penalty"] as? Double {
+            config.repetition_penalty = v
+        } else if let v = dict["repetition_penalty"] as? NSNumber {
+            config.repetition_penalty = v.doubleValue
         }
         if let v = dict["vad_threshold"] as? Double {
             config.vad_threshold = v
@@ -480,8 +520,15 @@ final class VoiceAgentStateStream: NSObject, FlutterStreamHandler {
         switch preset {
         case "none", "off", "false":
             return []
-        case "web":
-            return DefaultTools.web
+        case "web", "live":
+            // App live-facts set (weather / time / search). Wiki+calc stay
+            // on DefaultTools.web for benches; this preset is what the
+            // voice agent sends as llm_tools=web.
+            return [
+                DefaultTools.get_weather,
+                DefaultTools.get_local_time,
+                DefaultTools.web_search,
+            ]
         case "phone":
             return DefaultTools.phone
         case "voice", "all", "true":

@@ -9,6 +9,8 @@ import 'ui/voice_chat_screen.dart';
 //   flutter run --dart-define-from-file=../secrets.json
 // See `secrets.example.json` for the schema.
 const _apiToken = String.fromEnvironment('TS_API_TOKEN');
+/// Optional. Authenticated Hub downloads are faster and not rate-limited.
+const _hfToken = String.fromEnvironment('HF_TOKEN');
 const _openAIKey = String.fromEnvironment('OPENAI_API_KEY');
 
 void main() {
@@ -80,7 +82,10 @@ class _HomePageState extends State<HomePage> {
       return;
     }
     try {
-      await TheStageFlutterSDK.initialize(api_token: _apiToken);
+      await TheStageFlutterSDK.initialize(
+        api_token: _apiToken,
+        hf_token: _hfToken.isEmpty ? null : _hfToken,
+      );
       setState(() => _initialized = true);
     } catch (e) {
       setState(() => _initError = 'SDK initialization failed: $e');

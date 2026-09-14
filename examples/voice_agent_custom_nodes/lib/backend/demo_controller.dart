@@ -130,14 +130,14 @@ class DemoController extends ChangeNotifier {
 
     await _agent.start(
       config: settings.toAgentConfig(),
-      extraNodes: [vlm!, eventLog!],
+      extra_nodes: [vlm!, eventLog!],
     );
 
     status = 'Loading LLM…';
     notifyListeners();
     await r.ensureHot(['llm']);
 
-    await _agent.beginListening();
+    await _agent.begin_listening();
     running = true;
     status = 'Listening';
     notifyListeners();
@@ -207,7 +207,7 @@ class DemoController extends ChangeNotifier {
   }
 
   Future<void> sendText(String text) async {
-    await _agent.sendRequest(text);
+    await _agent.send_request(text);
   }
 
   void _onAgentEvent(Map<String, dynamic> e) {

@@ -14,8 +14,18 @@ enum MethodChannels {
         "thestage_apple_sdk/voice_agent_transcripts"
     static let voiceAgentVADProbabilities =
         "thestage_apple_sdk/voice_agent_vad_probabilities"
+    static let voiceAgentTTSLevels =
+        "thestage_apple_sdk/voice_agent_tts_levels"
     static let voiceAgentPorts = "thestage_apple_sdk/voice_agent_ports"
     static let voiceAgentNodes = "thestage_apple_sdk/voice_agent_nodes"
+    static let asrEngineEvents = "thestage_apple_sdk/asr_engine_events"
+    static let asrEngineTurns = "thestage_apple_sdk/asr_engine_turns"
+    static let asrEngineTranscripts =
+        "thestage_apple_sdk/asr_engine_transcripts"
+    static let asrEnginePartials =
+        "thestage_apple_sdk/asr_engine_partials"
+    static let asrEngineVADProbabilities =
+        "thestage_apple_sdk/asr_engine_vad_probabilities"
     static let logs = "thestage_apple_sdk/logs"
 }
 
@@ -37,9 +47,13 @@ enum MethodRoute {
 
     static let infer = "infer"
     static let startStream = "start_stream"
+    static let openStream = "open_stream"
     static let send = "send"
+    static let flush = "flush"
     static let finishStream = "finish_stream"
+    static let closeStream = "close_stream"
     static let stopStream = "stop_stream"
+    static let cancelStream = "cancel_stream"
 
     static let audioStart = "audio_start"
     static let audioEnqueue = "audio_enqueue"
@@ -64,7 +78,19 @@ enum MethodRoute {
         "voice_agent.publish_node_event"
     static let voiceAgentSendRequest = "voice_agent.send_request"
 
+    static let asrEngineStart = "asr_engine.start"
+    static let asrEngineStop = "asr_engine.stop"
+
     static let screenRecorderIsRecording = "screen_recorder.is_recording"
     static let screenRecorderStart = "screen_recorder.start"
     static let screenRecorderStop = "screen_recorder.stop"
+
+    static let cacheList = "cache.list"
+    static let cacheVerify = "cache.verify"
+    static let cacheRepair = "cache.repair"
+    static let cacheRepairAll = "cache.repair_all"
+    static let previousLaunch = "previous_launch"
+    static let fieldCounters = "field_counters"
+    static let durabilityFlags = "durability_flags"
+    static let setDurabilityFlag = "set_durability_flag"
 }

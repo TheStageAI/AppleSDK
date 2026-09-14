@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import 'method_channels.dart';
+import 'model_component.dart';
 
 // ---------------------------------------------------------------------------
 // TheStageFlutterSDK
@@ -63,11 +65,20 @@ class TheStageFlutterSDK {
   // Lifecycle
   // ---------------------------------------------------------------------------
 
-  static Future<void> initialize({required String api_token}) async {
+  /// [hf_token] is optional: an authenticated Hugging Face download gets the
+  /// Hub's higher rate limits and faster transfer path. It is sent to
+  /// huggingface.co only and never logged.
+  static Future<void> initialize({
+    required String api_token,
+    String? hf_token,
+  }) async {
     ensureDeveloperLogs();
     await _channel.invokeMethod(
       MethodRoute.initialize,
-      {'api_token': api_token},
+      {
+        'api_token': api_token,
+        if (hf_token != null && hf_token.isNotEmpty) 'hf_token': hf_token,
+      },
     );
   }
 
@@ -92,6 +103,63 @@ class TheStageFlutterSDK {
           if (config != null) 'config': config,
         });
     return _asMap(result);
+  }
+
+  static Future<Map<String, dynamic>> start_asr_model({
+    required String model_name,
+    required String engines_path,
+    String device = 'npu',
+    String? revision,
+    Map<String, String>? devices,
+    Map<String, dynamic>? config,
+  }) {
+    return start_model(
+      model_name: model_name,
+      engines_path: engines_path,
+      model_type: 'thestage_asr',
+      device: device,
+      revision: revision,
+      devices: devices,
+      config: config,
+    );
+  }
+
+  static Future<Map<String, dynamic>> start_tts_model({
+    required String model_name,
+    required String engines_path,
+    String device = 'npu',
+    String? revision,
+    Map<String, String>? devices,
+    Map<String, dynamic>? config,
+  }) {
+    return start_model(
+      model_name: model_name,
+      engines_path: engines_path,
+      model_type: 'thestage_tts',
+      device: device,
+      revision: revision,
+      devices: devices,
+      config: config,
+    );
+  }
+
+  static Future<Map<String, dynamic>> start_llm_model({
+    required String model_name,
+    required String engines_path,
+    String device = 'npu',
+    String? revision,
+    Map<String, String>? devices,
+    Map<String, dynamic>? config,
+  }) {
+    return start_model(
+      model_name: model_name,
+      engines_path: engines_path,
+      model_type: 'thestage_llm',
+      device: device,
+      revision: revision,
+      devices: devices,
+      config: config,
+    );
   }
 
   static Future<Map<String, dynamic>> stop_model({
@@ -201,6 +269,30 @@ class TheStageFlutterSDK {
     }
   }
 
+  static Future<String> open_push_stream({
+    required String model_name,
+    required String kind,
+    Map<String, dynamic> input_json = const {},
+    String? stream_id,
+  }) async {
+    _ensureStreamChannel();
+    final id = stream_id ?? _makeStreamId(model_name);
+    await _channel.invokeMethod(MethodRoute.startStream, {
+      'model_name': model_name,
+      'input_json': input_json,
+      'stream_id': id,
+      'kind': kind,
+    });
+    return id;
+  }
+
+  static Stream<Map<String, dynamic>> events_for(String stream_id) {
+    _ensureStreamChannel();
+    return _streamEvents!.stream.where(
+      (chunk) => chunk['stream_id'] == stream_id,
+    );
+  }
+
   static Future<void> send({
     required String stream_id,
     required String text,
@@ -211,16 +303,44 @@ class TheStageFlutterSDK {
     });
   }
 
+  static Future<void> send_pcm({
+    required String stream_id,
+    required Float32List pcm,
+  }) async {
+    await _channel.invokeMethod(MethodRoute.send, {
+      'stream_id': stream_id,
+      'pcm': pcm,
+    });
+  }
+
+  static Future<void> flush_stream({required String stream_id}) async {
+    await _channel.invokeMethod(MethodRoute.flush, {
+      'stream_id': stream_id,
+    });
+  }
+
+  static Future<Map<String, dynamic>> close_stream({
+    required String stream_id,
+  }) async {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      MethodRoute.finishStream,
+      {'stream_id': stream_id},
+    );
+    return _asMap(result);
+  }
+
   static Future<void> finish_stream({required String stream_id}) async {
-    await _channel.invokeMethod(MethodRoute.finishStream, {
+    await close_stream(stream_id: stream_id);
+  }
+
+  static Future<void> cancel_stream({required String stream_id}) async {
+    await _channel.invokeMethod(MethodRoute.stopStream, {
       'stream_id': stream_id,
     });
   }
 
   static Future<void> stop_stream({required String stream_id}) async {
-    await _channel.invokeMethod(MethodRoute.stopStream, {
-      'stream_id': stream_id,
-    });
+    await cancel_stream(stream_id: stream_id);
   }
 
   // ---------------------------------------------------------------------------
@@ -240,9 +360,16 @@ class TheStageFlutterSDK {
         .toList();
   }
 
+  static Future<List<ModelComponentStatus>> components({
+    required String model_name,
+  }) async {
+    final rows = await list_components(model_name: model_name);
+    return rows.map(ModelComponentStatus.from_json).toList();
+  }
+
   static Future<List<Map<String, dynamic>>> load_components({
     required String model_name,
-    required List<String> component_ids,
+    List<String> component_ids = const [],
   }) async {
     final result = await _channel.invokeMethod<List<Object?>>(
       MethodRoute.loadComponents,
@@ -256,7 +383,7 @@ class TheStageFlutterSDK {
 
   static Future<List<Map<String, dynamic>>> unload_components({
     required String model_name,
-    required List<String> component_ids,
+    List<String> component_ids = const [],
   }) async {
     final result = await _channel.invokeMethod<List<Object?>>(
       MethodRoute.unloadComponents,
@@ -296,6 +423,72 @@ class TheStageFlutterSDK {
       'footprint_mb': footprint,
       if (resident != null && resident >= 0) 'resident_mb': resident,
     };
+  }
+
+  static Future<List<Map<String, dynamic>>> list_model_cache() async {
+    final result = await _channel.invokeMethod<List<Object?>>(
+      MethodRoute.cacheList,
+    );
+    if (result == null) return [];
+    return result
+        .map((item) => _asMap(item as Map<Object?, Object?>))
+        .toList();
+  }
+
+  static Future<bool> verify_model_cache(String key) async {
+    return await _channel.invokeMethod<bool>(
+          MethodRoute.cacheVerify,
+          {'key': key},
+        ) ??
+        false;
+  }
+
+  static Future<bool> repair_model_cache(String key) async {
+    return await _channel.invokeMethod<bool>(
+          MethodRoute.cacheRepair,
+          {'key': key},
+        ) ??
+        false;
+  }
+
+  static Future<void> repair_all_model_cache() async {
+    await _channel.invokeMethod(MethodRoute.cacheRepairAll);
+  }
+
+  static Future<Map<String, dynamic>?> previous_launch() async {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      MethodRoute.previousLaunch,
+    );
+    if (result == null) return null;
+    return _asMap(result);
+  }
+
+  static Future<Map<String, int>> field_counters() async {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      MethodRoute.fieldCounters,
+    );
+    final map = _asMap(result);
+    return map.map((key, value) => MapEntry(key, (value as num).toInt()));
+  }
+
+  static Future<Map<String, bool>> durability_flags() async {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      MethodRoute.durabilityFlags,
+    );
+    final map = _asMap(result);
+    return map.map((key, value) => MapEntry(key, value == true));
+  }
+
+  static Future<Map<String, bool>> set_durability_flag(
+    String name,
+    bool value,
+  ) async {
+    final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+      MethodRoute.setDurabilityFlag,
+      {'name': name, 'value': value},
+    );
+    final map = _asMap(result);
+    return map.map((key, value) => MapEntry(key, value == true));
   }
 
   static String _makeStreamId(String model_name) {

@@ -9,14 +9,14 @@ import TheStageCore
 final class VoiceAgentBroadcastStream: NSObject, FlutterStreamHandler {
 
     typealias OpenConnector = @MainActor (
-        _ agent: TheStageVoiceAgent,
+        _ agent: TSVoiceAgent,
         _ sink: @escaping @Sendable (Any) -> Void
     ) -> @MainActor () -> Void
 
     // ----------------------------------------------------------------------------------
     // Private Attributes
     // ----------------------------------------------------------------------------------
-    private let __agent_provider: @MainActor () -> TheStageVoiceAgent?
+    private let __agent_provider: @MainActor () -> TSVoiceAgent?
     private let __open: OpenConnector
     private var __sink: FlutterEventSink?
     private var __disconnect: (@MainActor () -> Void)?
@@ -25,7 +25,7 @@ final class VoiceAgentBroadcastStream: NSObject, FlutterStreamHandler {
     // Constructor
     // ----------------------------------------------------------------------------------
     init(
-        agent_provider: @escaping @MainActor () -> TheStageVoiceAgent?,
+        agent_provider: @escaping @MainActor () -> TSVoiceAgent?,
         open: @escaping OpenConnector
     ) {
         self.__agent_provider = agent_provider
@@ -36,8 +36,8 @@ final class VoiceAgentBroadcastStream: NSObject, FlutterStreamHandler {
     // Public Methods
     // ----------------------------------------------------------------------------------
     static func string(
-        agent_provider: @escaping @MainActor () -> TheStageVoiceAgent?,
-        port: @escaping @Sendable (TheStageVoiceAgent) -> AgentChannel<String>
+        agent_provider: @escaping @MainActor () -> TSVoiceAgent?,
+        port: @escaping @Sendable (TSVoiceAgent) -> AgentChannel<String>
     ) -> VoiceAgentBroadcastStream {
         VoiceAgentBroadcastStream(
             agent_provider: agent_provider
@@ -50,8 +50,8 @@ final class VoiceAgentBroadcastStream: NSObject, FlutterStreamHandler {
     }
 
     static func double(
-        agent_provider: @escaping @MainActor () -> TheStageVoiceAgent?,
-        port: @escaping @Sendable (TheStageVoiceAgent) -> AgentChannel<Double>
+        agent_provider: @escaping @MainActor () -> TSVoiceAgent?,
+        port: @escaping @Sendable (TSVoiceAgent) -> AgentChannel<Double>
     ) -> VoiceAgentBroadcastStream {
         VoiceAgentBroadcastStream(
             agent_provider: agent_provider
@@ -63,7 +63,7 @@ final class VoiceAgentBroadcastStream: NSObject, FlutterStreamHandler {
         }
     }
 
-    func bind(agent: TheStageVoiceAgent) {
+    func bind(agent: TSVoiceAgent) {
         __disconnect?()
         __disconnect = nil
         if __sink != nil {
@@ -100,7 +100,7 @@ final class VoiceAgentBroadcastStream: NSObject, FlutterStreamHandler {
     // ----------------------------------------------------------------------------------
     // Private Methods
     // ----------------------------------------------------------------------------------
-    private func __open_connector(agent: TheStageVoiceAgent) {
+    private func __open_connector(agent: TSVoiceAgent) {
         let sink = __sink
         __disconnect = __open(agent) { value in
             DispatchQueue.main.async {

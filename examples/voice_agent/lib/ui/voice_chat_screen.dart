@@ -128,28 +128,16 @@ class _VoiceChatScreenState extends State<VoiceChatScreen> {
       return;
     }
     try {
-      // Don't seed the checklist with STT — that made Whisper appear twice
-      // (fake row, then real `STT (...)` from the agent). Keep the loader
-      // held so deferred LFM still shows after agent.start.
+      // The agent loads its whole stack (VAD, STT, turn, TTS, LLM) as one
+      // sequence and reports each row through model_loading; the app adds no
+      // rows of its own (a second LLM row came from the old deferred start).
       final local = widget.settings.useLocalBundles;
-      final deferLlm = widget.settings.llmProvider == 'local';
-      _controller.beginStartup(holdForDeferredLlm: deferLlm);
+      _controller.beginStartup();
       var config = widget.settings.toConfig(widget.openAIKey);
       if (local) {
         config = await widget.settings.resolveLocalConfig(config);
       }
       await _controller.start(config);
-      if (deferLlm) {
-        // Models are up but mic is still closed (`auto_listen: false`).
-        // Load LLM next (HF or bundled), then arm listening.
-        final label = local
-            ? widget.settings.localLlmBundle
-            : widget.settings.llmModel;
-        _controller.beginDeferredModel(label);
-        await widget.settings.startLocalLlm();
-        await _controller.beginListening();
-        _controller.finishDeferredLoad();
-      }
     } catch (e) {
       _controller.failStartup(e);
       if (mounted) {

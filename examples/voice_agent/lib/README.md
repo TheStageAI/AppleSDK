@@ -78,7 +78,9 @@ state change repaints the relevant bubbles.
 `agent.start(config:)`. It's grouped by subsystem:
 
 - **LLM** — `llm_provider` / `llm_model` / `llm_endpoint` / `llm_api_key` /
-  `system_prompt` / `max_tokens` / `temperature`.
+  `system_prompt` / `max_tokens` / `temperature`. Local Path A also sends
+  that model's vendor card (`top_k` / `top_p` / `min_p` / `repetition_penalty`:
+  LFM ≠ Qwen ≠ Gemma).
 - **ASR** — `stt` (Whisper), `stt_language`, `asr_streaming` (live captions),
   plus the `turn_*` keys for neural (smart-turn) end-of-turn detection.
 - **TTS** — `tts` (NeuTTS), `tts_voice`.

@@ -1,6 +1,13 @@
 export 'src/thestage_flutter_sdk.dart';
 export 'src/audio_player.dart';
-export 'src/voice_agent.dart';
-export 'src/agent_node.dart';
+export 'src/ts_voice_agent.dart';
+export 'src/ts_agent_node.dart';
 export 'src/tts_controller.dart';
 export 'src/screen_recorder.dart';
+export 'src/asr_engine.dart';
+export 'src/asr_stream.dart';
+export 'src/tts_stream.dart';
+export 'src/model_component.dart';
+export 'src/inference_types.dart';
+export 'src/ts_asr_engine.dart';
+export 'src/ts_compat_aliases.dart';

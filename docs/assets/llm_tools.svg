@@ -1,0 +1,70 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 666" width="900" height="666" role="img" aria-label="Tool calling, one turn">
+  <style>
+  .bg{fill:#131313}
+  .dot{fill:#1F1F1F}
+  .card{fill:#1A1A1A;stroke:#303030;stroke-width:1}
+  .card-accent{fill:#1F1714;stroke:#FF885A;stroke-width:1.5}
+  .card-hi{fill:#FFF844;stroke:#FFF844;stroke-width:1.5}
+  .card-muted{fill:#161616;stroke:#242424;stroke-width:1}
+  .h{fill:#FFFFFF;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  .b{fill:#646464;font:400 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px}
+  .m{fill:#6F6F6F;font:11px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .hi-t{fill:#131313;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  .hi-b{fill:#131313;font:400 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px;opacity:.72}
+  .hi-m{fill:#3D3A10;font:11px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .ttl{fill:#FFFFFF;font:500 20px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.8px}
+  .sub{fill:#646464;font:400 13px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px}
+  .edge{stroke:#4A4A4A;stroke-width:1.5;fill:none}
+  .ah{fill:#4A4A4A}
+  .edge-d{stroke:#4A4A4A;stroke-width:1.5;fill:none;stroke-dasharray:4 4}
+  .el{fill:#646464;font:400 10.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.2px}
+  .badge{fill:#242424;stroke:#303030}
+  .badge-t{fill:#8A8A8A;font:500 10px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.2px}
+  .num{fill:#646464;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  </style>
+  <defs>
+  <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+    <circle class="dot" cx="1" cy="1" r="1"/></pattern>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+    <path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="bg" width="900" height="666" rx="14"/>
+  <rect width="900" height="666" rx="14" fill="url(#dots)"/>
+  <text class="ttl" x="28" y="40">Tool calling, one turn</text>
+  <text class="sub" x="28" y="62">You pass tools with execute closures. The SDK runs them between turns on the same stream — you never re-prompt by hand.</text>
+  <rect class="card" x="28.0" y="92" width="372.0" height="113" rx="14"/>
+  <text class="h" x="46.0" y="123.0"><tspan class="num">01 / </tspan>You pass tools</text>
+  <text class="b" x="46.0" y="143.0">Each Tool carries a definition</text>
+  <text class="b" x="46.0" y="161.0">and an execute closure.</text>
+  <text class="m" x="46.0" y="185.0">[Tool] · DefaultTools.live</text>
+  <rect class="card" x="500.0" y="92" width="372.0" height="113" rx="14"/>
+  <text class="h" x="518.0" y="123.0"><tspan class="num">02 / </tspan>Model replies</text>
+  <text class="b" x="518.0" y="143.0">Either plain text, or a tool call</text>
+  <text class="b" x="518.0" y="161.0">in the family's own format.</text>
+  <text class="m" x="518.0" y="185.0">LLMStreamEvent</text>
+  <rect class="card-accent" x="28.0" y="263" width="372.0" height="113" rx="14"/>
+  <text class="h" x="46.0" y="294.0"><tspan class="num">03 / </tspan>SDK runs the tool</text>
+  <text class="b" x="46.0" y="314.0">Your closure executes.</text>
+  <text class="b" x="46.0" y="332.0">Unknown names are refused.</text>
+  <text class="m" x="46.0" y="356.0">tool_started / tool_ended</text>
+  <rect class="card" x="500.0" y="263" width="372.0" height="113" rx="14"/>
+  <text class="h" x="518.0" y="294.0"><tspan class="num">04 / </tspan>Model continues</text>
+  <text class="b" x="518.0" y="314.0">Same stream, with the tool</text>
+  <text class="b" x="518.0" y="332.0">result now in context.</text>
+  <text class="m" x="518.0" y="356.0">response_delta</text>
+  <rect class="card" x="28.0" y="434" width="372.0" height="113" rx="14"/>
+  <text class="h" x="46.0" y="465.0"><tspan class="num">05 / </tspan>Final reply</text>
+  <text class="b" x="46.0" y="485.0">Arrives on the same stream</text>
+  <text class="b" x="46.0" y="503.0">you were already reading.</text>
+  <text class="m" x="46.0" y="527.0">stop_reason</text>
+  <path class="edge" d="M406.0,148.5 L494.0,148.5" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="140.5" text-anchor="middle">with the prompt</text>
+  <path class="edge" d="M686.0,210 V227 H214.0 V255" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="221" text-anchor="middle">call detected</text>
+  <path class="edge" d="M406.0,319.5 L494.0,319.5" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="311.5" text-anchor="middle">result appended</text>
+  <path class="edge" d="M686.0,381 V398 H214.0 V426" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="392" text-anchor="middle">done</text>
+  <rect class="card-hi" x="28" y="577" width="844" height="71" rx="14"/>
+  <text class="hi-t" x="46" y="608.0">It is one stream from your side</text>
+  <text class="hi-b" x="46" y="628.0">Subscribe once; tool rounds appear as events inside the same sequence.</text>
+</svg>

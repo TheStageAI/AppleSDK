@@ -42,7 +42,7 @@ final class LLMHost {
         else {
             throw LLMHostError.missingToken
         }
-        try await TheStageAI.shared.initialize(apiToken: token)
+        try await TheStageAI.shared.initialize(api_token: token)
         initialized = true
     }
 

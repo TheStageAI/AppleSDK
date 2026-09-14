@@ -72,9 +72,9 @@ func __parse_interrupt_mode(_ value: Any?) -> InterruptMode? {
     }
 }
 
-func __parse_agent_states(_ value: Any?) -> [TheStageAgentState] {
+func __parse_agent_states(_ value: Any?) -> [TSAgentState] {
     guard let raw = value as? [String] else { return [] }
-    return raw.compactMap { TheStageAgentState(rawValue: $0) }
+    return raw.compactMap { TSAgentState(rawValue: $0) }
 }
 
 func __parse_embedding(_ value: Any?) -> [Double]? {
@@ -131,6 +131,17 @@ func __parse_tts_generation_config(
     _ payload: [String: Any]
 ) -> TTSGenerationConfig {
     var c = TTSGenerationConfig()
+    if let sampling = payload["sampling"] as? [String: Any] {
+        c.sampling = SamplingParams(
+            temperature: (sampling["temperature"] as? NSNumber)?
+                .floatValue ?? 1.0,
+            top_k: (sampling["top_k"] as? NSNumber)?.intValue ?? 0,
+            top_p: (sampling["top_p"] as? NSNumber)?.floatValue ?? 1.0,
+            min_p: (sampling["min_p"] as? NSNumber)?.floatValue ?? 0.0,
+            repetition_penalty: (sampling["repetition_penalty"] as? NSNumber)?
+                .floatValue ?? 1.0
+        )
+    }
     if let v = payload["temperature"] as? Double {
         c.temperature = v
     }
@@ -198,15 +209,16 @@ func __fail(
     _ result: @escaping FlutterResult,
     error: Error
 ) {
+    let details = ModelLoadFailure.flutterDetails(for: error)
     result(FlutterError(
         code: "THESTAGE_SDK_ERROR",
         message: __sanitize_error(error),
-        details: nil
+        details: details
     ))
 }
 
 func __sanitize_error(_ error: Error) -> String {
     // Keep the operational reason (e.g. which CoreML function failed);
     // strip absolute paths so release builds don't leak device layout.
-    TheStageLog.redact_error_text(String(describing: error))
+    TSLog.redact_error_text(String(describing: error))
 }

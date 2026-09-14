@@ -255,7 +255,7 @@ final class VLMBenchModel: ObservableObject {
                             images: [image], prompt: promptText, config: cfg
                         )
                         tokS.append(r.tokens_per_second)
-                        encS.append(r.encode_seconds)
+                        encS.append(r.encode_seconds ?? 0)
                         preS.append(r.prefill_seconds)
                         totS.append(r.total_seconds)
                         lastText = r.text

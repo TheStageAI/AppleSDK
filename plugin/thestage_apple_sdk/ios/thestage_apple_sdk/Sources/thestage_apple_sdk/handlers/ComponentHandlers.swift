@@ -34,7 +34,7 @@ extension TheStageFlutterPlugin {
         result: @escaping FlutterResult
     ) {
         __handle_component_mutation(call, result: result) { name, ids in
-            try TheStageAI.shared.load_components(
+            try await TheStageAI.shared.load_components(
                 model_name: name, ids: ids
             )
         }
@@ -45,7 +45,7 @@ extension TheStageFlutterPlugin {
         result: @escaping FlutterResult
     ) {
         __handle_component_mutation(call, result: result) { name, ids in
-            try TheStageAI.shared.unload_components(
+            try await TheStageAI.shared.unload_components(
                 model_name: name, ids: ids
             )
         }
@@ -56,18 +56,18 @@ extension TheStageFlutterPlugin {
         result: @escaping FlutterResult,
         action: @escaping (
             String, [String]
-        ) throws -> [ModelComponentStatus]
+        ) async throws -> [ModelComponentStatus]
     ) {
         guard let args = call.arguments as? [String: Any],
-              let name = args["model_name"] as? String,
-              let ids = args["component_ids"] as? [String]
+              let name = args["model_name"] as? String
         else {
-            __fail(result, msg: "Missing model_name or component_ids.")
+            __fail(result, msg: "Missing model_name.")
             return
         }
+        let ids = args["component_ids"] as? [String] ?? []
         Task { @MainActor in
             do {
-                let r = try action(name, ids)
+                let r = try await action(name, ids)
                 result(try __encode_value(r))
             } catch {
                 __fail(result, error: error)
@@ -88,6 +88,20 @@ extension TheStageFlutterPlugin {
         let stem = filename
             .replacingOccurrences(of: ".zip", with: "")
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+
+        // A sealed pack shipped as-is: BundledModels/<name>.thestage next to
+        // its `<name>.qlip_bundle.json` sidecar. The SDK opens the archive
+        // in place and extracts into its own cache, so the app carries the
+        // exact artifact that was verified and published -- no unpacked
+        // tree to drift from it.
+        if let u = Bundle.main.url(
+            forResource: stem,
+            withExtension: "thestage",
+            subdirectory: "BundledModels"
+        ) {
+            result(u.path)
+            return
+        }
 
         // Prefer directory bundles under BundledModels/<name>/ (v2 prepare).
         if let u = Bundle.main.url(

@@ -3,21 +3,22 @@
 ![On-Device Apple SDK](docs/assets/on-device-apple-sdk-banner.png)
 
 **On-device** speech, language, and audio inference for **iOS and macOS** on
-Apple Silicon. Engines ship as CoreML / MLX bundles from Hugging Face; the
+Apple Silicon. Engines ship as CoreML bundles from Hugging Face; the
 SDK picks ANE / GPU / CPU per device. After `initialize`, **inference never
 leaves the device** — there is no server in the hot path.
 
 | | |
 | --- | --- |
-| Version | **`1.3.0`** (pin this tag / SwiftPM `exact:`) |
+| Version | **`1.4.0`** (pin this tag / SwiftPM `exact:`) |
+| Checksums | [`RELEASE.md`](./RELEASE.md) — binary sha256 and the pinned model packs |
 | Platforms | iOS **18+**, macOS **15+**, Apple Silicon only |
 | Surfaces | Native Swift (`TheStageSDK`) · Flutter plugin (iOS) |
-| Engines | Hugging Face `TheStageAI/*` @ **`v1.3`** |
+| Engines | Hugging Face `TheStageAI/*` @ **`v1.4`** |
 | Token | [app.thestage.ai](https://app.thestage.ai) — online `initialize` required |
 
 > **Not supported:** iOS Simulator, Intel Macs, Android, server-side inference.
 
-### Known issues (1.3.0)
+### Known issues (1.4.0)
 
 - **Voice tool-call streaming / parsing:** filler text and tool-call markup
   can appear interleaved on the same stream, so TTS may start speaking while
@@ -53,7 +54,7 @@ when something breaks.
 touch. Hard rules:
 
 1. Always `initialize` **before** any pipeline / `start_model`.
-2. Pin the SDK to tag **`1.3.0`** (do not float `from:`).
+2. Pin the SDK to tag **`1.4.0`** (do not float `from:`).
 3. Pass HF repo ids like `"TheStageAI/Qwen3-0.6B"` — omit `revision` unless
    you intentionally override (defaults track this SDK line).
 4. Audio is **mono `Float` / `Float32List` in `[-1.0, 1.0]`** — never
@@ -98,7 +99,6 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 | `examples/` | Demos pinned to this SDK version — see [`examples/README.md`](./examples/README.md) |
 | `examples/macos_swift_tts/` | **Start here** — native Swift streaming TTS on Mac (no Xcode) |
 | `examples/engine_bench/` | iPhone LLM / TTS / ASR / VLM benches (Hugging Face engines) |
-| `examples/tts_front_stream/` | Flutter streaming TTS on a physical iPhone |
 | `examples/voice_agent/` | Flutter mic → VAD → STT → LLM → TTS with barge-in |
 | `examples/voice_agent_custom_nodes/` | Flutter custom nodes + ephemeral VLM captions |
 | `docs/` | Per-pipeline guides + [`llms.txt`](./docs/llms.txt) agent index |
@@ -108,7 +108,7 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 
 ## Capabilities & model fleet
 
-Everything below is the **production `@v1.3`**
+Everything below is the **production `@v1.4`**
 fleet. Pass the HF id as `engines_path` (or construct the typed pipeline
 with the same string).
 
@@ -181,16 +181,16 @@ from disk. Playback-only — no mic permission. Details:
 
 ```bash
 ./scripts/setup.sh                # idempotent; espeak only if you need nano-EN
-cp examples/tts_front_stream/secrets.example.json \
-   examples/tts_front_stream/secrets.json
+cp examples/voice_agent/secrets.example.json \
+   examples/voice_agent/secrets.json
 # edit secrets.json → TS_API_TOKEN
 ```
 
-In Xcode (`examples/tts_front_stream/ios/Runner.xcodeproj`): set **Team** +
+In Xcode (`examples/voice_agent/ios/Runner.xcodeproj`): set **Team** +
 unique **Bundle Identifier**, then:
 
 ```bash
-cd examples/tts_front_stream
+cd examples/voice_agent
 flutter pub get
 flutter run --release \
     --dart-define-from-file=secrets.json \
@@ -231,7 +231,7 @@ Xcode → **File → Add Package Dependencies…** → this repo URL → product
 ```swift
 .package(
     url: "https://github.com/TheStageAI/AppleSDK.git",
-    exact: Version(1, 3, 0)
+    exact: Version(1, 4, 0)
 )
 ```
 
@@ -239,7 +239,7 @@ Xcode → **File → Add Package Dependencies…** → this repo URL → product
 import TheStageSDK
 
 let ai = TheStageAI.shared
-try await ai.initialize(apiToken: "th_…")
+try await ai.initialize(api_token: "th_…")
 
 let llm = try await TheStageLLM(
     engines_path: "TheStageAI/Qwen3-0.6B",
@@ -270,7 +270,7 @@ dependencies:
     git:
       url: https://github.com/TheStageAI/AppleSDK.git
       path: plugin/thestage_apple_sdk
-      ref: 1.3.0
+      ref: 1.4.0
 ```
 
 ```bash
@@ -307,7 +307,7 @@ path to a working UI: copy an `examples/` app.
 
 ### Lifecycle
 
-1. **`initialize(apiToken:)`** — online token check + device seat
+1. **`initialize(api_token:)`** — online token check + device seat
    registration. Fails offline / on network errors. Once per process
    when reachable; after success, **inference is on-device** for that
    process.
@@ -320,8 +320,8 @@ path to a working UI: copy an `examples/` app.
 ### Revisions
 
 Omit `revision:` in normal apps. This build resolves HF tags via an
-internal map aligned with SDK **`1.3.0`** → fleet
-**`v1.3`**. Override only when
+internal map aligned with SDK **`1.4.0`** → fleet
+**`v1.4`**. Override only when
 you intentionally pin an older engine tag.
 
 ### Init & seats (product)
@@ -367,7 +367,7 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 
 | Operation | Swift | Flutter |
 | --- | --- | --- |
-| Initialize | `TheStageAI.shared.initialize(apiToken:)` | `TheStageFlutterSDK.initialize(api_token:)` |
+| Initialize | `TheStageAI.shared.initialize(api_token:)` | `TheStageFlutterSDK.initialize(api_token:)` |
 | Start | `ai.start_model(...)` | `start_model(...)` |
 | Stop | `ai.stop_model(model_name:)` | `stop_model(model_name:)` |
 | Batch | `ai.infer(model_name:input_json:)` | `infer(...)` |
@@ -386,11 +386,16 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | --- | --- |
 | [`docs/llms.txt`](./docs/llms.txt) | Agent-oriented symbol + page index |
 | [llm.md](./docs/llm.md) | Chat, streaming tokens, sampling, KV |
-| [whisper.md](./docs/whisper.md) | ASR, VAD chunking, languages |
+| [asr.md](./docs/asr.md) | TheWhisper + Qwen3-ASR: clips, live captions, languages |
+| [vlm.md](./docs/vlm.md) | Image + prompt → text |
 | [tts.md](./docs/tts.md) | NeuTTS + Qwen3-TTS, voices, streaming |
 | [vad.md](./docs/vad.md) | Silero chunk contract |
+| [audio_nodes.md](./docs/audio_nodes.md) | Default audio, custom PCM providers, node graph |
 | [streaming.md](./docs/streaming.md) | Back-pressure, sentence segmentation |
 | [voice_agent.md](./docs/voice_agent.md) | Full loop, barge-in, smart-turn knobs |
+| [loading.md](./docs/loading.md) | `load_models`, warm-up, staying specialized |
+| [types.md](./docs/types.md) | Shared configs, results, `SamplingParams` |
+| [durability_guarantees.md](./docs/durability_guarantees.md) | What survives a crash, an update, a cache purge |
 | [speaker_embedding.md](./docs/speaker_embedding.md) | Enroll / verify |
 | [licensing.md](./docs/licensing.md) | Token, seats, offline rules |
 | [logging.md](./docs/logging.md) | Support breadcrumbs |
@@ -408,9 +413,9 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | First infer very slow | HF download | Wait for `ready`; later runs use cache |
 | Flutter audio glitches / NaNs | `Float64List` or wrong rate | Use `Float32List`; match table above |
 | TTS / ASR “wrong” model type | Bundle auto-route | Pass the correct HF repo; see tts.md |
-| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.3.0` |
+| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.4.0` |
 | Voice agent never commits turn | Thresholds / mode | See smart-turn knobs in voice_agent.md |
-| Tool call + spoken filler overlap / odd parse | Known 1.3.0 streaming gap | See [Known issues](#known-issues-130); fix planned next release |
+| Tool call + spoken filler overlap / odd parse | Known streaming gap this release | See Known issues above; fix planned next release |
 
 ---
 

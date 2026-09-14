@@ -1,98 +1,94 @@
 # ASR (Speech-to-Text)
 
-On-device speech recognition. Two shipping families share the same
-`thestage_asr` JSON path (`start_model` + `infer`) and the same **16
-kHz mono float** audio contract:
+On-device speech recognition. Two model families ship — **TheWhisper**
+and **Qwen3-ASR** — and both take the same **16 kHz mono float** audio
+and return the same `ASRResult`. Nothing you record leaves the device.
 
-- **Whisper** (`WhisperPipeline`) — mel → encoder → decoder, optional
-  internal Silero VAD, long-audio windows, Swift push streamer for live
-  partials.
-- **Qwen3-ASR** (`Qwen3ASRPipeline`) — audio encoder + Qwen3 decoder
-  (audio prefix). Greedy decode; language `"auto"` or a hint. Batch /
-  agent path only — no push streamer.
-
-Flutter uses the singleton (no Dart constructors). Prefer device `npu`
-on Apple Silicon. Omit `revision:` → fleet pin.
+Use it in two ways: hand over a clip and get a transcript back, or open
+a live session and get captions while the user is still talking.
 
 > **Main features**
 >
-> - **Two families, one path**: Whisper large-v3-turbo and Qwen3-ASR
->   0.6B both load through `start_model("stt")` and return the same
->   `ASRResult` shape.
-> - **16 kHz mono float contract**: `AudioIO.load_wav(...)` resamples
->   files for you; from memory, feed `[Float]` (Swift) or `Float32List`
->   (Flutter) in `[-1, 1]`.
-> - **Long-audio windowing**: Whisper stitches 10 s windows with
->   optional `overlap_seconds`; Qwen3-ASR splits into 30 s segments and
->   joins the transcripts.
-> - **Language auto-detect (Qwen3-ASR)**: `language: "auto"` returns the
->   transcript plus a detected language token. Whisper needs an explicit
->   ISO code.
-> - **Live partials (Whisper, Swift)**: `open_streamer(language:
->   partial_interval_ms:)` gives `partials` + authoritative `finish()`
->   + `flush()` / `cancel()` for barge-in.
-> - **Internal Silero VAD (Whisper)**: skips silence and stops
->   hallucinated text out of the box; opt out when an upstream gate
->   already trimmed speech.
-> - **Voice-agent parity**: both families work as the agent's STT
->   provider via auto-routing.
+> - **One call for both families**: `infer(audio:config:)` on Swift,
+>   `infer(model_name: "stt", …)` on Flutter. Switch model by changing
+>   the engine path.
+> - **Live captions**: two kinds of text at once — *committed* words that
+>   will not change, and a *hypothesis* that fills in ahead of them.
+> - **The SDK can own the microphone**: `ASREngine(config:)` captures,
+>   detects speech and decides when a sentence ended. You only read text.
+> - **Or you keep your audio pipeline**: push 16 kHz frames into
+>   `open_stream` from any source.
+> - **Long recordings**: pass the whole file; windowing and stitching are
+>   automatic.
+> - **Word timestamps**: `timestamps: .WORD` returns every word with
+>   start and end, for seeking and highlighting.
+> - **Language detection**: `language: "auto"` when you do not know
+>   what the user will speak.
 
 ## In this page
 
 Here we will cover the following topics:
 
-- [**Supported models**](#supported-models): feature matrix (streaming, language, windowing, VAD).
-- [**API surface**](#api-surface): Swift constructor / Flutter singleton, batch and streaming.
-- [**Quick start**](#quick-start): batch WAV, live partials, Flutter one-shot.
-- [**Audio contract**](#audio-contract): the 16 kHz mono float rule and its escape hatches.
-- [**Configuration**](#configuration): `overlap_seconds`, `use_internal_vad`, `language`, tokens.
-- [**Streaming API**](#streaming-api): Whisper `send` / `partials` / `flush` / `finish` / `cancel`.
-- [**Result object**](#result-object): `ASRResult` and its Flutter JSON keys.
-- [**Lifecycle**](#lifecycle): initialize → construct → infer / stream → cleanup.
-- [**Usage Guides**](#usage-guides): WAV from disk, PCM from memory, sample rate, long audio, mic → infer, partials, disable VAD, Whisper vs Qwen3-ASR, run Qwen3-ASR (auto / hint / batch), non-English, Flutter JSON keys, live captions in a product UI.
-- [**Troubleshooting**](#troubleshooting): empty transcripts, dropped words at seams, slow long files, wrong language, VAD edge cases, load failures, Flutter audio-type errors.
+- [Supported models](#supported-models): the two families, what each does better, and how to pick.
+- [Quick start](#quick-start): transcribe a file, live captions, or push your own PCM — Swift and Flutter side by side.
+- [Transcribe audio](#transcribe-audio): the batch call, the audio contract, and per-call options.
+- [Live captions](#live-captions): the two `ASREngine` modes, committed vs hypothesis text, and which knobs are worth touching.
+- [Result object](#result-object): `ASRResult` fields and their Flutter JSON keys.
+- [Usage Guides](#usage-guides): voice notes, meeting recordings, telephony audio, live subtitles, multilingual users, turn endings.
+- [Troubleshooting](#troubleshooting): symptom → cause → fix.
+- [Load Progress / Prefetch / Cleanup](#load-progress-prefetch-cleanup): first-run download, warming the cache, releasing models.
 
 ## Supported models
 
+Two families, chosen by what your product needs rather than by API —
+the calls are identical.
+
 | Model | HF repo | Base | Device | Fleet pin |
-|-------|---------|------|--------|-----------|
+|---|---|---|---|---|
 | TheWhisper Large V3 Turbo | `TheStageAI/thewhisper-large-v3-turbo` | Whisper-large-v3-turbo | NPU | v1.1 |
 | Qwen3-ASR 0.6B | `TheStageAI/Qwen3-ASR-0.6B` | 0.6B | NPU | v1.1 |
 
-| Feature | Whisper turbo | Qwen3-ASR 0.6B |
-|---------|:-------------:|:--------------:|
-| Batch `infer` (16 kHz mono) | yes | yes |
-| Flutter / `start_model` | yes | yes |
-| Language hint | Whisper codes (en, fr, …) | auto / code / English name |
-| Internal Silero VAD | yes | — |
-| Long-audio windowing | ~10 s | ~30 s segments |
-| Push streamer (live partials) | yes (Swift) | — |
-| Voice Agent STT | yes | yes (via `thestage_asr`) |
+| Feature | TheWhisper turbo | Qwen3-ASR 0.6B |
+|---|---|---|
+| Batch `infer` | yes | yes |
+| Live captions (`open_stream`) | yes, sentence-level commits | yes, prefix commits |
+| Word timestamps | yes, measured | approximate |
+| Language hint | `auto` / ISO code | `auto` / ISO code / English name |
+| Long audio | 10 s windows, stitched | 30 s windows, stitched |
+| Voice Agent STT | yes | yes |
 
-## API surface
+**Which one?**
 
-| Purpose | Swift | Flutter |
-|---------|-------|---------|
-| Init (Whisper) | `try await WhisperPipeline(engines_path:device:overlap_seconds:use_internal_vad:)` | `start_model(model_name:"stt", engines_path:, config:)` |
-| Init (Qwen3-ASR) | `try await Qwen3ASRPipeline(engines_path:device:)` | same `start_model` — auto-routed |
-| One-shot | `stt.infer(audio:language:config:)` → `ASRResult` | `infer(model_name:"stt", input_json:{'audio':…})` |
-| Streaming (Whisper) | `stt.open_streamer(language:partial_interval_ms:)` | use [Voice Agent](./voice_agent.md) |
-| Progress | `on_load_progress` | `TheStageFlutterSDK.on_progress` |
-| Cleanup | drop the pipeline | `stop_model(model_name:"stt")` |
+| You need… | Pick | Why |
+|---|---|---|
+| Live captions that read well while the user talks | **TheWhisper** | Measured word timing lets it commit whole sentences with punctuation, so text does not flicker. |
+| Word-level timestamps for seeking or highlighting | **TheWhisper** | Timings are measured, not estimated. |
+| Transcripts fed straight into an LLM prompt | **Qwen3-ASR** | Same tokenizer family as Qwen3 LLMs; output is plain text. |
+| Smallest footprint | **TheWhisper** | Smaller decoder, faster first result on Apple Silicon. |
+| Voice Agent | Either | The agent routes automatically from the pack. |
 
 ## Quick start
 
-**Swift — batch transcript from a WAV:**
+Three ways to run ASR. They differ in one thing — **who owns the
+microphone** — and that decides the whole shape of your code.
+
+| You want | Who owns audio | Use |
+|---|---|---|
+| A transcript of a file | Nobody — you hand over samples | `infer` |
+| Live captions, fastest path | **The SDK**: mic, VAD and turns | `ASREngine(config:)` / `TSASREngine` |
+| Live captions inside an audio app you already have | **You** — push PCM frames | `open_stream` / `ASRStream.open` |
+
+### Transcribe a file
+
+**Swift**
 
 ```swift
 import TheStageSDK
 
-try await TheStageAI.shared.initialize(apiToken: "your-api-token")
+try await TheStageAI.shared.initialize(api_token: "your-api-token")
 
 let stt = try await WhisperPipeline(
-    engines_path: "TheStageAI/thewhisper-large-v3-turbo",
-    device: "npu",
-    use_internal_vad: true
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
 )
 
 let samples = try AudioIO.load_wav(
@@ -100,551 +96,1012 @@ let samples = try AudioIO.load_wav(
     target_sample_rate: 16_000
 )
 
-let result = stt.infer(audio: samples, language: "en")
-print(result.text)
-```
-
-**Swift — live partials via `open_streamer`:**
-
-```swift
-let streamer = stt.open_streamer(language: "en", partial_interval_ms: 600)
-Task {
-    for await partial in streamer.partials {
-        captionLabel.text = partial     // cosmetic live text
-    }
-}
-
-// push 16 kHz mono chunks from your mic:
-streamer.send(micChunk)
-// at end of turn:
-let finalText = try await streamer.finish()
-```
-
-**Flutter — one-shot JSON:**
-
-```dart
-await TheStageFlutterSDK.initialize(api_token: 'your-api-token');
-await TheStageFlutterSDK.start_model(
-  model_name: 'stt',
-  engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
-  config: {'use_internal_vad': true},
-);
-
-final out = await TheStageFlutterSDK.infer(
-  model_name: 'stt',
-  input_json: {
-    'audio': pcm16k as Float32List,   // 16 kHz mono float
-    'language': 'en',
-  },
-);
-print(out[0]['transcription']);
-```
-
-## Audio contract
-
-Audio must be **16 kHz mono float** in `[-1, 1]` before `infer` —
-`infer` does not auto-resample. Helper:
-`AudioIO.load_wav(path:target_sample_rate:)`. Flutter must pass
-`Float32List` (not `Float64List`). See
-[Audio I/O Contract](./README.md#audio-io-contract).
-
-## Configuration
-
-| Knob | When it applies | Notes |
-|------|-----------------|-------|
-| `overlap_seconds` | Whisper init | Long-audio window overlap (default 0) |
-| `use_internal_vad` | Whisper init | Bundled Silero pre-pass (default true) |
-| `language` | per call | Whisper codes; Qwen3 accepts `auto` / code / English name |
-| `max_new_tokens` | per call | Cap per-window decode |
-| `return_tokens` | per call | Include token IDs in the result |
-| `partial_interval_ms` | Whisper streamer | Cadence of partial captions (default 600 ms) |
-
-## Streaming API
-
-Whisper only — Swift-only for now (Flutter should use
-[Voice Agent](./voice_agent.md) for live captions).
-
-| API | Role |
-|-----|------|
-| `send(_:)` | Push `[Float]` 16 kHz frames (any size) |
-| `partials` | `AsyncStream<String>` — cosmetic live captions |
-| `flush()` | Commit at a VAD pause |
-| `finish()` | Authoritative end-of-turn transcript |
-| `cancel()` | Abort (barge-in) |
-
-## Result object
-
-| Field | Meaning |
-|-------|---------|
-| `text` / `transcription` | Transcript (Swift `text`, JSON `transcription`) |
-| `token_count` | Decoded tokens |
-| `decode_seconds` | Decoder wall time |
-| `tokens` | Only when `return_tokens` is set |
-
-## Lifecycle
-
-1. `initialize(apiToken:)` once per process.
-2. Construct a pipeline or `start_model` — first call downloads and
-   compiles the pack.
-3. Call `infer` / open a streamer. Streamers are single-use — call
-   `finish()` or `cancel()` before opening the next one.
-4. Drop the pipeline (Swift) or `stop_model` (Flutter) when done.
-
-## Usage Guides
-
-Jump to a recipe:
-
-- [How do I load a WAV from disk for `infer`?](#how-do-i-load-a-wav-from-disk-for-infer)
-- [How do I pass PCM from memory?](#how-do-i-pass-pcm-from-memory)
-- [Why does the wrong sample rate break quality?](#why-does-the-wrong-sample-rate-break-quality)
-- [How do I handle long audio?](#how-do-i-handle-long-audio)
-- [How do I go from live mic → batch `infer`?](#how-do-i-go-from-live-mic-batch-infer)
-- [How do I stream partials (`open_streamer` / `finish` / `flush` / `cancel`)?](#how-do-i-stream-partials-open-streamer-finish-flush-cancel)
-- [How do I disable internal VAD?](#how-do-i-disable-internal-vad)
-- [When should I pick Whisper vs Qwen3-ASR?](#when-should-i-pick-whisper-vs-qwen3-asr)
-- [How do I run Qwen3-ASR (auto-detect / hint / batch)?](#how-do-i-run-qwen3-asr-auto-detect-hint-batch)
-- [How do I transcribe non-English audio?](#how-do-i-transcribe-non-english-audio)
-- [What JSON key holds the transcript on Flutter?](#what-json-key-holds-the-transcript-on-flutter)
-- [How do I get live captions in a product UI?](#how-do-i-get-live-captions-in-a-product-ui)
-
-### How do I load a WAV from disk for `infer`?
-
-Use `AudioIO.load_wav` — it loads mono Float PCM and resamples to
-**16 kHz**. Do **not** peak-normalize.
-
-**Fixture:** [`assets/asr_sample.wav`](./assets/asr_sample.wav)
-
-**Example output** (Whisper turbo, NPU):
-
-| Metric | Value |
-|---|---|
-| Transcript | `The quick brown fox jumps over the lazy dog.` |
-| Word recall | 100% |
-| Wall | ~0.115 s |
-| tok/s | ~256.5 |
-| rtfx | ~22.53 |
-
-**Swift:**
-
-```swift
-import TheStageSDK
-
-try await TheStageAI.shared.initialize(apiToken: "your-api-token")
-
-let stt = try await WhisperPipeline(
-    engines_path: "TheStageAI/thewhisper-large-v3-turbo",
-    device: "npu"
+let result = try stt.infer(
+    audio: samples,
+    config: ASRGenerationConfig(language: "en")
 )
-
-let samples: [Float] = try AudioIO.load_wav(
-    path: "docs/assets/asr_sample.wav",
-    target_sample_rate: 16_000
-)
-let result: ASRResult = stt.infer(audio: samples, language: "en")
-print(result.text)
-// The quick brown fox jumps over the lazy dog.
-```
-
-`AudioIO.load_wav` → `[Float]` (16 kHz mono, typically in `[-1, 1]`).
-
-### How do I pass PCM from memory?
-
-```swift
-// Your buffer: 16 kHz mono Float in [-1, 1]
-let pcm_floats: [Float] = /* mic / decoder / network PCM */
-let result: ASRResult = stt.infer(audio: pcm_floats, language: "en")
 print(result.text)
 ```
 
-| Rule | |
-|---|---|
-| Swift type | `[Float]` |
-| Rate | **16 kHz** (resample with `AudioIO.load_wav` or your converter) |
-| Channels | **Mono** |
-| Scale | Float `[-1, 1]` — Int16 → `Float(i16) / 32768` |
-| Loudness normalize | **No** by default |
-
-**Flutter:**
+**Flutter**
 
 ```dart
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
-import 'dart:typed_data';
 
 await TheStageFlutterSDK.initialize(api_token: 'your-api-token');
-
 await TheStageFlutterSDK.start_model(
   model_name: 'stt',
   engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
 );
 
-// Float32List — 16 kHz mono, values in [-1.0, 1.0]
-final Float32List audioSamples = /* your PCM */;
-final result = await TheStageFlutterSDK.infer(
-  model_name: 'stt',
-  input_json: {
-    'audio': audioSamples,
-    'language': 'en',
-  },
+// 16 kHz mono Float32 samples — here a headerless float32 file
+// (see Audio contract)
+final bytes = await File('/path/to/clip_16k.pcm').readAsBytes();
+final pcm16k = Float32List.view(bytes.buffer);
+final stt = ASREngine(stt: 'stt');
+final result = await stt.infer(
+  // Float32List, 16 kHz mono
+  pcm16k,
+  config: const ASRGenerationConfig(language: 'en'),
 );
-final String transcript = result[0]['transcription'] as String;
-print(transcript);
+print(result.text);
 ```
 
-Always `initialize` before constructing / `start_model`.
+### Live captions — the SDK owns the microphone
 
-### Why does the wrong sample rate break quality?
+The shortest path to working captions. You get text; the SDK handles
+capture, voice detection, and deciding where one utterance ends.
 
-Feed 44.1 / 48 kHz without resampling → time-warped speech → empty or
-nonsense transcripts. Always land on **16 kHz mono Float**
-(`AudioIO.load_wav` does this for files). There is no internal
-resampler inside `WhisperPipeline.infer`.
-
-### How do I handle long audio?
-
-You do **not** need to split manually. The pipeline windows at **10 s**
-and stitches transcripts. For words that straddle seams, set
-`overlap_seconds` (1–2 s is typical):
+**Swift**
 
 ```swift
-let stt = try await WhisperPipeline(
-    engines_path: "TheStageAI/thewhisper-large-v3-turbo",
-    overlap_seconds: 2
+var config = TSAgentConfig(
+    vad: "TheStageAI/silero-vad",
+    stt: "TheStageAI/thewhisper-large-v3-turbo"
 )
-let full_recording: [Float] = /* 16 kHz mono PCM */
-let result: ASRResult = stt.infer(audio: full_recording, language: "en")
-```
+config.asr_generation = ASRGenerationConfig(
+    language: "en",
+    timestamps: .WORD
+)
 
-```dart
-await TheStageFlutterSDK.start_model(
-  model_name: 'stt',
-  engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
-  config: {'overlap_seconds': 2},
-);
-```
-
-Windows run sequentially — a 60 s file is roughly 6× one window. Keep
-internal VAD on (default) to skip silence, or pre-segment speech.
-
-### How do I go from live mic → batch `infer`?
-
-Simplest live path: capture at 16 kHz mono, accumulate one utterance,
-then `infer` once.
-
-```swift
-import TheStageSDK
-import AVFoundation
-
-let engine = AVAudioEngine()
-let input = engine.inputNode
-let format = AVAudioFormat(
-    commonFormat: .pcmFormatFloat32,
-    sampleRate: 16000, channels: 1, interleaved: false
-)!
-var accumulated: [Float] = []
-
-input.installTap(onBus: 0, bufferSize: 4096, format: format) { buffer, _ in
-    let ptr = buffer.floatChannelData![0]
-    let frame: [Float] = Array(UnsafeBufferPointer(
-        start: ptr, count: Int(buffer.frameLength)
-    ))
-    accumulated.append(contentsOf: frame)
-}
-engine.prepare()
-try engine.start()
-// … wait for end of utterance …
-engine.stop()
-input.removeTap(onBus: 0)
-
-let result: ASRResult = stt.infer(audio: accumulated, language: "en")
-print(result.text)  // String
-```
-
-If the session runs at 44.1 / 48 kHz, resample to 16 kHz before `infer`.
-
-### How do I stream partials (`open_streamer` / `finish` / `flush` / `cancel`)?
-
-Use when you need live captions that grow while the user speaks.
-**Swift only** on `WhisperPipeline`. Flutter → [Voice Agent](./voice_agent.md).
-
-```swift
-let streamer = stt.open_streamer(language: "en", partial_interval_ms: 600)
-
+let engine = ASREngine(config: config)
 let captions = Task {
-    for await text in streamer.partials {
-        print("partial: \(text)")   // committed-so-far; never retracts
+    for await turn in engine.turns.recv() {
+        committedLabel.text = turn.committed
+        hypothesisLabel.text =
+            turn.end_of_turn ? "" : turn.hypothesis
     }
 }
 
-for await frame: [Float] in microphone_frames {  // 16 kHz mono
-    streamer.send(frame)
-    if vad_detected_pause { streamer.flush() }  // long turns stay snappy
-}
-
-let final_text: String = await streamer.finish()  // authoritative
+// the SDK now owns the microphone
+try await engine.start()
+// ... later
+await engine.stop()
 await captions.value
-print("final: \(final_text)")
-
-// Barge-in / abandon turn:
-streamer.cancel()
 ```
 
-- `partials` = cosmetic UI; `finish()` = trusted full transcript.
-- `flush()` at VAD pauses commits settled text and trims so later passes
-  stay fast.
-- `cancel()` skips the final decode.
+**Flutter**
 
-### How do I disable internal VAD?
+```dart
+final asr = TSASREngine();
 
-When an upstream gate (e.g. `TheStageVoiceAgent`) already trimmed speech,
-a second Silero pass only adds latency:
+asr.turns.listen((turn) {
+  committed.value  = turn.committed;
+  hypothesis.value = turn.end_of_turn ? '' : turn.hypothesis;
+});
+
+await asr.start(config: {
+  'vad': 'TheStageAI/silero-vad',
+  'stt': 'TheStageAI/thewhisper-large-v3-turbo',
+  'language': 'en',
+});
+// ... later
+await asr.stop();
+```
+
+> [!TIP]
+> **Subscribe before** `start()`. A listener attached afterwards misses
+> everything already emitted — the usual report is "captions are empty".
+
+### Live captions — you own the audio
+
+Use this when your app already has an audio pipeline and you want to push
+frames into ASR yourself.
+
+**Swift**
+
+```swift
+let silero = try SileroVAD(engines_path: "TheStageAI/silero-vad")
+let engine = ASREngine(pipeline: stt, vad: silero)
+let stream = try await engine.open_stream(
+    ASRGenerationConfig(language: "en", timestamps: .WORD)
+)
+
+// Your audio source. MicAudioSource is the SDK's microphone capture:
+// 16 kHz mono [Float], one 512-sample frame every 32 ms. Any 16 kHz source works.
+let mic = MicAudioSource(sample_rate: 16_000)
+
+let captions = Task {
+    for await turn in stream.turns {
+        committedLabel.text  = turn.committed
+        hypothesisLabel.text = turn.end_of_turn ? "" : turn.hypothesis
+    }
+}
+let pump = Task {
+    // ends when mic.stop() is called
+    for await frame in mic.stream {
+        stream.send(frame)
+    }
+}
+
+try mic.start()
+// ... the user taps "stop"
+mic.stop()
+await pump.value
+// the transcript to store
+let result = await stream.close()
+await captions.value
+print(result.text)
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'vad', engines_path: 'TheStageAI/silero-vad');
+await TheStageFlutterSDK.start_model(
+  model_name: 'stt', engines_path: 'TheStageAI/thewhisper-large-v3-turbo');
+
+final stream = await ASRStream.open(
+  model_name: 'stt',
+  vad_model_name: 'vad',
+  generation: const ASRGenerationConfig(language: 'en'),
+);
+final captions = stream.events.listen((e) {
+  if (!e.is_turn) return;
+  committed.value  = e.payload['committed'] as String;
+  hypothesis.value = e.payload['end_of_turn'] == true
+      ? '' : e.payload['hypothesis'] as String;
+});
+
+// Your audio source: 16 kHz mono Float32 samples. The plugin does not capture
+// the microphone for push streams — for a live mic use TSASREngine above.
+// Here the audio is a headerless 16 kHz float32 file, sent in 100 ms frames.
+final bytes = await File('/path/to/clip_16k.pcm').readAsBytes();
+final pcm = Float32List.view(bytes.buffer);
+for (var i = 0; i < pcm.length; i += 1600) {
+  await stream.send(pcm.sublist(i, min(i + 1600, pcm.length)));
+}
+final result = await stream.close();
+await captions.cancel();
+print(result.text);
+```
+
+### Important API
+
+| Purpose | Swift | Flutter |
+|---|---|---|
+| Load a model | `try await WhisperPipeline(engines_path:)` / `Qwen3ASRPipeline(…)` | `start_model(model_name: 'stt', engines_path:)` |
+| Transcribe a clip | `try stt.infer(audio:config:)` → `ASRResult` | `ASREngine(stt:).infer(audio, config:)` → `ASRResult` |
+| Live, SDK owns mic | `ASREngine(config:)`; `start()` / `stop()` | `TSASREngine()`; `start(config:)` / `stop()` |
+| Live, you push audio | `ASREngine(pipeline:vad:)` → `open_stream(…)` → `ASRStream` | `ASRStream.open(model_name:vad_model_name:)` |
+| Release | drop the pipeline | `stop_model(model_name: 'stt')` |
+
+## Transcribe audio
+
+One call, one transcript. Give it 16 kHz mono float samples of any
+length — a two-second command or a forty-minute meeting — and it returns
+the text, and if asked, every word with its start and end time.
+
+**Swift**
 
 ```swift
 let stt = try await WhisperPipeline(
-    engines_path: "TheStageAI/thewhisper-large-v3-turbo",
-    use_internal_vad: false
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
 )
+
+let samples = try AudioIO.load_wav(
+    path: "/path/to/meeting.wav",
+    // resampled for you
+    target_sample_rate: 16_000
+)
+
+let result = try stt.infer(
+    audio: samples,
+    config: ASRGenerationConfig(
+        language: "en",
+        timestamps: .WORD,
+        // for long audio, see below
+        overlap: 0.2
+    )
+)
+
+print(result.text)
+for word in result.words ?? [] {
+    print("\(word.t0)s–\(word.t1)s  \(word.text)")
+}
 ```
 
-```swift
-try await ai.start_model(
-    model_name: "stt",
-    engines_path: "TheStageAI/thewhisper-large-v3-turbo",
-    config: ["use_internal_vad": false]
-)
-```
+**Flutter**
 
 ```dart
 await TheStageFlutterSDK.start_model(
   model_name: 'stt',
   engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
-  config: {'use_internal_vad': false},
 );
+
+// 16 kHz mono Float32 samples — here a headerless float32 file
+// (see Audio contract)
+final bytes = await File('/path/to/clip_16k.pcm').readAsBytes();
+final pcm16k = Float32List.view(bytes.buffer);
+final stt = ASREngine(stt: 'stt');
+final result = await stt.infer(
+  // Float32List
+  pcm16k,
+  config: const ASRGenerationConfig(
+    language: 'en',
+    timestamps: ASRTimestampMode.WORD,
+    // for long audio, see below
+    overlap: 0.2,
+  ),
+);
+
+print(result.text);
+for (final w in result.words ?? const <ASRWord>[]) {
+  print('${w.t0}s–${w.t1}s  ${w.text}');
+}
 ```
 
-With VAD off, silence can hallucinate text — only disable when the
-buffer is known speech.
+**Audio contract** — `infer` does not convert audio. It must already be:
 
-### When should I pick Whisper vs Qwen3-ASR?
+| Sample rate | **16 000 Hz**. Anything else decodes as time-warped speech and returns nonsense or nothing. `AudioIO.load_wav` resamples files; for live buffers, resample before you call. |
+|---|---|
+| Channels | **Mono.** |
+| Format | Float in `[-1, 1]`: Swift `[Float]`, Flutter `Float32List` (not `Float64List`). From Int16: `Float(sample) / 32768`. |
+| Loudness | Do **not** peak-normalise. The models expect natural levels. |
 
-Both families load through the same `thestage_asr` path — pick by
-what your product needs, not by API shape.
+**Per-call options** — `ASRGenerationConfig`:
 
-| You need… | Pick | Why |
-|-----------|------|-----|
-| Live captions / partials during speech | **Whisper** | Only Whisper exposes `open_streamer` today. |
-| Language auto-detect (no hint) | **Qwen3-ASR** | Accepts `language: "auto"`; Whisper requires an explicit code. |
-| Long files (minutes) with word-level continuity | **Whisper** | 10 s windows + `overlap_seconds` handles seams. |
-| ChatML-friendly transcript for downstream LLM prompting | **Qwen3-ASR** | Output is `language {Name}<asr_text>{transcript}` — trivial to parse. |
-| Smallest working NPU footprint | **Whisper turbo** | Smaller decoder, faster prefill on Apple Silicon. |
-| Voice Agent STT | Either | The agent routes automatically from the bundle. |
+| Field | Default | Meaning |
+|---|---|---|
+| `language` | `"en"` | ISO code, or `"auto"` to let the model detect it. Qwen3-ASR also accepts an English name (`"German"`). A wrong hint is worse than no hint — TheWhisper will decode foreign speech as English. |
+| `timestamps` | `.WORD` | `.NONE` is fastest; `.SEGMENT` gives phrase ranges; `.WORD` gives every word with `t0` / `t1`. |
+| `overlap` | `0` | Long audio is cut into windows (10 s TheWhisper, 30 s Qwen3-ASR). `0.2` reuses 20% of each window in the next, so words on a cut are not lost. Raise it if words drop mid-file. |
+| `max_new_tokens` | derived | Cap on decode per window. Leave unset — the default follows the real audio length. |
+| `return_tokens` | `false` | Include token IDs in the result. Debugging only. |
 
-Everything else (`infer` signature, `ASRResult`, `AudioIO.load_wav`
-requirements, Flutter JSON) is identical.
+## Live captions
 
-### How do I run Qwen3-ASR (auto-detect / hint / batch)?
+![Streaming transcription: partials then final text](./assets/asr_stream.svg)
 
-Qwen3-ASR runs the audio as a **prefix** into a Qwen3 decoder — the
-result is the transcript plus a detected language token. Silence
-returns an empty transcript, not an error.
+Live recognition gives you text while the user is still speaking. It
+comes as **two kinds of text at once**, and a caption UI needs both:
 
-**Swift — one-shot with auto language:**
+- **committed** — locked in. It will not be rewritten. Append it.
+- **hypothesis** — the model's current best guess at what is still being
+  said. It *will* be rewritten. Render it in a separate, lighter label.
+
+`ASREngine` is one class with **two modes**, chosen by which
+initializer you call:
+
+|  | `ASREngine(config:)` | `ASREngine(pipeline:vad:)` |
+|---|---|---|
+| Who captures audio | The SDK | You |
+| How audio gets in | Automatically, from the mic | `stream.send(frame)` |
+| Start / stop | `start()` / `stop()` | `open_stream()` / `close()` |
+| Voice detection & turns | Built in | Pass a `vad:`, or none |
+| Flutter | `TSASREngine` | `ASRStream.open` |
+| Read results from | `turns`, `transcripts`, `partial_transcripts` | `stream.turns`, `stream.partials` |
+
+### Rendering a caption
+
+The one pattern to get right. `ASRTurn` carries `committed`,
+`hypothesis`, `display` (the two joined) and `end_of_turn`.
+
+**Swift**
 
 ```swift
-import TheStageSDK
-
-try await TheStageAI.shared.initialize(apiToken: "your-api-token")
-
-let stt = try await Qwen3ASRPipeline(
-    engines_path: "TheStageAI/Qwen3-ASR-0.6B",
-    device: "npu"
+var config = TSAgentConfig(
+    vad: "TheStageAI/silero-vad",
+    stt: "TheStageAI/thewhisper-large-v3-turbo"
 )
+let engine = ASREngine(config: config)
 
-let samples: [Float] = try AudioIO.load_wav(
-    path: "/path/to/clip.wav",
-    target_sample_rate: 16_000
-)
+for await turn in engine.turns.recv() {
+    // ✅ two labels: solid text, then a dimmed guess
+    committedLabel.text  = turn.committed
+    hypothesisLabel.text = turn.end_of_turn ? "" : turn.hypothesis
 
-// language: "auto" (default) — model detects language.
-// Alternatives: an ISO code ("en", "zh", …) or a full English name ("Japanese").
-let result: ASRResult = stt.infer(audio: samples, language: "auto")
-print(result.text)
+    // ✅ one label, if you must
+    captionLabel.text = turn.display
+
+    // ❌ appending display doubles words when the guess firms up
+    // transcript += turn.display
+}
 ```
 
-**Swift — hint the language when you already know it (faster, more accurate):**
+**Flutter**
+
+```dart
+// started with asr.start(config:) as in Quick start
+final asr = TSASREngine();
+
+asr.turns.listen((turn) {
+  // ✅ two widgets: solid text, then a dimmed guess
+  committed.value  = turn.committed;
+  hypothesis.value = turn.end_of_turn ? '' : turn.hypothesis;
+
+  // ✅ one widget, if you must
+  caption.value = turn.display;
+
+  // ❌ appending display doubles words when the guess firms up
+  // transcript += turn.display;
+});
+```
+
+### Important API
+
+Channels on `ASREngine(config:)` and `TSASREngine`:
+
+| Channel | What arrives |
+|---|---|
+| `turns` | Every `ASRTurn`. Final turns are never dropped. |
+| `transcripts` | One final string per completed utterance. |
+| `partial_transcripts` | Live text for a caption label. Latest value wins; intermediate values may be skipped if your UI is slow. |
+| `vad_probabilities` | Per-frame speech probability, for a mic meter. |
+| `events` | Lifecycle and error events. |
+
+Calls on `ASRStream` (Swift and Flutter):
+
+| Call | Use it to |
+|---|---|
+| `send(_:)` | Push 16 kHz mono frames. Any frame size. |
+| `flush()` | Force a commit at a pause you detected yourself. |
+| `close()` | End the session and get the authoritative `ASRResult`. |
+| `cancel()` | Abandon the session — barge-in, or the user left the screen. |
+
+> [!TIP]
+> `close()` returns the transcript you should store. The live text you
+> rendered from `partials` is cosmetic and may differ — it was produced
+> before the model had heard the end of the sentence.
+
+> [!CAUTION]
+> The two modes do not mix. `engine.config` and `engine.state` exist
+> only for `ASREngine(config:)`; reading them on a `pipeline:`-built
+> engine traps at runtime rather than returning nil.
+
+**Per-engine configuration** — `TSAgentConfig` for `ASREngine(config:)`.
+Changing any of it means `stop()` then `start()`.
+
+| Field | Controls |
+|---|---|
+| `asr_generation` | Language and timestamp mode — the same `ASRGenerationConfig`. |
+| `turn_config` | When an utterance is over: `silence_timeout_ms` (default 608), `asr_silence_hangover_ms`, `max_accumulation_ms` (30 000). |
+| `vad_config` | How sensitive capture is: `threshold` (0.5), `pre_roll_s` (0.35), onset window. |
+| `asr_streaming_config` | Commit policy — see below. |
+| `audio` / `audio_node_factory` | Microphone settings, or a complete replacement audio source. |
+
+> [!NOTE]
+> Turn policy and capture sensitivity are separate on purpose. "It cuts me
+> off mid-sentence" is `turn_config.silence_timeout_ms`. "It starts on a
+> door click" is `vad_config.threshold`. Reaching for the wrong one is
+> the most common tuning mistake here.
+
+On Flutter, `TSASREngine.start(config:)` accepts `vad`, `stt`,
+`vad_device`, `stt_device`, `stt_revision`, `language`,
+`turn_silence_timeout_ms` and `turn_asr_silence_hangover_ms`. The
+rest is deliberately not exposed — the per-model policy is already tuned.
+
+**Commit policy** — `ASRStreamingConfig`. Streaming has to decide *when
+a word is safe to show as final*. Leaving this empty picks the right
+policy for the loaded model; most apps never set it.
+
+| Algorithm | Runs on | Behaviour |
+|---|---|---|
+| `THESTAGE_V5` | Models with word timing (TheWhisper — its default) | Commits a sentence at a time, so punctuation and casing are right and text stops flickering. |
+| `NAIVE` | Any streaming model (Qwen3-ASR default) | Commits the longest prefix that repeated decodes agree on. Simple and portable; more rewriting on screen. |
+
+| Field | Default | Raise it / lower it when |
+|---|---|---|
+| `n_confirmations` | 2 | Raise for fewer rewrites on screen, at the cost of text appearing later. |
+| `commit_lag_s` | 1.0 s TheWhisper · 2.0 s Qwen3-ASR | How far behind live audio a word must be before it locks. Raise if endings get corrected; lower for snappier captions. |
+| `endpoint_silence_s` | 1.5 s TheWhisper · 3.5 s Qwen3-ASR | How much hush ends a turn. Raise for speakers who pause to think; lower for quick back-and-forth. |
+| `max_repeats` | 3 | Raise if genuine repetition ("no no no", counting) is being eaten; lower if a stuck decoder reaches the transcript. |
+| `speech_onset_s` | 0.2 s | Raise if door clicks and keyboard noise start turns. |
+
+> [!CAUTION]
+> `THESTAGE_V5` needs a model that reports word timings. Asking for it
+> on one that does not fails at `open_stream` with the missing
+> capability named — it does not silently downgrade. If in doubt, pass
+> nothing.
+
+**Sentence formatting** — committed text is punctuated and capitalised
+for you, script-aware across the 28 shipped TheWhisper languages. Pass
+`format_turns: false` in `ASRStreamingConfig`, or your own
+`ASRTextFormatter` to `ASREngine(pipeline:vad:formatter:)`, if your
+UI wants raw words.
+
+## Result object
+
+`ASRResult` is what `infer` and `close()` return. Swift gets a
+struct; Flutter gets the same fields as JSON, with one alias.
+
+**Swift**
 
 ```swift
-let jp = stt.infer(audio: samples, language: "Japanese")   // or "ja"
-print(jp.text)
+let stt = try await WhisperPipeline(
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
+)
+var config = TSAgentConfig(
+    vad: "TheStageAI/silero-vad",
+    stt: "TheStageAI/thewhisper-large-v3-turbo"
+)
+
+let result = try stt.infer(audio: samples, config: config)
+
+// the transcript
+result.text
+// detected ISO code, with language: "auto"
+result.language
+// seconds, with timestamps: .WORD
+result.words?.first?.t0
+// audio seconds per wall second
+result.metrics.rtf
 ```
 
-**Flutter — same start_model path; auto-routing picks Qwen3-ASR from the bundle:**
+**Flutter**
 
 ```dart
 await TheStageFlutterSDK.start_model(
   model_name: 'stt',
-  engines_path: 'TheStageAI/Qwen3-ASR-0.6B',
+  engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
 );
 
-final result = await TheStageFlutterSDK.infer(
-  model_name: 'stt',
-  input_json: {
-    'audio': audioSamples,        // Float32List, 16 kHz mono, [-1, 1]
-    'language': 'auto',           // or 'en' / 'English'
-  },
-);
-print(result[0]['transcription']);
+// Typed — pcm16k: Float32List, 16 kHz mono (see Audio contract)
+final result = await ASREngine(stt: 'stt').infer(pcm16k);
+result.text;
+result.language;
+result.words?.first.t0;
+
+// Raw JSON, if you call TheStageFlutterSDK.infer directly
+final rows = await TheStageFlutterSDK.infer(
+  model_name: 'stt', input_json: {'audio': pcm16k, 'language': 'en'});
+// the transcript (also under 'text')
+rows[0]['transcription'];
+// [{text, t0, t1}], with 'timestamps': 'WORD'
+rows[0]['words'];
 ```
 
-Qwen3-ASR has **no push streamer** — for live captions use Whisper's
-`open_streamer(...)` or the [Voice Agent](./voice_agent.md).
+| Swift | Flutter JSON | Meaning |
+|---|---|---|
+| `text` | `transcription` / `text` | The transcript. |
+| `words` | `words` | `[ASRWord]` — `text`, `t0`, `t1` in seconds. Only with `timestamps: .WORD` / `.SEGMENT`. |
+| `language` | `language` | ISO code the model detected. Set with `language: "auto"`. |
+| `metrics.rtf` | `metrics.rtf` | Audio seconds per wall second. 20 means a minute of audio in 3 s. |
+| `decode_seconds` | `decode_seconds` | Decoder wall time. |
+| `tokens` | `tokens` | Token IDs, only with `return_tokens`. |
 
-### How do I transcribe non-English audio?
+## Usage Guides
 
-Whisper does **not** auto-detect language. Set `language` explicitly
-(ISO 639-1). Wrong code → English decode of foreign speech → nonsense.
-Qwen3-ASR does auto-detect (`language: "auto"`) — see the section
-above.
+Each guide is one app we are building: what it is, what users expect,
+what to use from the SDK, what it looks like, and the code.
 
-| Language | Code | Language | Code |
-|---|---|---|---|
-| English | `en` | Japanese | `ja` |
-| French | `fr` | Korean | `ko` |
-| German | `de` | Chinese | `zh` |
-| Spanish | `es` | Arabic | `ar` |
-| Portuguese | `pt` | Hindi | `hi` |
-| Russian | `ru` | Italian | `it` |
+### Press-and-hold dictation
+
+> **Problem**
+>
+> **Building** — a notes app with a microphone button under the text.
+>
+> **Users want** — hold the button, say a sentence, let go, and see
+> the words appear at once. No live captions, no waiting spinner.
+>
+> **Hard part** — audio must reach the model at exactly 16 kHz mono,
+> each press must produce one accurate transcript, and the model must
+> not be reloaded between presses.
+
+**Solution — what to use**
+
+- `MicAudioSource` — the SDK's microphone capture; delivers 16 kHz
+  mono `[Float]` frames while the button is held.
+- `WhisperPipeline` — loaded once for the screen's lifetime.
+- `infer(audio:config:)` — once, on release, with
+  `timestamps: .NONE` (the fastest decode when you only need text).
+- Flutter: `TSASREngine` — `start` on press, `stop` on release;
+  the transcript arrives on `transcripts`.
+
+![A notes screen with a held microphone button](./assets/ui_asr_dictation.svg)
+
+**Swift**
 
 ```swift
-let samples: [Float] = /* 16 kHz mono PCM */
-let result: ASRResult = stt.infer(audio: samples, language: "fr")
-print(result.text)  // String
+final class Dictation {
+    private let stt: WhisperPipeline
+    // SDK microphone: 16 kHz mono frames
+    private let mic = MicAudioSource(sample_rate: 16_000)
+    private var buffer: [Float] = []
+    private var pump: Task<Void, Never>?
+
+    init(stt: WhisperPipeline) { self.stt = stt }
+
+    // Button pressed
+    func begin() throws {
+        buffer.removeAll(keepingCapacity: true)
+        try mic.start()
+        pump = Task {
+            for await frame in mic.stream { buffer.append(contentsOf: frame) }
+        }
+    }
+
+    // Button released
+    func end() async throws -> String {
+        mic.stop()
+        await pump?.value
+        let result = try stt.infer(
+            audio: buffer,
+            config: ASRGenerationConfig(language: "en", timestamps: .NONE)
+        )
+        return result.text
+    }
+}
+
+// Once per screen
+let stt = try await WhisperPipeline(
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
+)
+let dictation = Dictation(stt: stt)
 ```
 
+**Flutter**
+
 ```dart
-final Float32List audioSamples = /* 16 kHz mono PCM */;
-final result = await TheStageFlutterSDK.infer(
+// The SDK owns capture on Flutter: start on press, stop on release.
+final asr = TSASREngine();
+final sub = asr.transcripts.listen((text) => note.value += '$text ');
+
+Future<void> onPressStart() => asr.start(config: {
+      'vad': 'TheStageAI/silero-vad',
+      'stt': 'TheStageAI/thewhisper-large-v3-turbo',
+      'language': 'en',
+    });
+Future<void> onPressEnd() => asr.stop();
+```
+
+> [!TIP]
+> - Keep the pipeline alive between presses. Loading is the slow part;
+>   a warm `infer` on one sentence is well under a second.
+> - `timestamps: .NONE` — you do not need word timings here, and it
+>   is the fastest mode.
+> - Ignore releases under ~300 ms; they are taps, not sentences, and
+>   the model will invent a word for them.
+
+### Transcribe a recording the user already has
+
+> **Problem**
+>
+> **Building** — a meeting recorder. Recordings are 30–60 minutes.
+>
+> **Users want** — a transcript after the meeting, and to tap any
+> sentence to jump the player to that moment.
+>
+> **Hard part** — a 40-minute file must go in as one call without
+> losing words at window boundaries, and every word needs a time.
+
+**Solution — what to use**
+
+- `AudioIO.load_wav(path:target_sample_rate:)` — reads the file
+  (anything `AVAudioFile` reads: WAV, M4A, CAF) and resamples to
+  16 kHz.
+- `infer(audio:config:)` with the **whole file** — windowing and
+  stitching are automatic.
+- `overlap: 0.2` — reuses 20 % of each window so a word on a cut is
+  not lost.
+- `timestamps: .WORD` — `t0` / `t1` per word, which is your seek
+  position.
+
+![A transcript with timestamps; one sentence highlighted; a player below](./assets/ui_asr_meeting.svg)
+
+**Swift**
+
+```swift
+let stt = try await WhisperPipeline(
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
+)
+
+// any file AVAudioFile reads, resampled to 16 kHz
+let samples = try AudioIO.load_wav(
+    path: recordingURL.path,
+    target_sample_rate: 16_000
+)
+let result = try stt.infer(
+    audio: samples,
+    config: ASRGenerationConfig(
+        language: "en", timestamps: .WORD, overlap: 0.2
+    )
+)
+
+// Group words into rows for the list; tap → seek
+let words = result.words ?? []
+func seek(to word: ASRWord) {
+    player.seek(to: CMTime(seconds: word.t0, preferredTimescale: 1_000))
+}
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
   model_name: 'stt',
-  input_json: {'audio': audioSamples, 'language': 'ja'},
+  engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
 );
-final String transcript = result[0]['transcription'] as String;
-print(transcript);
+
+// 16 kHz mono float samples of the recording
+final bytes = await File('/path/to/recording_16k.pcm').readAsBytes();
+final pcm16k = Float32List.view(bytes.buffer);
+
+final result = await ASREngine(stt: 'stt').infer(
+  pcm16k,
+  config: const ASRGenerationConfig(
+    language: 'en',
+    timestamps: ASRTimestampMode.WORD,
+    overlap: 0.2,
+  ),
+);
+
+// tap → seek
+void seek(ASRWord word) =>
+    player.seek(Duration(milliseconds: (word.t0 * 1000).round()));
 ```
 
-### What JSON key holds the transcript on Flutter?
+> [!TIP]
+> - Windows decode one after another: expect about `duration / rtf`
+>   of wall time. On an M-series Mac a 40-minute file takes about two
+>   minutes — run it off the main thread and show progress.
+> - `overlap: 0` (the default) *will* lose words that straddle a
+>   10-second cut. `0.2` is the right starting point.
+> - Build rows from `result.words` (each has `t0` / `t1`), not by
+>   splitting `result.text` — the text has no times.
 
-Use **`transcription`** (`String`), not `text`:
+### Audio arrives from somewhere else
+
+> **Problem**
+>
+> **Building** — a call-centre app that receives 8 kHz Int16 audio
+> over the network, and a video app whose camera session runs at
+> 48 kHz stereo.
+>
+> **Users want** — transcripts, same as from the microphone.
+>
+> **Hard part** — neither format is what `infer` accepts, and
+> feeding them directly does not fail: it returns nonsense.
+
+**Solution — what to use**
+
+- Convert **before** the call: Int16 → Float with `/ 32768`; any rate
+  or channel count → 16 kHz mono with `AVAudioConverter`.
+- `infer` never converts for you — by design, so a wrong rate is
+  caught at your code, not inside the model.
+- Flutter: the plugin passes samples through unchanged; resample in
+  your audio layer and send `Float32List`.
+
+**Swift**
+
+```swift
+import AVFoundation
+
+// Int16 → Float
+// what your network / call SDK hands you
+let int16Samples: [Int16] = incomingFrame.samples
+let floats = int16Samples.map { Float($0) / 32_768 }
+
+// 48 kHz stereo → 16 kHz mono, once per buffer
+let src = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                        sampleRate: 48_000, channels: 2, interleaved: false)!
+let dst = AVAudioFormat(commonFormat: .pcmFormatFloat32,
+                        sampleRate: 16_000, channels: 1, interleaved: false)!
+let converter = AVAudioConverter(from: src, to: dst)!
+// run converter.convert(to:error:withInputFrom:) over your buffers,
+// then hand the mono 16 kHz floats to infer / stream.send
+```
+
+**Flutter**
 
 ```dart
-final String transcript = result[0]['transcription'] as String;
-print(transcript);
+// Int16 → Float32List
+// what your network / call SDK hands you
+final Int16List int16Samples = incomingFrame.samples;
+final floats = Float32List.fromList(
+  [for (final s in int16Samples) s / 32768.0],
+);
+// Resample to 16 kHz in your audio layer before calling infer —
+// the plugin passes samples through unchanged.
 ```
 
-Optional: `token_count` (`int`), `decode_seconds` (`double`), `tokens`.
+> [!TIP]
+> - The symptom of a wrong rate is not an error, it is a wrong
+>   transcript: empty, or a few unrelated words. Check the rate first.
+> - Downmix stereo by averaging the channels; do not just take the left
+>   one if the speaker may be panned.
+> - `Float64List` does not round-trip the Flutter platform channel.
+>   Always `Float32List`.
 
-### How do I get live captions in a product UI?
+### Live subtitles in a call or video UI
 
-- **Swift standalone:** `open_streamer` above.
-- **Flutter / full assistant loop:** [Voice Agent](./voice_agent.md) —
-  `asr_streaming`, `partial_transcripts` / `user_request_partial`, and
-  the chat-UI guide. The agent runs streaming ASR internally; Flutter
-  does not expose `WhisperPipeline.open_streamer`.
+> **Problem**
+>
+> **Building** — an accessibility feature for a video-call app:
+> subtitles of what the remote party is saying.
+>
+> **Users want** — text that appears as the person speaks, does not
+> jump around, and stays put once a sentence is finished.
+>
+> **Hard part** — the audio is the *remote* party's, not the
+> microphone's, and the SDK's own mic would hear the wrong person.
+
+**Solution — what to use**
+
+- `ASREngine(pipeline:vad:)` + `open_stream` — the push path, fed
+  with the call SDK's remote PCM.
+- `ASRTurn.committed` / `hypothesis` — render the two differently:
+  solid for committed, lighter for the guess.
+- `end_of_turn` — move the finished sentence into the history and
+  clear the live line.
+- Flutter: `ASRStream.open` with the same events.
+
+![A video call with a subtitle bar over the remote video](./assets/ui_asr_subtitles.svg)
+
+**Swift**
+
+```swift
+let stt = try await WhisperPipeline(
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
+)
+let silero = try SileroVAD(engines_path: "TheStageAI/silero-vad")
+let engine = ASREngine(pipeline: stt, vad: silero)
+let stream = try await engine.open_stream(
+    ASRGenerationConfig(language: "en", timestamps: .WORD)
+)
+
+let render = Task {
+    for await turn in stream.turns {
+        if turn.end_of_turn {
+            subtitles.commit(turn.committed)        // sentence is done
+        } else {
+            subtitles.live(committed: turn.committed,
+                           guess: turn.hypothesis)
+        }
+    }
+}
+
+// The remote party's audio from your call SDK, 16 kHz mono frames
+let remoteAudio16k: AsyncStream<[Float]> = callSDK.remotePCM16k
+for await frame in remoteAudio16k { stream.send(frame) }
+_ = await stream.close()
+await render.value
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'vad', engines_path: 'TheStageAI/silero-vad');
+await TheStageFlutterSDK.start_model(
+  model_name: 'stt', engines_path: 'TheStageAI/thewhisper-large-v3-turbo');
+
+final stream = await ASRStream.open(
+  model_name: 'stt',
+  vad_model_name: 'vad',
+  generation: const ASRGenerationConfig(language: 'en'),
+);
+final render = stream.events.listen((e) {
+  if (!e.is_turn) return;
+  final committed  = e.payload['committed'] as String;
+  final hypothesis = e.payload['hypothesis'] as String;
+  if (e.payload['end_of_turn'] == true) {
+    subtitles.commit(committed);
+  } else {
+    subtitles.live(committed: committed, guess: hypothesis);
+  }
+});
+
+// The remote party's audio from your call SDK, 16 kHz mono frames
+final Stream<Float32List> remoteAudio16k = callSdk.remotePcm16k;
+await for (final Float32List frame in remoteAudio16k) {
+  await stream.send(frame);
+}
+await stream.close();
+await render.cancel();
+```
+
+> [!TIP]
+> - Subscribe to `turns` / `events` **before** the first `send`.
+> - Style the guess visibly lighter. Users forgive a guess that looks
+>   like a guess; they do not forgive solid text that changes.
+> - Leave `ASRStreamingConfig` empty: TheWhisper's default commits
+>   whole sentences, which is what subtitles want.
+
+### Users who speak several languages
+
+> **Problem**
+>
+> **Building** — a support app shipped across Europe.
+>
+> **Users want** — to just talk, in German or French or Italian,
+> without picking a language first.
+>
+> **Hard part** — a wrong language hint is worse than none: TheWhisper
+> told `"en"` will transcribe German speech as English-sounding
+> nonsense rather than fail.
+
+**Solution — what to use**
+
+- `language: "auto"` on the **first** utterance; read
+  `result.language` to learn what was spoken.
+- Pin that code for the rest of the session — a correct hint is
+  faster and more accurate than detection.
+- Show the detected language so the user can correct it.
+
+![A chat with a 'Detected: German' chip](./assets/ui_asr_language.svg)
+
+**Swift**
+
+```swift
+let stt = try await WhisperPipeline(
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
+)
+
+// First utterance: detect
+var result = try stt.infer(
+    audio: firstUtterance,
+    config: ASRGenerationConfig(language: "auto")
+)
+// e.g. "de"
+let detected = result.language ?? "en"
+languageChip.text = "Detected: \(Locale.current.localizedString(forLanguageCode: detected) ?? detected)"
+
+// Later utterances: pin it
+result = try stt.infer(
+    audio: nextUtterance,
+    config: ASRGenerationConfig(language: detected)
+)
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'stt',
+  engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
+);
+final stt = ASREngine(stt: 'stt');
+
+// First utterance: detect
+var result = await stt.infer(
+  firstUtterance, config: const ASRGenerationConfig(language: 'auto'));
+// e.g. 'de'
+final detected = result.language ?? 'en';
+
+// Later utterances: pin it
+result = await stt.infer(
+  nextUtterance, config: ASRGenerationConfig(language: detected));
+```
+
+> [!TIP]
+> - If transcripts look like word salad, check the hint before anything
+>   else.
+> - Qwen3-ASR also accepts English names — `"Japanese"` — handy when
+>   the value comes from a settings screen.
+> - Codes are ISO 639-1 (`en fr de es pt ru ja ko zh ar hi it` …).
+
+### The engine ends turns too early — or too late
+
+> **Problem**
+>
+> **Building** — a voice form: the user dictates an address field by
+> field.
+>
+> **Users want** — to pause and think mid-address without the field
+> being submitted half-finished; other users want a snappy "done" the
+> moment they stop.
+>
+> **Hard part** — "the user has finished" is a policy, not a fact, and
+> the right value differs between dictation and quick commands.
+
+**Solution — what to use**
+
+- `ASREngine(config:)` — the SDK owns the mic and the turn policy.
+- `TurnConfig.silence_timeout_ms` — how long a pause means "done":
+  ~600 ms for commands, 1 000–1 500 ms for dictation.
+- `asr_silence_hangover_ms` — trailing audio still sent to the
+  decoder so the last word is not clipped; leave the default.
+- Flutter: `turn_silence_timeout_ms` on `TSASREngine.start`.
+
+![An address form being filled by voice, with a live caption](./assets/ui_asr_form.svg)
+
+**Swift**
+
+```swift
+var config = TSAgentConfig(
+    vad: "TheStageAI/silero-vad",
+    stt: "TheStageAI/thewhisper-large-v3-turbo"
+)
+var turn = TurnConfig()
+// default 608: wait longer for thinkers
+turn.silence_timeout_ms = 1_500
+turn.asr_silence_hangover_ms = 300
+config.turn_config = turn
+
+let engine = ASREngine(config: config)
+Task { for await text in engine.transcripts.recv() { field.text = text } }
+try await engine.start()
+// stop() then start() after changing turn_config
+```
+
+**Flutter**
+
+```dart
+final asr = TSASREngine();
+asr.transcripts.listen((text) => field.value = text);
+await asr.start(config: {
+  'vad': 'TheStageAI/silero-vad',
+  'stt': 'TheStageAI/thewhisper-large-v3-turbo',
+  'language': 'en',
+  // default 608
+  'turn_silence_timeout_ms': 1500,
+  'turn_asr_silence_hangover_ms': 300,
+});
+// stop() then start() to change it
+```
+
+> [!TIP]
+> - `silence_timeout_ms` is a product decision; there is no single
+>   right value. Dictation and commands want different screens.
+> - The hangover is not the timeout. Leave it unless final words are
+>   being cut.
+> - If the engine *starts* turns on background noise, that is
+>   `vad_config.threshold` (Swift), not the turn policy.
 
 ## Troubleshooting
 
-### Empty or inaccurate transcript
-
-Usually wrong audio format.
-
-1. Confirm **exactly 16000 Hz** before `infer`.
-2. Mono only.
-3. Float in `[-1.0, 1.0]` (`Int16 / 32768.0`).
-4. Confirm the buffer actually contains speech.
-
-```swift
-let int16_samples: [Int16] = /* … */
-let float_samples: [Float] = int16_samples.map { Float($0) / 32768.0 }
-let result: ASRResult = stt.infer(audio: float_samples, language: "en")
-```
-
-### Words drop at chunk boundaries
-
-Default `overlap_seconds: 0`. Raise to `1`–`2` for long files.
-
-### Slow on long recordings
-
-Windows are sequential. Keep `use_internal_vad: true`, pass only speech
-regions, or stream shorter turns instead of one giant buffer.
-
-### Wrong language / nonsense text
-
-Set `language` to the spoken language. Default is `"en"`.
-
-### Short utterances eaten / hallucinated silence
-
-Internal VAD may drop very short bursts; disable only if you already
-gated speech. Conversely, VAD-off on silence → hallucinations.
-
-### Model load fails
-
-Call `initialize(apiToken:)` first. Prefetch on a splash screen if cold
-download hangs the UI. Prefer `device: "npu"`.
-
-### Flutter audio type errors
-
-Use `Float32List` for `audio`. `Float64List` will not round-trip
-correctly on the platform channel.
+| Symptom | Cause | Fix |
+|---|---|---|
+| Empty or nonsense transcript | Audio is not 16 kHz mono float. | Check the rate first. Convert Int16 with `/ 32768`. See [Audio arrives from somewhere else](#audio-arrives-from-somewhere-else). |
+| Words drop mid-file | `overlap` is `0` and a word straddled a window cut. | `overlap: 0.2`. |
+| Foreign speech comes out as English | Wrong `language` hint. | `language: "auto"`, then pin the detected code. |
+| "Thank you." on silence | Decoder ran on hush without VAD. | Use `ASREngine(config:)` or pass `SileroVAD` into `open_stream`; gate `infer` on speech. |
+| Captions are empty | Subscribed after `start()` / first `send`. | Subscribe first. |
+| Text jumps around | Rendering `display` as if it were final. | Two labels: `committed` solid, `hypothesis` dimmed. |
+| Slow on long recordings | Windows decode sequentially. | Expected; show progress. Skip silence by streaming turns instead of one giant buffer. |
+| `open_stream` throws about a missing capability | `THESTAGE_V5` requested on a model without word timing. | Leave `algorithm` unset. |
+| Model load fails | `initialize` not called, or cold download on the UI path. | `initialize(api_token:)` first; prefetch on a splash screen. |
+| Flutter type error on `audio` | `Float64List` on the platform channel. | `Float32List`. |
 
 ## Load Progress / Prefetch / Cleanup
 
-### Load progress
+First run downloads and prepares the pack; later runs hit the cache.
+Show progress the first time, warm the cache on a splash screen, and
+release models you are done with.
+
+**Swift**
 
 ```swift
+let ai = TheStageAI.shared
+
+// Progress
 let stt = try await WhisperPipeline(
     engines_path: "TheStageAI/thewhisper-large-v3-turbo",
     on_load_progress: { p in
         print("[\(p.model)] \(p.phase) \(Int(p.fraction * 100))%")
     }
 )
+
+// Prefetch on a splash screen, construct later
+let engines_dir = try await ai.prefetch_engines(
+    repo_id: "TheStageAI/thewhisper-large-v3-turbo"
+)
+let stt = try await WhisperPipeline(engines_path: engines_dir)
+
+// Cleanup: drop the reference, or
+_ = try ai.stop_model(model_name: "stt")
 ```
 
-Same handler on `start_model` / `prefetch_engines`. Phases:
-`downloading` → `extracting` → `loading` → `ready` (cache hits skip
-download/extract). Full contract:
-[Load Progress](./README.md#load-progress).
-
-**Flutter:**
+**Flutter**
 
 ```dart
+// Progress
 TheStageFlutterSDK.on_progress.listen((event) {
   if (event['model_name'] != 'stt') return;
-  final phase = event['phase'] as String?;
-  final fraction = event['progress'] as double?;
-  print('[stt] $phase ${(fraction ?? 0) * 100}%');
+  print('[stt] ${event['phase']} ${((event['progress'] ?? 0) * 100).round()}%');
 });
 
 await TheStageFlutterSDK.start_model(
   model_name: 'stt',
   engines_path: 'TheStageAI/thewhisper-large-v3-turbo',
 );
-```
 
-### Prefetch
-
-```swift
-let engines_dir = try await ai.prefetch_engines(
-    repo_id: "TheStageAI/thewhisper-large-v3-turbo"
-)
-let stt = try await WhisperPipeline(engines_path: engines_dir)
-```
-
-### Cleanup
-
-Drop the `WhisperPipeline` reference, or:
-
-```swift
-_ = try ai.stop_model(model_name: "stt")
-```
-
-```dart
+// Cleanup
 await TheStageFlutterSDK.stop_model(model_name: 'stt');
 ```
+
+Phases: `downloading` → `extracting` → `loading` → `ready`. Cache
+hits skip the first two. Full contract: [Get started](./README.md)
+(**Load Progress**).

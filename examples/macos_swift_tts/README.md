@@ -7,7 +7,7 @@ No Xcode, no signing, no device — just `swift run`.
 
 ## What it exercises
 
-- `TheStageAI.shared.initialize(apiToken:)`
+- `TheStageAI.shared.initialize(api_token:)`
 - `NeuTTSMultilingualPipeline` loaded straight from a HuggingFace repo.
 - `open_streamer()` push-mode streaming — audio chunks play as they're
   produced (`streamer.send(...)` / `streamer.stop_stream()`).

@@ -19,7 +19,7 @@ nothing to build or link by hand — add the dependency and go.
        git:
          url: https://github.com/TheStageAI/AppleSDK.git
          path: plugin/thestage_apple_sdk
-         ref: 1.3.0
+         ref: 1.4.0
    ```
 
 2. **Enable SwiftPM** (the plugin ships as a Swift package):
@@ -34,7 +34,7 @@ nothing to build or link by hand — add the dependency and go.
    `IPHONEOS_DEPLOYMENT_TARGET = 18.0` in the build settings.)
 
 4. **Fetch and run** on a physical device (the Simulator is not
-   supported — MLX needs Metal on real hardware):
+   supported — the xcframework ships device slices only):
 
    ```bash
    flutter pub get

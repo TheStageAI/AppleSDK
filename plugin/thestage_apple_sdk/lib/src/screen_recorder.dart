@@ -6,8 +6,8 @@ import 'method_channels.dart';
 ///
 /// Keeps the live Voice Agent AEC / voiceChat session. Audio is a digital
 /// mux of TTS + post-AEC mic (Control Center / ReplayKit cannot hear VPIO).
-class TheStageScreenRecorder {
-  TheStageScreenRecorder._();
+class TSScreenRecorder {
+  TSScreenRecorder._();
 
   static const MethodChannel _channel = MethodChannel(MethodChannels.main);
 

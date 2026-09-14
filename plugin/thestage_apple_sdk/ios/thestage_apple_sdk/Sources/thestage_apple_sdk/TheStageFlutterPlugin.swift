@@ -14,12 +14,15 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
     // ----------------------------------------------------------------------------------
     var __progress_sink: FlutterEventSink?
     var __stream_handler: TTSStreamHandler?
+    var __asr_handler: ASRStreamHandler?
     var __voice_agent_handler: VoiceAgentStateStream?
     var __voice_agent_llm_deltas: VoiceAgentBroadcastStream?
     var __voice_agent_transcripts: VoiceAgentBroadcastStream?
     var __voice_agent_vad_probs: VoiceAgentBroadcastStream?
+    var __voice_agent_tts_levels: VoiceAgentBroadcastStream?
     var __voice_agent_ports: VoiceAgentPortStream?
     var __voice_agent_nodes_channel: FlutterMethodChannel?
+    var __asr_node_engine: ASRNodeEngineHandlers?
     var __audio_players: [String: TheStageCore.AudioStreamPlayer] = [:]
     var __log_sink: FlutterDeveloperLogSink?
     var __log_stream_handler: LogStreamHandler?
@@ -44,7 +47,7 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
         instance.__log_sink = log_sink
         #if DEBUG
         TheStageAI.configure_logging(
-            TheStageLogConfig(
+            TSLogConfig(
                 level: .debug,
                 capture_user_breadcrumbs: true,
                 developer_sink: log_sink
@@ -72,8 +75,11 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
             binaryMessenger: registrar.messenger()
         )
         let handler = TTSStreamHandler()
+        let asr = ASRStreamHandler()
+        handler.on_sink = { sink in asr.attach_sink(sink) }
         stream.setStreamHandler(handler)
         instance.__stream_handler = handler
+        instance.__asr_handler = asr
 
         let voiceAgentEvents = FlutterEventChannel(
             name: MethodChannels.voiceAgentEvents,
@@ -139,6 +145,40 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
         vadProbs.setStreamHandler(vadProbsHandler)
         vaHandler.register_tap(vadProbsHandler)
         instance.__voice_agent_vad_probs = vadProbsHandler
+
+        let ttsLevels = FlutterEventChannel(
+            name: MethodChannels.voiceAgentTTSLevels,
+            binaryMessenger: registrar.messenger()
+        )
+        let ttsLevelsHandler = VoiceAgentBroadcastStream.double(
+            agent_provider: { [weak vaHandler] in vaHandler?.agent },
+            port: { agent in agent.tts_levels }
+        )
+        ttsLevels.setStreamHandler(ttsLevelsHandler)
+        vaHandler.register_tap(ttsLevelsHandler)
+        instance.__voice_agent_tts_levels = ttsLevelsHandler
+
+        // Node-backed ASR engine. Each stream owns its own sink and binds
+        // itself when `asr_engine.start` creates the engine, so Dart may
+        // subscribe before starting.
+        let asrEngine = ASRNodeEngineHandlers()
+        instance.__asr_node_engine = asrEngine
+        let asr_streams: [(String, ASRNodeEngineStream)] = [
+            (MethodChannels.asrEngineTurns, asrEngine.turns),
+            (MethodChannels.asrEngineTranscripts, asrEngine.transcripts),
+            (MethodChannels.asrEnginePartials, asrEngine.partials),
+            (
+                MethodChannels.asrEngineVADProbabilities,
+                asrEngine.vad_probabilities
+            ),
+            (MethodChannels.asrEngineEvents, asrEngine.events),
+        ]
+        for (name, handler) in asr_streams {
+            FlutterEventChannel(
+                name: name,
+                binaryMessenger: registrar.messenger()
+            ).setStreamHandler(handler)
+        }
     }
 
     // ----------------------------------------------------------------------------------
@@ -191,13 +231,15 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
 
         case MethodRoute.infer:
             __handle_infer(call, result: result)
-        case MethodRoute.startStream:
+        case MethodRoute.startStream, MethodRoute.openStream:
             __handle_start_stream(call, result: result)
         case MethodRoute.send:
             __handle_send_stream(call, result: result)
-        case MethodRoute.finishStream:
+        case MethodRoute.flush:
+            __handle_flush_stream(call, result: result)
+        case MethodRoute.finishStream, MethodRoute.closeStream:
             __handle_finish_stream(call, result: result)
-        case MethodRoute.stopStream:
+        case MethodRoute.stopStream, MethodRoute.cancelStream:
             __handle_stop_stream(call, result: result)
 
         case MethodRoute.audioStart:
@@ -213,6 +255,10 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
         case MethodRoute.audioStop:
             __handle_audio_stop(call, result: result)
 
+        case MethodRoute.asrEngineStart:
+            __handle_asr_engine_start(call, result: result)
+        case MethodRoute.asrEngineStop:
+            __handle_asr_engine_stop(call, result: result)
         case MethodRoute.voiceAgentStart:
             __handle_voice_agent_start(call, result: result)
         case MethodRoute.voiceAgentBeginListening:
@@ -248,6 +294,23 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
             __handle_screen_recorder_start(call, result: result)
         case MethodRoute.screenRecorderStop:
             __handle_screen_recorder_stop(call, result: result)
+
+        case MethodRoute.cacheList:
+            __handle_cache_list(call, result: result)
+        case MethodRoute.cacheVerify:
+            __handle_cache_verify(call, result: result)
+        case MethodRoute.cacheRepair:
+            __handle_cache_repair(call, result: result)
+        case MethodRoute.cacheRepairAll:
+            __handle_cache_repair_all(call, result: result)
+        case MethodRoute.previousLaunch:
+            __handle_previous_launch(call, result: result)
+        case MethodRoute.fieldCounters:
+            __handle_field_counters(call, result: result)
+        case MethodRoute.durabilityFlags:
+            __handle_durability_flags(call, result: result)
+        case MethodRoute.setDurabilityFlag:
+            __handle_set_durability_flag(call, result: result)
 
         default:
             result(FlutterMethodNotImplemented)

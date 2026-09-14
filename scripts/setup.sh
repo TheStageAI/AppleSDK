@@ -123,7 +123,7 @@ Next steps:
   2. Open examples/<app>/ios/Runner.xcodeproj in Xcode and set Team +
      Bundle Identifier under Signing & Capabilities.
   3. Build and run:
-       cd examples/tts_front_stream
+       cd examples/voice_agent
        flutter pub get
        flutter run --release \
            --dart-define-from-file=secrets.json \

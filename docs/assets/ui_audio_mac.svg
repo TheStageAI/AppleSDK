@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 400" width="300" height="400" role="img" aria-label="Transcribing a meeting playing on the Mac">
+  <style>
+  .bg{fill:#131313} .frame{fill:#1A1A1A;stroke:#303030;stroke-width:1.5}
+  .raised{fill:#272727} .card{fill:#151515;stroke:#303030}
+  .t{fill:#F2F2F2;font:500 13px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.3px}
+  .ttl{fill:#F2F2F2;font:600 15px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.4px}
+  .b{fill:#F2F2F2;font:400 12px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif} .dim{fill:#8A8A8A;font:400 12px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+  .hyp{fill:#7A7A7A;font:400 12px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-style:italic}
+  .m{fill:#B8B8B8;font:10.5px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace} .mhi{fill:#FF885A;font:10.5px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .sec{fill:#8A8A8A;font:500 10px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:0.6px}
+  .btn{fill:#F2F2F2} .btn-t{fill:#131313;font:500 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.3px}
+  .out-t{fill:#131313;font:400 12px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+  .btn-hi{fill:#FFF844} .btn-hi-t{fill:#131313;font:500 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.3px}
+  .chip{fill:#272727;stroke:#3A3A3A} .chip-t{fill:#F2F2F2;font:500 11px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+  .accent{fill:#FF885A} .bar{fill:#303030} .bar-fill{fill:#FF885A}
+  .sub{fill:#000000;fill-opacity:0.72} .sub-t{fill:#FFFFFF;font:500 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+  .photo{fill:#2B2B2B;stroke:#3A3A3A} .photo-t{fill:#6E6E6E;font:400 11px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+  .hl{fill:#FFF844;fill-opacity:0.18} .cap{fill:#8A8A8A;font:400 12px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+</style>
+  <rect class="frame" x="18" y="18" width="264" height="364" rx="34"/>
+  <rect class="raised" x="122.0" y="28" width="56" height="6" rx="3"/>
+  <rect class="raised" x="110.0" y="368" width="80" height="4" rx="2"/>
+  <g transform="translate(0,48)">
+  <text class="ttl" x="28" y="22">Meeting notes</text>
+  <text class="dim" x="28" y="38">System audio + mic</text>
+  <rect class="card" x="28" y="60" width="244" height="67" rx="14"/>
+  <text class="dim" x="40" y="80">Marco</text>
+  <text class="b" x="102" y="80">Launch moves to week two.</text>
+  <text class="dim" x="40" y="97">You</text>
+  <text class="b" x="102" y="97">OK, I'll update the plan.</text>
+  <rect class="hl" x="34" y="102" width="232" height="17" rx="4"/>
+  <text class="dim" x="40" y="114">Sara</text>
+  <text class="t" x="102" y="114">Confirm the vendor?</text>
+  <rect class="chip" x="28" y="137" width="244" height="25" rx="12.5"/>
+  <circle class="accent" cx="40" cy="149.5" r="3"/>
+  <text class="chip-t" x="50" y="153">Capturing system output · macOS 14.2+</text>
+  <text class="sec" x="28" y="181">SYSTEM AUDIO</text>
+  <rect class="bar" x="28" y="188" width="244" height="6" rx="3"/>
+  <rect class="bar-fill" x="28" y="188" width="122" height="6" rx="3"/>
+  </g>
+</svg>

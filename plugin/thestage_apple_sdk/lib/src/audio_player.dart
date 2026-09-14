@@ -5,9 +5,9 @@ import 'package:flutter/services.dart';
 import 'method_channels.dart';
 
 // ---------------------------------------------------------------------------
-// TheStageAudioPlayer
+// TSAudioPlayer
 // ---------------------------------------------------------------------------
-class TheStageAudioPlayer {
+class TSAudioPlayer {
   static const MethodChannel _channel = MethodChannel(MethodChannels.main);
   static int _nextId = 0;
 
@@ -15,7 +15,7 @@ class TheStageAudioPlayer {
   final String _id;
   bool _playing = false;
 
-  TheStageAudioPlayer({this.sampleRate = 24000})
+  TSAudioPlayer({this.sampleRate = 24000})
       : _id = 'audio_${_nextId++}_${DateTime.now().microsecondsSinceEpoch}';
 
   bool get isPlaying => _playing;

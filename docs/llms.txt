@@ -2,7 +2,7 @@
 # Source of truth for customer Markdown: docs/*.md (scrubbed to dist/docs/)
 
 ## Init (required)
-- Swift: TheStageAI.shared.initialize(apiToken:)
+- Swift: TheStageAI.shared.initialize(api_token:)
 - Flutter: TheStageFlutterSDK.initialize(api_token:)
 - Seat: (apiToken, deviceId) — see licensing.md / product_terms.md
 - Pricing: Service Request at https://app.thestage.ai/contact — no public rate card
@@ -13,14 +13,14 @@
 
 ## Core symbols
 - TheStageAI (singleton): start_model, stop_model, infer, infer_stream, open_tts_streamer, prefetch_engines, logging helpers
-- TheStageLLM
-- TheStageChatSession (llm.chat_session) — multi-turn memory + Path A tools
-- TheStageVLM
+- TSLLM
+- TSChatSession (llm.chat_session) — multi-turn memory + Path A tools
+- TSVLM
 - WhisperPipeline, Qwen3ASRPipeline
 - NeuTTSMultilingualPipeline, Qwen3TTSPipeline
   (prefer neutts-nano-multilingual; full neutts-multilingual temporarily out)
 - SileroVAD
-- TheStageVoiceAgent, TheStageAgentConfig, TheStageLocalLLMProvider, TheStageOpenAICompatibleProvider
+- TSVoiceAgent, TSAgentConfig, TSLocalLLMProvider, TSOpenAICompatibleProvider
 - SpeakerEmbedding (family thestage_speaker_embedding; often model_name speaker_id)
 - Tool / ToolDefinition / ToolCall / ToolCalling / DefaultTools
   (Path A: chat_session / infer_stream(tools: [Tool]); Path B: definitions + executor: nil)
@@ -28,8 +28,8 @@
 - AECMethod (vpio / neural / none) on agent audio config
 
 ## Pages
-- llm.md — TheStageLLM
-- vlm.md — TheStageVLM (LFM2.5-VL)
+- llm.md — TSLLM
+- vlm.md — TSVLM (LFM2.5-VL)
 - asr.md — WhisperPipeline + Qwen3ASRPipeline
 - tts.md — NeuTTS + Qwen3-TTS
 - vad.md — SileroVAD

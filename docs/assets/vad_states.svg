@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 495" width="900" height="495" role="img" aria-label="Speech activity, frame by frame">
+  <style>
+  .bg{fill:#131313}
+  .dot{fill:#1F1F1F}
+  .card{fill:#1A1A1A;stroke:#303030;stroke-width:1}
+  .card-accent{fill:#1F1714;stroke:#FF885A;stroke-width:1.5}
+  .card-hi{fill:#FFF844;stroke:#FFF844;stroke-width:1.5}
+  .card-muted{fill:#161616;stroke:#242424;stroke-width:1}
+  .h{fill:#FFFFFF;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  .b{fill:#646464;font:400 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px}
+  .m{fill:#6F6F6F;font:11px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .hi-t{fill:#131313;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  .hi-b{fill:#131313;font:400 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px;opacity:.72}
+  .hi-m{fill:#3D3A10;font:11px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .ttl{fill:#FFFFFF;font:500 20px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.8px}
+  .sub{fill:#646464;font:400 13px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px}
+  .edge{stroke:#4A4A4A;stroke-width:1.5;fill:none}
+  .ah{fill:#4A4A4A}
+  .edge-d{stroke:#4A4A4A;stroke-width:1.5;fill:none;stroke-dasharray:4 4}
+  .el{fill:#646464;font:400 10.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.2px}
+  .badge{fill:#242424;stroke:#303030}
+  .badge-t{fill:#8A8A8A;font:500 10px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.2px}
+  .num{fill:#646464;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  </style>
+  <defs>
+  <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+    <circle class="dot" cx="1" cy="1" r="1"/></pattern>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+    <path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="bg" width="900" height="495" rx="14"/>
+  <rect width="900" height="495" rx="14" fill="url(#dots)"/>
+  <text class="ttl" x="28" y="40">Speech activity, frame by frame</text>
+  <text class="sub" x="28" y="62">VAD scores each frame. The session turns noisy per-frame scores into stable start and end events.</text>
+  <rect class="card" x="28.0" y="92" width="380.5" height="131" rx="14"/>
+  <text class="h" x="46.0" y="132.0"><tspan class="num">01 / </tspan>Per-frame score</text>
+  <text class="b" x="46.0" y="152.0">A probability that this frame</text>
+  <text class="b" x="46.0" y="170.0">contains speech. Noisy.</text>
+  <text class="m" x="46.0" y="194.0">probe(frame)</text>
+  <rect class="card-accent" x="491.5" y="92" width="380.5" height="131" rx="14"/>
+  <text class="h" x="509.5" y="123.0"><tspan class="num">02 / </tspan>Hysteresis</text>
+  <text class="b" x="509.5" y="143.0">Enter speech fast so the app feels</text>
+  <text class="b" x="509.5" y="161.0">responsive; leave it slowly so a</text>
+  <text class="b" x="509.5" y="179.0">breath is not an end-of-turn.</text>
+  <text class="m" x="509.5" y="203.0">activity session</text>
+  <rect class="card" x="28.0" y="281" width="380.5" height="95" rx="14"/>
+  <text class="h" x="46.0" y="312.0"><tspan class="num">03 / </tspan>Start / end events</text>
+  <text class="b" x="46.0" y="332.0">What your app actually acts on.</text>
+  <text class="m" x="46.0" y="356.0">speech started / ended</text>
+  <path class="edge" d="M414.5,157.5 L485.5,157.5" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="149.5" text-anchor="middle">accumulate</text>
+  <path class="edge" d="M681.75,228 V245 H218.25 V273" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="239" text-anchor="middle">stable state</text>
+  <rect class="card-hi" x="28" y="406" width="844" height="71" rx="14"/>
+  <text class="hi-t" x="46" y="437.0">Do not threshold raw scores</text>
+  <text class="hi-b" x="46" y="457.0">One noisy frame becomes a false turn end. Act on the session's state, not the frame.</text>
+</svg>

@@ -183,7 +183,7 @@ class VoiceAgentController extends ChangeNotifier {
 
   /// Open the mic after deferred models finish (pairs with `auto_listen: false`).
   Future<void> beginListening() async {
-    await _agent.beginListening();
+    await _agent.begin_listening();
   }
 
   /// Stop the agent and reset conversation UI.
@@ -230,13 +230,21 @@ class VoiceAgentController extends ChangeNotifier {
           state = next;
           // Leaving `loading` means startup finished — clear the loader state.
           if (state != TheStageAgentState.loading) _resetLoading();
+          // The live caption belongs to one turn: drop it the moment the
+          // agent stops listening, so the next turn starts from a blank bubble.
+          if (state != TheStageAgentState.listening) partialTranscript = '';
         }
 
       // ─── ASR path: what YOU said ───
       case 'user_request_partial':
         // Streaming ASR caption: grows as you speak. Feeds the live USER
         // bubble. Replaced wholesale each event (it's the full partial so far).
-        partialTranscript = event['text']?.toString() ?? '';
+        // Only while listening: a partial that lands after the turn was
+        // committed belongs to the turn that just ended and would show the
+        // previous request over the new one.
+        if (state == TheStageAgentState.listening) {
+          partialTranscript = event['text']?.toString() ?? '';
+        }
 
       case 'user_request':
         // Turn ended: the authoritative transcript. Drop the live partial and

@@ -73,13 +73,13 @@ protocol BenchASR: AnyObject {
 
 extension WhisperPipeline: BenchASR {
     func bench_infer(audio: [Float]) -> ASRResult {
-        infer(audio: audio, language: "en")
+        (try? infer(audio: audio, config: ASRGenerationConfig(language: "en"))) ?? .empty
     }
 }
 
 extension Qwen3ASRPipeline: BenchASR {
     func bench_infer(audio: [Float]) -> ASRResult {
-        infer(audio: audio, language: "en")
+        (try? infer(audio: audio, config: ASRGenerationConfig(language: "en"))) ?? .empty
     }
 }
 

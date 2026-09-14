@@ -1,6 +1,66 @@
 import 'package:flutter/foundation.dart';
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
 
+/// Official vendor sampling for the selected LLM. LFM ≠ Qwen ≠ Gemma.
+class LlmSamplingCard {
+  const LlmSamplingCard({
+    required this.name,
+    required this.temperature,
+    required this.topK,
+    required this.topP,
+    required this.minP,
+    required this.repetitionPenalty,
+  });
+
+  final String name;
+  final double temperature;
+  final int topK;
+  final double topP;
+  final double minP;
+  final double repetitionPenalty;
+
+  /// LiquidAI LFM2.5.
+  static const lfm = LlmSamplingCard(
+    name: 'LFM2.5',
+    temperature: 0.1,
+    topK: 50,
+    topP: 1.0,
+    minP: 0.15,
+    repetitionPenalty: 1.05,
+  );
+
+  /// Qwen3 non-thinking (voice loop has thinking off).
+  static const qwen3NonThinking = LlmSamplingCard(
+    name: 'Qwen3 non-thinking',
+    temperature: 0.7,
+    topK: 20,
+    topP: 0.8,
+    minP: 0.0,
+    repetitionPenalty: 1.0,
+  );
+
+  /// Gemma 3 instruct.
+  static const gemma3 = LlmSamplingCard(
+    name: 'Gemma 3',
+    temperature: 1.0,
+    topK: 64,
+    topP: 0.95,
+    minP: 0.0,
+    repetitionPenalty: 1.0,
+  );
+
+  static LlmSamplingCard forModel(String id) {
+    final n = id.toLowerCase();
+    if (n.contains('qwen')) return qwen3NonThinking;
+    if (n.contains('gemma')) return gemma3;
+    return lfm;
+  }
+
+  String get summary =>
+      '$name  temp $temperature / top_k $topK / top_p $topP / '
+      'min_p $minP / rep $repetitionPenalty';
+}
+
 // ============================================================================
 // BACKEND layer — the config source
 // ============================================================================
@@ -24,7 +84,7 @@ class VoiceAgentSettings extends ChangeNotifier {
   // Bundled folder names under BundledModels/ (optional offline stack).
   String localLlmBundle = 'lfm2.5-350m';
   String localSttBundle = 'thewhisper-large-v3-turbo';
-  String localTtsBundle = 'qwen3-tts-12hz-0.6b-base';
+  String localTtsBundle = 'neutts-nano-multilingual';
   String localVadBundle = 'silero-vad';
   String localTurnBundle = 'smart-turn-v3';
 
@@ -33,7 +93,7 @@ class VoiceAgentSettings extends ChangeNotifier {
   // Default on-device LLM when loading from HuggingFace (handle == repo id).
   static const hfLlmRepo = 'TheStageAI/LFM2.5-350M';
   static const hfSttRepo = 'TheStageAI/thewhisper-large-v3-turbo';
-  static const hfTtsRepo = 'TheStageAI/Qwen3-TTS-12Hz-0.6B-Base';
+  static const hfTtsRepo = 'TheStageAI/neutts-nano-multilingual';
 
   /// Shipping HF LLMs (must match ModelRevisionMap / public docs).
   static const availableHfLlms = [
@@ -77,25 +137,27 @@ class VoiceAgentSettings extends ChangeNotifier {
 
   // ── Voice & language ─────────────────────────────────────────────────────
   // Qwen TTS clone voice + LFM persona for the on-device Trump demo.
-  String ttsVoice = 'donald_trump';
+  String ttsVoice = 'paul';
   String sttLanguage = 'en';
-  // Voice + tools: model-agnostic persona. Wire format (Qwen XML / LFM
-  // python / Gemma tool_code) comes from the SDK tools section, not here.
-  // Keep short — small packs parrot long style guides.
-  String systemPrompt =
-      'You are a concise, friendly on-device voice assistant. '
-      'Always reply in complete sentences. Prefer tools for live facts '
-      '(weather, time, search). When using a tool: '
-      '1) say a short filler first ("Hmm, let me check that."), '
-      '2) emit the tool call using ONLY the exact markup from the tools '
-      'section (the app runs it — do not speak the markup aloud), '
-      '3) after the plain-text tool result, answer in 1–2 full sentences '
-      '("Oh, found it — it\'s 18 degrees in San Francisco."). '
-      'Never stop after one word. Never invent facts the tool did not '
-      'provide. Never read a tool result aloud as raw JSON.';
+  // Short strict persona. No few-shot cities — small packs copy them.
+  // Wire format (Qwen XML / LFM python / Gemma tool_code) comes from the
+  // SDK tools section, not here. Keep "Tool pattern (always):" so the SDK
+  // does not append a second spoken-hint block.
+  String systemPrompt = '''
+You are a short on-device voice assistant. Answer in complete sentences. Use the user's language.
 
-  /// Built-in tool preset for local LLM: none | voice | web | phone.
-  /// Default `web` — small LFM packs degrade with the full voice+phone set.
+        Tools are only for live facts the user asked for (weather, time, search). Greetings, chit-chat, and opinions: answer yourself — no tool, no filler, no city, no weather.
+
+Tool pattern (always):
+1) Need a tool? One short filler, then the exact markup from the tools section (do not speak the markup).
+2) After the tool result: 1–2 sentences using only that result.
+3) No tool needed? Answer the question directly.
+
+Never invent facts. Never name a place, time, or number the user did not ask and the tool did not return. Never read JSON aloud. Never stop after one word.
+'''.trim();
+
+  /// Built-in tool preset for local LLM: none | voice | web | phone | live.
+  /// Default `web` is the 3 live-fact tools (weather, time, search).
   String llmTools = 'web';
 
   // ── LLM provider ─────────────────────────────────────────────────────────
@@ -105,8 +167,8 @@ class VoiceAgentSettings extends ChangeNotifier {
   String llmProvider = 'local';
   String llmModel = hfLlmRepo;
   String llmEndpoint = 'https://api.openai.com/v1/chat/completions';
-  // Cloud (OpenAI-compatible) only. Local LFM uses the bundle's
-  // `arch.decoder.generation` — these are not sent when llmProvider=local.
+  // Cloud (OpenAI-compatible) HTTP body. Local Path A overlays that
+  // model's vendor card (see [LlmSamplingCard.forModel]).
   int maxTokens = 256;
   double temperature = 0.7;
 
@@ -152,8 +214,8 @@ class VoiceAgentSettings extends ChangeNotifier {
   int chatMemoryMaxTurns = 10;
 
   // ── Endpointing (VAD) ────────────────────────────────────────────────────
-  int silenceTimeoutMs = 600;
-  double vadThreshold = 0.8;
+  int silenceTimeoutMs = 608; // SDK default
+  double vadThreshold = 0.75; // product choice, same as the gallery (negative 0.225)
   int vadOnsetMs = 96;
   int maxAccumulationMs = 30000;
 
@@ -169,7 +231,12 @@ class VoiceAgentSettings extends ChangeNotifier {
   int turnMinSpeechMs = 250;
   // Trailing silence still fed to the streaming decoder after speech stops;
   // the smart-turn model still sees the full pause. Bounds "mm"/"?" filler.
-  int turnAsrSilenceHangoverMs = 200;
+  //
+  // `null` — the default — lets the SDK derive it from the loaded model's
+  // streaming policy, where the value is actually tuned. It was hardcoded
+  // 200 here and sent on every start, so the tuned value could never reach
+  // the agent no matter what the SDK shipped. Set it to override.
+  int? turnAsrSilenceHangoverMs;
 
   // ── Streaming ASR (live caption partials) ────────────────────────────────
   // The committed transcript is identical whether this is on or off; it only
@@ -192,7 +259,7 @@ class VoiceAgentSettings extends ChangeNotifier {
   // ── Interruption / barge-in ──────────────────────────────────────────────
   bool allowInterruptions = true;
   String interruptMode = 'speech_only';
-  int interruptMinSpeechMs = 500;
+  int interruptMinSpeechMs = 600; // SDK default
   // Sustained positive-VAD duration (ms) required to fire a barge-in. 0 =
   // derive from interruptMinSpeechMs. Pair with a high interruptThreshold to
   // reject noise / self-interrupts.
@@ -226,6 +293,9 @@ class VoiceAgentSettings extends ChangeNotifier {
   bool speculativeWhisper = true;
 
   static const availableVoices = [
+    'paul',
+    'dave',
+    'jo',
     'b_ref',
     'donald_trump',
     'elon_musk',
@@ -237,13 +307,19 @@ class VoiceAgentSettings extends ChangeNotifier {
   ];
   static const availableLanguages = ['en', 'auto', 'fr', 'de', 'es'];
 
+  String get selectedLlmId => useLocalBundles ? localLlmBundle : llmModel;
+
+  LlmSamplingCard get samplingCard =>
+      LlmSamplingCard.forModel(selectedLlmId);
+
   /// Flatten the settings into the `config` map `agent.start(config:)` reads.
   /// Grouped by subsystem so the LLM / ASR / TTS / turn-detection wiring is
   /// obvious at a glance.
   ///
   /// Paths here are HF repo ids by default. Call [resolveLocalConfig] first
   /// when [useLocalBundles] is true so they become on-device absolute paths.
-  Map<String, dynamic> toConfig(String apiKey) => {
+  Map<String, dynamic> toConfig(String apiKey) {
+    return {
         // ── Models the agent loads (HF by default; no revision keys —
         // ModelRevisionMap picks vA.B for this SDK build) ──
         'vad': 'TheStageAI/silero-vad',
@@ -261,11 +337,15 @@ class VoiceAgentSettings extends ChangeNotifier {
         'system_prompt': systemPrompt,
         'llm_tools': llmTools,
         'chat_memory_max_turns': chatMemoryMaxTurns,
-        // Sampling overlays bundle defaults for local Path A too.
         'max_tokens': maxTokens,
         'temperature': temperature,
+        // Per-model vendor card (LFM ≠ Qwen ≠ Gemma). Tools: weather/time/search.
+        // Sampling comes from the pack: each bundle's decoder spec carries
+        // the model card's values (LFM 0.3 / top_k 64 / min_p 0.15 / rep 1.05,
+        // Qwen 0.7 / 20 / 0.8 / rep 1.1, Gemma 1.0 / 64 / 0.95), and the SDK
+        // seeds `generation_defaults` from it. The app used to send its own
+        // copy of the cards here and drifted from the packs.
         // Local: load VAD/STT/TTS first, then LLM, then open the mic.
-        if (llmProvider == 'local') 'auto_listen': false,
 
         // ── VAD / endpointing ──
         'vad_threshold': vadThreshold,
@@ -308,7 +388,10 @@ class VoiceAgentSettings extends ChangeNotifier {
         'turn_max_silence_ms': turnMaxSilenceMs,
         'turn_window_ms': turnWindowMs,
         'turn_min_speech_ms': turnMinSpeechMs,
-        'turn_asr_silence_hangover_ms': turnAsrSilenceHangoverMs,
+        // Omitted when null so the SDK derives it; sending the key at all is
+        // what used to override the tuned policy.
+        if (turnAsrSilenceHangoverMs != null)
+          'turn_asr_silence_hangover_ms': turnAsrSilenceHangoverMs,
 
         // ── Streaming ASR (live captions) ──
         'asr_streaming': asrStreaming,
@@ -316,14 +399,13 @@ class VoiceAgentSettings extends ChangeNotifier {
 
         // ── Diagnostics ──
         'debug_timeline': debugTimeline,
-      };
+    };
+  }
 
   /// Resolve BundledModels/<name> paths and patch [config] so the agent loads
   /// VAD/STT/TTS/turn from the app bundle.
   ///
-  /// Does **not** start the local LLM — call [startLocalLlm] *after*
-  /// `agent.start` so Whisper+Qwen TTS don't compete with LFM for RAM/ANE
-  /// (TTS load was jetsamming when LFM was already resident).
+  /// The agent starts the local LLM itself, last in its load sequence.
   Future<Map<String, dynamic>> resolveLocalConfig(
     Map<String, dynamic> config,
   ) async {
@@ -353,35 +435,6 @@ class VoiceAgentSettings extends ChangeNotifier {
     config['llm_provider'] = 'local';
     config['llm_model'] = localLlmHandle;
     return config;
-  }
-
-  /// Start the on-device LLM after VAD/STT/TTS are loaded.
-  /// Bundled: [localLlmHandle] + BundledModels path.
-  /// HF: [llmModel] as both handle and repo (revision from ModelRevisionMap).
-  Future<void> startLocalLlm() async {
-    if (llmProvider != 'local') return;
-    final String handle;
-    final String enginesPath;
-    if (useLocalBundles) {
-      final p = await TheStageFlutterSDK.get_bundled_engine_path(localLlmBundle);
-      if (p == null || p.isEmpty) {
-        throw StateError('Bundled model missing: $localLlmBundle');
-      }
-      handle = localLlmHandle;
-      enginesPath = p;
-    } else {
-      handle = llmModel;
-      enginesPath = llmModel;
-    }
-    try {
-      await TheStageFlutterSDK.stop_model(model_name: handle);
-    } catch (_) {}
-    await TheStageFlutterSDK.start_model(
-      model_name: handle,
-      engines_path: enginesPath,
-      model_type: 'thestage_llm',
-      device: 'npu',
-    );
   }
 
   Future<void> stopLocalLlm() async {

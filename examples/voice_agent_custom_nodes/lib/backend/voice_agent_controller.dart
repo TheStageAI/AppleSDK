@@ -181,7 +181,7 @@ class VoiceAgentController extends ChangeNotifier {
 
   /// Open the mic after deferred models finish (pairs with `auto_listen: false`).
   Future<void> beginListening() async {
-    await _agent.beginListening();
+    await _agent.begin_listening();
   }
 
   /// Stop the agent and reset conversation UI.

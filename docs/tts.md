@@ -1,382 +1,102 @@
 # TTS (Text-to-Speech)
 
-On-device neural text-to-speech that produces 24 kHz mono float PCM you
-can play, save, or stream. Two families live behind the same voice /
-config API:
+On-device neural speech. Two model families — **NeuTTS** and
+**Qwen3-TTS** — behind one API, producing 24 kHz mono float PCM you can
+play, save, or stream. Voices swap at runtime without reloading the
+model, and your own speaker can ship as a small voice pack.
 
-- **`NeuTTSMultilingualPipeline`** — NeuTTS multilingual / nano
-- **`Qwen3TTSPipeline`** — Qwen3-TTS (12 Hz talker + MTP + codec)
-
-Flutter / `start_model` auto-routes Qwen3-TTS vs NeuTTS from the bundle
-layout — Dart callers only see a `tts` model handle. All surfaces share
-the same on-disk cache and the same output contract; the codec is
-always 24 kHz and the pipeline optionally resamples on the way out.
+Use it two ways: synthesise a string and get audio back, or open a
+stream and hear the first words while the rest is still being made.
 
 > **Main features**
 >
 > - **Two families, one API**: `NeuTTSMultilingualPipeline` and
->   `Qwen3TTSPipeline` both extend `TheStageTTSPipeline`; the same
->   `infer` / `infer_stream` / `open_streamer` / `set_voice` calls work
->   on either.
-> - **24 kHz mono float PCM out**: hand off to `AudioStreamPlayer` /
->   `TheStageAudioPlayer`, write to a WAV, or resample once via
->   `TTSGenerationConfig.sample_rate_out` (16 / 24 / 48 kHz are
->   typical).
-> - **Push streamer**: call `send(_:)` with partial text (LLM deltas,
->   chat tokens) and drain PCM from `streamer.output` before the full
->   sentence is even done.
-> - **Three voice knobs that compose**: bundle voice id, external
->   prepared pack (`voice_dir`), and NeuTTS multilingual language
->   override. Same names on the constructor and on
->   `set_voice(voice_dir:voice_id:language:)`.
-> - **Runtime voice hot-swap**: no engine reload, no bundle re-download.
-> - **Auto-routing**: Flutter `start_model("tts")` picks the family from
->   the engine bundle layout; Dart callers only see one `tts` handle.
-> - **NeuTTS multilingual**: english, french, german, spanish,
->   portuguese, japanese, korean, chinese, urdu — same speaker across
->   languages.
+>   `Qwen3TTSPipeline` share `infer` / `open_stream` / `set_voice`.
+> - **Streaming**: push text in — whole sentences or LLM tokens — and
+>   drain audio as it is synthesised. First audio in tens of
+>   milliseconds.
+> - **Voice hot-swap**: `set_voice(voice_id:)` changes speaker or
+>   language on a live pipeline, no engine reload.
+> - **Your own voice**: encode a 3-second reference clip into a voice
+>   pack and ship it with the app.
+> - **Nine languages, one speaker** (NeuTTS): english, french, german,
+>   spanish, portuguese, japanese, korean, chinese, urdu.
+> - **Any output rate**: 24 kHz native, resampled once to 16 / 48 kHz
+>   if your audio session needs it.
+> - **A player is included**: `AudioStreamPlayer` / `TSAudioPlayer`
+>   accept exactly this PCM.
 
 ## In this page
 
 Here we will cover the following topics:
 
-- [**Supported models**](#supported-models): models, languages, default voices.
-- [**API surface**](#api-surface): Swift constructor / Flutter singleton, batch and streaming.
-- [**Quick start**](#quick-start): one-shot NeuTTS to PCM and push-streamer Qwen3-TTS.
-- [**Configuration**](#configuration): `TTSGenerationConfig` sampling recipes as runnable code, plus `TTSStreamConfig` chunking knobs.
-- [**Output contract**](#output-contract): the shape of `TTSResult` and every streamer chunk.
-- [**Lifecycle**](#lifecycle): initialize → construct → infer / stream → cleanup.
-- [**Usage Guides**](#usage-guides): play through the audio engine, change output kHz, save to WAV, speak text, stream early audio, pipe LLM tokens, pick a voice / language / pack, produce a `voice_dir`, clarity, reproducible QA.
-- [**Troubleshooting**](#troubleshooting): empty audio, choppy streaming, wrong language, slow first audio, playback-rate mismatch, missing voice.
+- [Supported models](#supported-models): the two families, their voices and languages, and how to pick.
+- [Quick start](#quick-start): speak a string, or stream it — Swift and Flutter side by side.
+- [Synthesise speech](#synthesise-speech): the batch call, output format, and the sampling knobs.
+- [Stream speech](#stream-speech): push text, drain audio, and the chunking knobs.
+- [Voices and languages](#voices-and-languages): bundle voices, language override, your own voice pack.
+- [Result object](#result-object): `TTSResult` and stream chunk fields.
+- [Usage Guides](#usage-guides): read notifications aloud, speak an LLM reply, a multilingual tutor, a brand voice, wrong playback speed, slow first audio.
+- [Troubleshooting](#troubleshooting): symptom → cause → fix.
+- [Load Progress / Prefetch / Cleanup](#load-progress-prefetch-cleanup): first-run download, warming the cache, releasing models.
 
 ## Supported models
 
-| Model | HF repo | Family | Device | Output | Fleet pin |
-|-------|---------|--------|--------|--------|-----------|
-| NeuTTS nano multilingual | `TheStageAI/neutts-nano-multilingual` | NeuTTS | NPU | 24 kHz mono | v1.1 |
-| NeuTTS multilingual | `TheStageAI/neutts-multilingual` | NeuTTS | NPU | 24 kHz mono | temporarily out of v1.1 |
-| Qwen3-TTS 12 Hz 0.6B | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | Qwen3 | NPU | 24 kHz mono | v1.1 |
+Two families. Both produce 24 kHz mono float and accept the same calls;
+they differ in size, languages and voice character.
 
-**Voice API (both families):** pick a bundle voice with `voice_id`, or an
-external prepared pack with `voice_dir`. Hot-swap with
-`set_voice(voice_dir:voice_id:language:)` without reloading engines.
-Same keys work on `start_model` config.
+| Model | HF repo | Family | Device | Fleet pin |
+|---|---|---|---|---|
+| NeuTTS nano multilingual | `TheStageAI/neutts-nano-multilingual` | NeuTTS | NPU | v1.1 |
+| Qwen3-TTS 12 Hz 0.6B | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | Qwen3 | NPU | v1.1 |
 
-NeuTTS languages: english, french, german, spanish, portuguese,
-japanese, korean, chinese, urdu. Typical NeuTTS voices: `paul`, `dave`.
-Qwen3 default voice id: `b_ref`.
+| Feature | NeuTTS nano | Qwen3-TTS |
+|---|---|---|
+| Bundle voices | `paul`, `dave`, `jo` | `b_ref` |
+| Languages | english, french, german, spanish, portuguese, japanese, korean, chinese, urdu — one speaker across all | follows the voice pack |
+| Own voice from a clip | yes (3–10 s reference) | yes (2–4 s reference) |
+| Streaming | yes | yes |
+| Voice Agent TTS | yes | yes |
 
-## API surface
+**Which one?**
 
-| Purpose | Swift | Flutter |
-|---------|-------|---------|
-| Init (NeuTTS) | `try await NeuTTSMultilingualPipeline(engines_path:voice_id:voice_dir:language:device:)` | `start_model(model_name:"tts", engines_path:, config: ["voice_id":, "voice_dir":, "language":])` |
-| Init (Qwen3) | `try await Qwen3TTSPipeline(engines_path:voice_id:voice_dir:device:)` | same `start_model` — auto-routed |
-| One-shot | `tts.infer(text:config:)` → `TTSResult` | `infer(model_name:"tts", input_json:)` |
-| Streaming | `tts.infer_stream(text:config:)` or `tts.open_streamer(config:)` | `open_tts_streamer(model_name:"tts", config:)` |
-| Voice hot-swap | `tts.set_voice(voice_dir:voice_id:language:)` | `set_voice_for(model_name:"tts", …)` |
-| Progress | `on_load_progress` | `TheStageFlutterSDK.on_progress` |
-| Cleanup | drop the pipeline | `stop_model(model_name:"tts")` |
+| You need… | Pick | Why |
+|---|---|---|
+| Lowest latency and footprint | **NeuTTS nano** | Smallest model; fastest first audio. |
+| The same speaker in several languages | **NeuTTS nano** | `set_voice(language:)` keeps the speaker and switches phonemes. |
+| Most natural prosody for long narration | **Qwen3-TTS** | Larger talker model; better on long sentences. |
+| A voice cloned from a very short clip | **Qwen3-TTS** | Clones from ~3 s of reference audio. |
 
 ## Quick start
 
-**Swift — NeuTTS one-shot to PCM:**
+Two ways to get audio. Batch when you already have the whole string and
+a second of latency is fine; stream when the user is waiting to hear it.
 
-```swift
-import TheStageSDK
+| You want | Latency | Use |
+|---|---|---|
+| Audio for a string you already have | the whole clip at once | `infer(text:)` |
+| Audio that starts before the text is finished | first chunk in milliseconds | `open_stream` / `TTSStream.open` |
 
-try await TheStageAI.shared.initialize(apiToken: "your-api-token")
-
-let tts = try await NeuTTSMultilingualPipeline(
-    engines_path: "TheStageAI/neutts-nano-multilingual",
-    voice_id: "dave",
-    language: "english",
-    device: "npu"
-)
-
-var config = TTSGenerationConfig()
-config.sample_rate_out = 24_000
-
-let result = try tts.infer(text: "Hello from TheStage TTS.", config: config)
-// result.samples : [Float] mono, result.sample_rate == 24000
-```
-
-**Swift — Qwen3-TTS streaming with a push streamer:**
-
-```swift
-let tts = try await Qwen3TTSPipeline(
-    engines_path: "TheStageAI/Qwen3-TTS-12Hz-0.6B-Base",
-    voice_id: "b_ref",
-    device: "npu"
-)
-
-let streamer = tts.open_streamer(config: TTSStreamConfig())
-
-let consumer = Task {
-    for await chunk in streamer.output {
-        // 24 kHz mono Float PCM; hand off to your player.
-        if let pcm = chunk.audio { speaker.append(pcm) }
-    }
-}
-
-streamer.send("This is a streamed sentence.")
-streamer.stop_stream()   // no more input; drain remaining audio
-await consumer.value
-```
-
-The streamer is push-based: `send(_:)` for text (any size, no need
-to buffer whole sentences), then `stop_stream()` when the producer is
-done. The `output` stream drains until all audio is emitted.
-
-**Flutter:**
-
-```dart
-await TheStageFlutterSDK.initialize(api_token: 'your-api-token');
-await TheStageFlutterSDK.start_model(
-  model_name: 'tts',
-  engines_path: 'TheStageAI/neutts-nano-multilingual',
-  config: {'voice_id': 'dave', 'language': 'english'},
-);
-
-final out = await TheStageFlutterSDK.infer(
-  model_name: 'tts',
-  input_json: {'text': 'Hello from Flutter.', 'sample_rate_out': 24000},
-);
-final pcm = out[0]['audio'] as List<double>;
-```
-
-## Configuration
-
-`TTSGenerationConfig` controls sampling / voice; `TTSStreamConfig`
-controls chunking. Omit to use pack / voice defaults.
-
-**Sampling recipes.** All four call the same `tts.infer(text:config:)`
-— only `TTSGenerationConfig` changes. Copy the block that matches
-the product job and tune on device.
-
-*1. Stable / clear (product default — most demos start here):*
-
-```swift
-var config = TTSGenerationConfig()
-config.temperature = 0.9   // omit for pack default
-config.top_k = 45
-let result = try tts.infer(text: "Welcome to the product demo.", config: config)
-```
-
-*2. More expressive (character voice, animation, playful TTS):*
-
-```swift
-var config = TTSGenerationConfig()
-config.temperature = 1.15
-config.top_k = 70
-let result = try tts.infer(text: "Oh WOW! You'll never guess what happened.", config: config)
-```
-
-*3. Safer / fewer artifacts (long-form narration, audiobook segments):*
-
-```swift
-var config = TTSGenerationConfig()
-config.temperature = 0.7
-config.top_k = 25
-let result = try tts.infer(text: "Chapter one. The old lighthouse …", config: config)
-```
-
-*4. Reproducible QA (goldens / regression tests):*
-
-```swift
-var config = TTSGenerationConfig()
-config.temperature = 0.8
-config.top_k = 50
-config.seed = 42                       // same seed → same PCM per device+bundle
-let result = try tts.infer(text: "Hello! This is a TheStage text to speech demo.", config: config)
-```
-
-Other fields on `TTSGenerationConfig`:
-
-| Field | Meaning |
-|-------|---------|
-| `sample_rate_out` | Optional resample after codec (native is 24000) |
-| `return_debug_info` | Attach decoder traces |
-
-Flutter/JSON also accepts `sample_rate_out_khz` (16 / 24 / 48).
-
-**Stream chunking (`TTSStreamConfig`):**
-
-| Field | Default | Notes |
-|-------|---------|-------|
-| `frames_per_chunk` | 25 | Frames per chunk after the first |
-| `first_frames_per_chunk` | 25 | First chunk size; smaller → faster TTFA |
-| `lookforward` | 5 | Future frames for seams |
-| `lookback` | 50 | Past frames when bridging |
-| `overlap_frames` | 1 | Crossfade frames |
-
-## Output contract
-
-Mono float PCM in `[-1, 1]`. The codec is native 24 kHz; if you set
-`sample_rate_out` it is polyphase-resampled to that rate before the
-result / chunk is returned. Voice Agent has its own `sample_rate_out`
-at the audio engine — standalone TTS resampling and the agent's
-playback resampler are independent.
-
-| Field | Meaning |
-|-------|---------|
-| `samples` / `audio` | PCM buffer (Swift `[Float]` / JSON list) |
-| `sample_rate` | Output Hz (24000 or `sample_rate_out`) |
-| `duration` | Seconds of audio |
-| `rtf` | Real-time factor |
-| `tokens_per_second` | Decode speed |
-| `debug_info` | Only when `return_debug_info` is set |
-
-See [Audio I/O Contract](./README.md#audio-io-contract).
-
-## Lifecycle
-
-1. `initialize(apiToken:)` once per process.
-2. Construct a pipeline or `start_model` — first call downloads and
-   compiles the pack.
-3. Call `infer` / `infer_stream` / `open_streamer`. Swap voices with
-   `set_voice(...)` — no engine reload.
-4. Drop the pipeline (Swift) or `stop_model` (Flutter) when done.
-
-## Usage Guides
-
-Jump to a recipe:
-
-- [How do I save PCM to a WAV on disk?](#how-do-i-save-pcm-to-a-wav-on-disk)
-- [How do I play PCM through the audio engine?](#how-do-i-play-pcm-through-the-audio-engine)
-- [How do I change the output sample rate (kHz)?](#how-do-i-change-the-output-sample-rate-khz)
-- [How do I speak a string of text?](#how-do-i-speak-a-string-of-text)
-- [How do I hear audio before the sentence finishes?](#how-do-i-hear-audio-before-the-sentence-finishes)
-- [How do I pipe LLM tokens into TTS?](#how-do-i-pipe-llm-tokens-into-tts)
-- [How do I change voice / language / clone a speaker?](#how-do-i-change-voice-language-clone-a-speaker)
-- [How do I produce a `voice_dir` (voice pack)?](#how-do-i-produce-a-voice-dir-voice-pack)
-- [Why is playback too fast or too slow?](#why-is-playback-too-fast-or-too-slow)
-- [How do I get clearer speech / faster first audio?](#how-do-i-get-clearer-speech-faster-first-audio)
-- [How do I get reproducible QA audio?](#how-do-i-get-reproducible-qa-audio)
-
-### How do I save PCM to a WAV on disk?
-
-Default is **24 kHz** mono Float. Write with `AudioIO.write_wav`:
-
-```swift
-let result: TTSResult = tts.infer(
-    text: "Hello from TheStage.",
-    config: TTSGenerationConfig(sample_rate_out: 48_000)
-)
-let samples: [Float] = result.samples          // mono, [-1, 1]
-let sample_rate: Int = result.sample_rate       // 48000
-try AudioIO.write_wav(
-    samples: samples,
-    sample_rate: sample_rate,
-    path: "/tmp/tts_out.wav"
-)
-```
-
-### How do I play PCM through the audio engine?
-
-The SDK ships a low-latency player for exactly this PCM:
-`AudioStreamPlayer` (Swift) / `TheStageAudioPlayer` (Flutter). Match
-the player sample rate to `result.sample_rate` (or to the
-`sample_rate_out` you requested).
-
-**Swift — one-shot infer → speaker**
-
-```swift
-import TheStageSDK
-
-try await TheStageAI.shared.initialize(apiToken: "your-api-token")
-
-let tts = try await NeuTTSMultilingualPipeline(
-    engines_path: "TheStageAI/neutts-nano-multilingual",
-    voice_id: "dave",
-    language: "english",
-    device: "npu"
-)
-
-let result = tts.infer(text: "Hello from TheStage.")
-// result.sample_rate is 24000 unless you set sample_rate_out
-
-let player = AudioStreamPlayer(
-    config: AudioStreamConfig(sample_rate: Double(result.sample_rate))
-)
-player.start()
-player.enqueue(result.samples)   // mono Float in [-1, 1]
-await player.drain()             // wait until the buffer finishes
-player.stop()
-```
-
-**Swift — streamer → speaker (first audio before the sentence ends)**
-
-```swift
-let player = AudioStreamPlayer(
-    config: AudioStreamConfig(sample_rate: 24_000)
-)
-player.start()
-
-let streamer = tts.open_streamer()
-let consumer = Task {
-    for await chunk in streamer.output {
-        if let pcm = chunk.audio { player.enqueue(pcm) }
-    }
-}
-
-streamer.send("Hello from TheStage. ")
-streamer.send("This plays as it synthesizes.")
-streamer.stop_stream()
-await consumer.value
-await player.drain()
-player.stop()
-```
-
-**Flutter — one-shot infer → speaker**
-
-```dart
-import 'dart:typed_data';
-import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
-
-await TheStageFlutterSDK.initialize(api_token: 'your-api-token');
-await TheStageFlutterSDK.start_model(
-  model_name: 'tts',
-  engines_path: 'TheStageAI/neutts-nano-multilingual',
-  config: {'voice_id': 'dave', 'language': 'english'},
-);
-
-final result = await TheStageFlutterSDK.infer(
-  model_name: 'tts',
-  input_json: {'text': 'Hello from TheStage.'},
-);
-final audio = result[0]['audio'] as Float32List;
-final sampleRate = result[0]['sample_rate'] as int; // 24000
-
-final player = TheStageAudioPlayer(sampleRate: sampleRate);
-await player.start();
-player.enqueue(audio);
-await player.drain();
-await player.stop();
-```
-
-Voice Agent owns its own `AudioEngineNode` speaker path — you do not
-wire `AudioStreamPlayer` yourself inside the agent. Use this recipe for
-standalone TTS UIs.
-
-### How do I change the output sample rate (kHz)?
-
-The codec is always **24 kHz**. Set `TTSGenerationConfig.sample_rate_out`
-(Hz) to resample once on the way out — typical targets are 16 / 24 /
-48 kHz. Then point the player at the **same** rate.
+### Speak a string
 
 **Swift**
 
 ```swift
-// Speak at 48 kHz to match a 48 kHz AVAudioSession / device graph
-var config = TTSGenerationConfig()
-config.sample_rate_out = 48_000
+import TheStageSDK
 
-let result = tts.infer(text: "Forty eight kilohertz output.", config: config)
-assert(result.sample_rate == 48_000)
+try await TheStageAI.shared.initialize(api_token: "your-api-token")
+
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+
+let result = tts.infer(text: "Hello from TheStage.")
+// result.samples: [Float] mono in [-1, 1], result.sample_rate == 24000
 
 let player = AudioStreamPlayer(
-    config: AudioStreamConfig(sample_rate: 48_000)
+    config: AudioStreamConfig(sample_rate: Double(result.sample_rate))
 )
 player.start()
 player.enqueue(result.samples)
@@ -384,432 +104,913 @@ await player.drain()
 player.stop()
 ```
 
-Other common targets:
-
-```swift
-config.sample_rate_out = 16_000   // match Whisper / ASR graphs
-config.sample_rate_out = 24_000   // codec-native (same as omitting)
-config.sample_rate_out = 48_000   // match many iOS sessions
-```
-
-**Flutter** — Hz via `sample_rate_out`, or kHz via `sample_rate_out_khz`:
-
-```dart
-final result = await TheStageFlutterSDK.infer(
-  model_name: 'tts',
-  input_json: {
-    'text': 'Forty eight kilohertz output.',
-    'sample_rate_out': 48000,       // Hz
-    // 'sample_rate_out_khz': 48,   // equivalent shorthand
-  },
-);
-final sampleRate = result[0]['sample_rate'] as int; // 48000
-final player = TheStageAudioPlayer(sampleRate: sampleRate)..start();
-player.enqueue(result[0]['audio'] as Float32List);
-await player.drain();
-await player.stop();
-```
-
-Omit `sample_rate_out` to keep codec-native 24 kHz. Inside the Voice
-Agent, speaker rate is `TheStageAgentConfig.sample_rate_out` — that
-resampler is independent of standalone TTS
-`TTSGenerationConfig.sample_rate_out`.
-
-### How do I speak a string of text?
-
-Batch `infer` when you already have the full string and do not need
-first-audio latency.
-
-**Shared demo text:**
-
-```text
-Hello! This is a TheStage text to speech demo.
-```
-
-| Family | Voice | Artifact | Duration | Rate | rtf (audio/wall) |
-|---|---|---|---|---|---|
-| NeuTTS | `dave` | [`assets/tts_neutts_nano.wav`](./assets/tts_neutts_nano.wav) | ~3.34 s | 24000 Hz | ~2.62 |
-| Qwen3-TTS | `b_ref` | [`assets/tts_qwen3.wav`](./assets/tts_qwen3.wav) | ~5.68 s | 24000 Hz | ~1.47 |
-
-**Swift — NeuTTS:**
-
-```swift
-import TheStageSDK
-
-try await TheStageAI.shared.initialize(apiToken: "your-api-token")
-
-let tts = try await NeuTTSMultilingualPipeline(
-    engines_path: "TheStageAI/neutts-nano-multilingual",
-    voice_id: "dave",
-    language: "english",
-    device: "npu"
-)
-
-let result: TTSResult = tts.infer(
-    text: "Hello! This is a TheStage text to speech demo."
-)
-let samples: [Float] = result.samples
-let sample_rate: Int = result.sample_rate  // 24000
-// play with a 24 kHz player — see assets/tts_neutts_nano.wav
-```
-
-**Swift — Qwen3-TTS:**
-
-```swift
-let tts = try await Qwen3TTSPipeline(
-    engines_path: "TheStageAI/Qwen3-TTS-12Hz-0.6B-Base",
-    voice_id: "b_ref",
-    device: "npu"
-)
-let result: TTSResult = tts.infer(
-    text: "Hello! This is a TheStage text to speech demo."
-)
-let samples: [Float] = result.samples  // 24 kHz mono
-// see assets/tts_qwen3.wav
-```
-
-**Flutter** (auto-routes from `engines_path`):
+**Flutter**
 
 ```dart
 import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
-import 'dart:typed_data';
 
 await TheStageFlutterSDK.initialize(api_token: 'your-api-token');
-
 await TheStageFlutterSDK.start_model(
   model_name: 'tts',
   engines_path: 'TheStageAI/neutts-nano-multilingual',
   config: {'voice_id': 'dave', 'language': 'english'},
 );
 
-final result = await TheStageFlutterSDK.infer(
+final rows = await TheStageFlutterSDK.infer(
   model_name: 'tts',
-  input_json: {
-    'text': 'Hello! This is a TheStage text to speech demo.',
-  },
+  input_json: {'text': 'Hello from TheStage.'},
 );
-final audio = result[0]['audio'] as Float32List;
-final sampleRate = result[0]['sample_rate'] as int; // 24000
+final audio = rows[0]['audio'] as Float32List;
+// 24000
+final rate  = rows[0]['sample_rate'] as int;
+
+final player = TSAudioPlayer(sampleRate: rate);
+await player.start();
+player.enqueue(audio);
+await player.drain();
+await player.stop();
 ```
 
-For Qwen3 on Flutter, pass
-`engines_path: 'TheStageAI/Qwen3-TTS-12Hz-0.6B-Base'` and
-`config: {'voice_id': 'b_ref'}`.
+### Stream it
 
-### How do I hear audio before the sentence finishes?
-
-Use the push streamer and **drain `output` concurrently** with `send`.
-If you send all text before reading chunks, buffers stall. Wire chunks
-into `AudioStreamPlayer` / `TheStageAudioPlayer` (see
-[How do I play PCM through the audio engine?](#how-do-i-play-pcm-through-the-audio-engine)).
-
-**Swift:**
+**Swift**
 
 ```swift
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+
 let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
 player.start()
 
-let streamer = tts.open_streamer()
+let speech = tts.open_stream()
+// drain BEFORE you send
 let consumer = Task {
-    for await chunk in streamer.output {
+    for await chunk in speech.output {
         if let pcm = chunk.audio { player.enqueue(pcm) }
     }
 }
 
-streamer.send("Hello, world. ")
-streamer.send("This sentence streams as it synthesizes.")
-streamer.stop_stream()
+speech.send("Hello from TheStage. ")
+speech.send("This plays while the rest is still being made.")
+// no more text
+speech.close()
 await consumer.value
 await player.drain()
 player.stop()
 ```
 
-Full text already known → `infer_stream(text:)` in one call.
-
-**Flutter** — open with empty text, then `send` / `finish_stream`:
-
-```dart
-const streamId = 'tts-utterance-1';
-final player = TheStageAudioPlayer(sampleRate: 24000);
-await player.start();
-
-final consumer = () async {
-  final stream = TheStageFlutterSDK.infer_stream(
-    model_name: 'tts',
-    input_json: {'text': ''},
-    stream_id: streamId,
-  );
-  await for (final chunk in stream) {
-    final audio = chunk['audio'] as Float32List?;
-    if (audio != null && audio.isNotEmpty) player.enqueue(audio);
-    if (chunk['is_final'] == true) break;
-  }
-}();
-
-await TheStageFlutterSDK.send(stream_id: streamId, text: 'Hello, world. ');
-await TheStageFlutterSDK.send(
-  stream_id: streamId,
-  text: 'This sentence streams as it synthesizes.',
-);
-await TheStageFlutterSDK.finish_stream(stream_id: streamId);
-await consumer;
-await player.drain();
-await player.stop();
-```
-
-Start the consumer **before** the first `send`.
-
-### How do I pipe LLM tokens into TTS?
-
-Push tokens (or deltas) into the same streamer. Sentence segmentation
-happens inside TTS — you do not wait for full sentences in the LLM node.
-
-**Swift:**
-
-```swift
-let streamer = tts.open_streamer()
-let consumer = Task {
-    for await chunk in streamer.output {
-        if let pcm = chunk.audio { player.enqueue(pcm) }
-    }
-}
-
-for await chunk in llm.infer_stream(prompt: user_query, config: config) {
-    // TheStageLLM → LLMStreamChunk.text (not .delta)
-    if !chunk.is_final, !chunk.text.isEmpty {
-        streamer.send(chunk.text)
-    }
-}
-streamer.stop_stream()
-await consumer.value
-```
-
-**Flutter / singleton:** `infer_stream` chunks use **`delta`** — `send`
-each non-empty `delta`, then `finish_stream`.
-
-For the full mic → ASR → LLM → TTS loop, prefer the
-[Voice Agent](./voice_agent.md).
-
-### How do I change voice / language / clone a speaker?
-
-Both TTS families (`NeuTTSMultilingualPipeline` and `Qwen3TTSPipeline`)
-share one voice API on the base `TheStageTTSPipeline`. Three knobs
-compose:
-
-1. **Bundle voice by id** (`voice_id`) — pick a speaker that ships
-   inside the pack under `voices/<id>/`. NeuTTS ships `paul`, `dave`,
-   `jo`; Qwen3-TTS ships `b_ref`.
-2. **External prepared pack** (`voice_dir`) — point the pipeline at a
-   folder you produced with the voice-prep tools (`voice.json` /
-   `VoiceSpec` on disk). Takes precedence over `voice_id`.
-3. **Language override** (`language`) — NeuTTS multilingual selects the
-   same speaker in a different language (english / french / german /
-   spanish / portuguese / japanese / korean / chinese / urdu). Ignored
-   by Qwen3 unless the pack shipped with per-language variants.
-
-The same three names appear on the constructor and on
-`set_voice(voice_dir:voice_id:language:)` — nothing new to learn at
-runtime.
-
-**Config-time (load with the right voice already selected)**
-
-```swift
-import TheStageSDK
-
-try await TheStageAI.shared.initialize(apiToken: "your-api-token")
-
-// (a) bundle voice — the common case.
-let neutts = try await NeuTTSMultilingualPipeline(
-    engines_path: "TheStageAI/neutts-nano-multilingual",
-    voice_id: "dave",
-    language: "english",
-    device: "npu"
-)
-
-// (b) external prepared pack — voice_dir wins over voice_id.
-let qwen3 = try await Qwen3TTSPipeline(
-    engines_path: "TheStageAI/Qwen3-TTS-12Hz-0.6B-Base",
-    voice_id: "b_ref",                                 // fallback / cosmetic
-    voice_dir: "/Library/Application Support/MyApp/voices/tutor_dave",
-    device: "npu"
-)
-```
-
-**Runtime hot-swap (no engine reload)**
-
-`set_voice(voice_dir:voice_id:language:)` swaps the active voice on a
-live pipeline without touching the compiled engines. Pass any subset —
-`nil` fields keep their current value.
-
-```swift
-// Bundle voice, different speaker.
-try tts.set_voice(voice_id: "paul")
-
-// Same speaker, different language (NeuTTS multilingual).
-try tts.set_voice(voice_id: "paul", language: "french")
-
-// Point at an external prepared pack the user just downloaded.
-try tts.set_voice(voice_dir: prepared_pack_url.path)
-
-// Clear the external pack — falls back to voice_id.
-try tts.set_voice(voice_dir: "")
-```
-
-**Flutter (`start_model` config keys mirror the Swift names)**
+**Flutter**
 
 ```dart
 await TheStageFlutterSDK.start_model(
   model_name: 'tts',
-  engines_path: 'TheStageAI/Qwen3-TTS-12Hz-0.6B-Base',
-  config: {
-    'voice_id': 'b_ref',                       // bundle id
-    'voice_dir': '/path/to/prepared_pack',     // external pack (optional)
-    'language': 'french',                      // NeuTTS multilingual override
-  },
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
 );
+
+final player = TSAudioPlayer(sampleRate: 24000);
+await player.start();
+
+final speech = await TTSStream.open(model_name: 'tts');
+// listen BEFORE you send
+final consumer = speech.output.listen((chunk) {
+  final audio = chunk['audio'] as Float32List?;
+  if (audio != null) player.enqueue(audio);
+});
+
+await speech.send('Hello from TheStage. ');
+await speech.send('This plays while the rest is still being made.');
+// no more text
+await speech.close();
+await consumer.asFuture();
+await player.drain();
+await player.stop();
 ```
 
-Inside the Voice Agent the same knobs are exposed as `tts_voice`,
-`tts_voice_dir`, `tts_language` on `TheStageAgentConfig` — see
-[voice agent](./voice_agent.md#how-do-i-pick-a-tts-voice-in-the-agent).
+### Important API
 
-### How do I produce a `voice_dir` (voice pack)?
+| Purpose | Swift | Flutter |
+|---|---|---|
+| Load a model | `try await NeuTTSMultilingualPipeline(engines_path:voice_id:language:device:)` / `Qwen3TTSPipeline(engines_path:voice_id:device:)` | `start_model(model_name: 'tts', engines_path:, config: {voice_id, language})` |
+| Speak a string | `tts.infer(text:config:)` → `TTSResult` | `infer(model_name: 'tts', input_json: {'text'})` → `rows[0]` |
+| Stream | `tts.open_stream()` → `TTSStream`: `send` / `flush` / `close` / `cancel`, `output` | `TTSStream.open(model_name:)`: same methods, `output` |
+| Change voice | `try tts.set_voice(voice_id:language:voice_dir:)` | `stop_model` + `start_model` with a new `config` |
+| Play audio | `AudioStreamPlayer`: `start` / `enqueue` / `drain` / `stop` | `TSAudioPlayer`: same |
+| Release | drop the pipeline | `stop_model(model_name: 'tts')` |
 
-A voice pack is just a folder with a `voice.json` (schema:
-`VoiceSpec`) plus the reference material the codec needs. There are
-two ways to get one:
+## Synthesise speech
 
-1. **Download a prepared pack** — e.g. Qwen3-TTS tutor voices from HF
-   (`TheStageAI/Qwen3-TTS-Tutor-VoicePacks`). Extract into your app's
-   Application Support directory and point `voice_dir` at the
-   folder. See [`Qwen3-TTS-Tutor-VoicePacks`](./hf_cards/Qwen3-TTS-Tutor-VoicePacks/README.md).
-2. **Prepare one yourself** from a reference clip using the voice-prep
-   scripts under `(SDK internals)` — the produced folder has the
-   same shape.
+One string in, one clip out. Use it for notifications, short prompts,
+and anything you will play more than once — the result is plain PCM you
+can cache or write to a file.
 
-```text
-tutor_dave/
-├── voice.json        # VoiceSpec — ids, tokens, refs
-├── reference.wav     # 24 kHz mono reference clip
-└── …                 # codec-specific side files
-```
-
-The pipeline validates `voice.json` at load time; a bad or missing
-file throws before the first `infer`.
-
-### Why is playback too fast or too slow?
-
-Wrong speed almost always means the **player rate ≠ `result.sample_rate`**.
-
-1. Match `AVAudioPlayerNode` / `TheStageAudioPlayer` to `result.sample_rate`.
-2. Or set `TTSGenerationConfig.sample_rate_out` (Hz) so `infer` /
-   `infer_stream` emit at your session rate (polyphase resample).
-3. In the Voice Agent, set `sample_rate_out` to the playback rate you
-   want — the agent resamples TTS internally (`tts_sample_rate` stays
-   24000; mic path stays `sample_rate_in` 16000).
-
-### How do I get clearer speech / faster first audio?
-
-**Clarity / stability** — sampling:
+**Swift**
 
 ```swift
-let result = tts.infer(
-    text: "Welcome to the product demo.",
-    config: TTSGenerationConfig(temperature: 0.8, top_k: 30)
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
 )
+
+var config = TTSGenerationConfig()
+// match your audio session (optional)
+config.sample_rate_out = 48_000
+// calmer; omit for the pack default
+config.temperature = 0.8
+
+let result = tts.infer(text: "Your order has shipped.", config: config)
+
+// Play, or keep it
+try AudioIO.write_wav(
+    samples: result.samples,
+    sample_rate: result.sample_rate,
+    path: cacheURL.appendingPathComponent("shipped.wav").path
+)
+print(result.duration, "s of audio in", result.rtf, "× real time")
 ```
 
-**Faster time-to-first-audio** — streaming chunking (voice-assistant
-recipe: `first_frames_per_chunk` ≈ 6–12):
-
-```swift
-let streamer = tts.open_streamer(
-    config: TTSStreamConfig(
-        frames_per_chunk: 25,
-        first_frames_per_chunk: 12,
-        lookforward: 5,
-        lookback: 50,
-        overlap_frames: 1
-    )
-)
-```
+**Flutter**
 
 ```dart
-final stream = TheStageFlutterSDK.infer_stream(
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
+);
+
+final rows = await TheStageFlutterSDK.infer(
   model_name: 'tts',
   input_json: {
-    'text': 'Hello, world.',
-    'stream_config': {
-      'frames_per_chunk': 25,
-      'first_frames_per_chunk': 12,
-      'lookforward': 5,
-      'lookback': 50,
-      'overlap_frames': 1,
-    },
+    'text': 'Your order has shipped.',
+    // match your audio session (optional)
+    'sample_rate_out': 48000,
+    // calmer; omit for the pack default
+    'temperature': 0.8,
+  },
+);
+final audio = rows[0]['audio'] as Float32List;
+// 48000
+final rate  = rows[0]['sample_rate'] as int;
+// Play with TSAudioPlayer(sampleRate: rate), or persist the samples.
+```
+
+**Output contract** — mono float PCM in `[-1, 1]`. The codec is native
+24 kHz; `sample_rate_out` resamples once on the way out. Whatever
+`result.sample_rate` says is the rate your player must run at.
+
+**Sampling options** — `TTSGenerationConfig`. Omit everything for the
+pack's tuned voice; reach for these with a specific goal.
+
+| Field | Default | Change it when |
+|---|---|---|
+| `temperature` | pack (≈ 0.9) | Lower to `0.7` for long narration with fewer artefacts; raise to `1.1` for an expressive character voice. |
+| `top_k` | pack (≈ 50) | Lower to `25` with a low temperature for maximum stability. |
+| `sample_rate_out` | 24 000 | Your `AVAudioSession` runs at 48 kHz, or the audio feeds ASR at 16 kHz. Saves a resample in your code. |
+| `seed` | random | Golden-file tests. Same seed + same device + same pack → same PCM. |
+| `return_debug_info` | false | Diagnosing an empty result. |
+
+## Stream speech
+
+![Streaming speech synthesis, span by span](./assets/tts_stream.svg)
+
+A stream takes text in any size — whole paragraphs or one LLM token at
+a time — splits it into sentences internally, and emits audio chunks as
+each span is synthesised. The user hears the first words while the
+model is still working on the rest.
+
+**Swift**
+
+```swift
+let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
+player.start()
+var llmConfig = llm.generation_defaults
+llmConfig.enable_thinking = false
+
+let speech = tts.open_stream(
+    TTSGenerationConfig(),
+    // faster first audio
+    config: TTSStreamConfig(first_frames_per_chunk: 12)
+)
+let consumer = Task {
+    for await chunk in speech.output {
+        if let pcm = chunk.audio { player.enqueue(pcm) }
+        if chunk.is_final { break }
+    }
+}
+
+for await token in llm.infer_stream(prompt: question, config: llmConfig) {
+    // tokens, not sentences
+    if !token.is_final { speech.send(token.text) }
+}
+speech.close()
+await consumer.value
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'llm',
+  engines_path: 'TheStageAI/Qwen3-0.6B',
+);
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
+);
+final player = TSAudioPlayer(sampleRate: 24000);
+await player.start();
+
+final speech = await TTSStream.open(
+  model_name: 'tts',
+  stream_config: const TTSStreamConfig(first_frames_per_chunk: 12),
+);
+final consumer = speech.output.listen((chunk) {
+  final audio = chunk['audio'] as Float32List?;
+  if (audio != null) player.enqueue(audio);
+});
+
+await for (final token in TheStageFlutterSDK.infer_stream(
+  model_name: 'llm', input_json: {'prompt': question})) {
+  if (token['is_final'] == true) break;
+  // tokens, not sentences
+  await speech.send(token['delta'] as String? ?? '');
+}
+await speech.close();
+await consumer.asFuture();
+```
+
+> [!TIP]
+> Start draining `output` **before** the first `send`. If you send
+> all the text first and read afterwards, the buffer fills and nothing
+> plays.
+
+**Stream calls** — `TTSStream` (Swift and Flutter):
+
+| Call | Use it to |
+|---|---|
+| `send(_:)` | Push text. Any size; sentence splitting is internal. |
+| `flush()` | Speak what is buffered now, even a fragment without a full stop. |
+| `close()` | No more text. `output` ends after the last chunk drains. |
+| `cancel()` | Stop immediately — the user interrupted. |
+
+**Chunking options** — `TTSStreamConfig`. The defaults suit a
+voice assistant; touch these only for latency or seam quality.
+
+| Field | Default | Change it when |
+|---|---|---|
+| `first_frames_per_chunk` | 25 | Lower to `6`–`12` for faster first audio; the first chunk is shorter, later ones are normal. |
+| `frames_per_chunk` | 25 | Raise if individual chunks sound thin. |
+| `overlap_frames` | 1 | Raise to `2`–`3` if you hear clicks at chunk seams. |
+| `lookforward` / `lookback` | 5 / 50 | Leave alone. |
+
+## Voices and languages
+
+Three knobs compose, and they have the same names on the constructor and
+on `set_voice`: **`voice_id`** picks a speaker that ships in the
+pack; **`voice_dir`** points at an external voice pack (yours, or a
+downloaded one) and wins over `voice_id`; **`language`** switches
+phonemisation on NeuTTS while keeping the speaker.
+
+**Swift**
+
+```swift
+// At load
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "paul",
+    language: "english"
+)
+// ["dave", "jo", "paul"]
+print(tts.available_voices)
+
+// At runtime — no engine reload
+try tts.set_voice(voice_id: "dave")
+try tts.set_voice(voice_id: "dave", language: "french")
+// your own voice pack
+try tts.set_voice(voice_dir: packURL.path)
+// back to the bundle voice
+try tts.set_voice(voice_dir: "")
+```
+
+**Flutter**
+
+```dart
+// Voice is fixed at load. To change it, stop and start again.
+await TheStageFlutterSDK.stop_model(model_name: 'tts');
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {
+    'voice_id': 'dave',
+    'language': 'french',
+    // 'voice_dir': '/path/to/your/voice_pack',   // wins over voice_id
   },
 );
 ```
 
-Raise `overlap_frames` to 2–3 if you hear clicks at chunk seams.
+**Your own voice.** A voice pack is a folder with one `voice.json`,
+produced from a short reference clip and its transcript with the public
+tools in the AppleSDK repo — see
+[Ship a brand voice](#ship-a-brand-voice-with-the-app) below.
 
-### How do I get reproducible QA audio?
+> [!NOTE]
+> Inside the Voice Agent the same knobs are `tts_voice`,
+> `tts_voice_dir` and `tts_language` on `TSAgentConfig`, and
+> `agent.set_voice(...)` on Flutter — see [Voice Agent](./voice_agent.md).
 
-Fix `seed` (+ optional temperature/top_k) with the same text, bundle,
-and device:
+## Result object
+
+`TTSResult` is what `infer` returns; stream chunks carry the audio
+fields only.
+
+**Swift**
 
 ```swift
-let fixed = tts.infer(
-    text: "Hello! This is a TheStage text to speech demo.",
-    config: TTSGenerationConfig(temperature: 0.8, top_k: 50, seed: 42)
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
 )
-print(fixed.duration, fixed.sample_rate, fixed.rtf)
+let speech = tts.open_stream()
+var config = TTSGenerationConfig()
+
+let result = tts.infer(text: text, config: config)
+// [Float], mono, [-1, 1]
+result.samples
+// 24000, or sample_rate_out
+result.sample_rate
+// seconds of audio
+result.duration
+// audio seconds per wall second
+result.rtf
+
+for await chunk in speech.output {
+    // [Float]? — nil on the final marker
+    chunk.audio
+    // Int?
+    chunk.sample_rate
+    chunk.is_final
+}
 ```
 
-Same-device reproducibility only — do not expect bit-identical PCM
-across OS / chip revisions.
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
+);
+final speech = await TTSStream.open(model_name: 'tts');
+
+final r = rows[0];
+// Float32List
+r['audio'];
+// 24000, or sample_rate_out
+r['sample_rate'];
+r['duration'];
+r['rtf'];
+
+speech.output.listen((chunk) {
+  // Float32List? — null on the final marker
+  chunk['audio'];
+  chunk['sample_rate'];
+  chunk['is_final'];
+});
+```
+
+| Swift | Flutter JSON | Meaning |
+|---|---|---|
+| `samples` | `audio` | The PCM. |
+| `sample_rate` | `sample_rate` | Hz. Run the player at exactly this. |
+| `duration` | `duration` | Seconds of audio produced. |
+| `rtf` | `rtf` | Audio seconds per wall second. `2.5` means a 5 s clip took 2 s. |
+| `prefill_seconds` / `decode_seconds` / `codec_seconds` | same | Where the time went. |
+
+## Usage Guides
+
+Each guide is one production question: what you are building, what to
+use, the code, and what not to forget.
+
+### Read notifications aloud
+
+> **Problem**
+>
+> **Building** — a cycling app that reads turn-by-turn directions and
+> incoming messages while the phone is in a pocket.
+>
+> **Users want** — each phrase spoken clearly, in order, never cut off
+> by the next one, and at the volume and rate the rest of the app
+> already uses.
+>
+> **Hard part** — phrases arrive faster than they can be spoken, the
+> audio session runs at 48 kHz, and re-creating a player per phrase
+> adds a click and a delay.
+
+**Solution — what to use**
+
+- `NeuTTSMultilingualPipeline` — loaded once and kept.
+- `tts.infer(text:config:)` — one batch call per phrase; short phrases
+  synthesise well under a second.
+- `TTSGenerationConfig.sample_rate_out = 48_000` — match the session
+  so nothing is resampled twice.
+- One `AudioStreamPlayer` for the app's lifetime; `enqueue` then
+  `drain()` so phrases never overlap.
+- Flutter: `TSAudioPlayer(sampleRate:)` with the same enqueue / drain
+  pattern.
+
+![A ride screen speaking one direction with two phrases queued](./assets/ui_tts_notification.svg)
+
+**Swift**
+
+```swift
+final class Announcer {
+    private let tts: NeuTTSMultilingualPipeline
+    private let player = AudioStreamPlayer(
+        config: AudioStreamConfig(sample_rate: 48_000))
+    private var config = TTSGenerationConfig()
+
+    init(tts: NeuTTSMultilingualPipeline) {
+        self.tts = tts
+        // the session rate
+        config.sample_rate_out = 48_000
+        player.start()
+    }
+
+    func say(_ phrase: String) async {
+        let clip = tts.infer(text: phrase, config: config)
+        // queued after whatever is playing
+        player.enqueue(clip.samples)
+        // wait so phrases never overlap
+        await player.drain()
+    }
+}
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
+);
+
+class Announcer {
+  final player = TSAudioPlayer(sampleRate: 48000);
+  Future<void> init() => player.start();
+
+  Future<void> say(String phrase) async {
+    final rows = await TheStageFlutterSDK.infer(
+      model_name: 'tts',
+      input_json: {'text': phrase, 'sample_rate_out': 48000},
+    );
+    player.enqueue(rows[0]['audio'] as Float32List);
+    // phrases never overlap
+    await player.drain();
+  }
+}
+```
+
+> [!TIP]
+> - One player for the app's lifetime. Creating one per phrase adds a
+>   start-up click and latency.
+> - Cache clips for phrases you repeat ("Turn left") — `samples` is a
+>   plain array; write it once with `AudioIO.write_wav`.
+> - Keep the pipeline loaded between phrases; loading is the slow part,
+>   synthesis of a short phrase is well under a second.
+
+### Speak an LLM reply as it is generated
+
+> **Problem**
+>
+> **Building** — a voice assistant whose answers come from an on-device
+> LLM.
+>
+> **Users want** — to hear the first sentence while the rest is still
+> being written — not a two-second pause and then the whole answer.
+>
+> **Hard part** — tokens arrive one at a time, sentences must be found
+> before they can be spoken, and tool or reasoning output must never be
+> read aloud.
+
+**Solution — what to use**
+
+- `tts.open_stream()` — a `TTSStream` that finds sentence boundaries
+  itself; you feed it tokens.
+- `LLMChatEngine.chat_session` + `infer_stream` — send only
+  `.text_delta` into the stream.
+- Start the consumer of `speech.output` **before** the first `send`.
+- `speech.close()` when the reply ends; `speech.cancel()` plus
+  `player.stop()` on barge-in.
+- `enable_thinking = false` on the LLM.
+
+![A reply being spoken while it is still being written](./assets/ui_tts_stream.svg)
+
+**Swift**
+
+```swift
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
+player.start()
+let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
+let session = LLMChatEngine(
+    llm: llm).chat_session(system_prompt: "You are a helpful assistant.",
+    memory: .SLIDING(max_turns: 10)
+)
+var llmConfig = llm.generation_defaults
+llmConfig.enable_thinking = false
+// the user's question (typed, or an ASR transcript)
+let question = "How long does the battery last?"
+
+let speech = tts.open_stream()
+let consumer = Task {
+    for await chunk in speech.output {
+        if let pcm = chunk.audio { player.enqueue(pcm) }
+    }
+}
+
+for await event in try session.infer_stream(
+    user_request: question, config: llmConfig
+) {
+    // only text_delta
+    if case .text_delta(let t) = event { speech.send(t) }
+}
+speech.close()
+await consumer.value
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'llm',
+  engines_path: 'TheStageAI/Qwen3-0.6B',
+);
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
+);
+final player = TSAudioPlayer(sampleRate: 24000);
+await player.start();
+
+// the user's question (typed, or an ASR transcript)
+const question = 'How long does the battery last?';
+
+final speech = await TTSStream.open(model_name: 'tts');
+final consumer = speech.output.listen((chunk) {
+  final audio = chunk['audio'] as Float32List?;
+  if (audio != null) player.enqueue(audio);
+});
+
+await for (final chunk in TheStageFlutterSDK.infer_stream(
+  model_name: 'llm', input_json: {'prompt': question, 'enable_thinking': false})) {
+  if (chunk['is_final'] == true) break;
+  if (chunk['kind'] == 'text' || chunk['kind'] == 'text_delta') {
+    await speech.send(chunk['delta'] as String? ?? '');
+  }
+}
+await speech.close();
+await consumer.asFuture();
+```
+
+> [!TIP]
+> - Send only `text_delta`. Never send `tool_result` or
+>   `thinking_delta` — you would hear JSON.
+> - Set `enable_thinking = false` on the LLM or the speaker waits
+>   through the reasoning.
+> - Barge-in: `speech.cancel()` and `player.stop()` together, then
+>   open a fresh stream. The full loop with echo cancellation is the
+>   [Voice Agent](./voice_agent.md).
+
+### One tutor voice, several languages
+
+> **Problem**
+>
+> **Building** — a language-learning app that explains in English and
+> then says the phrase in Spanish.
+>
+> **Users want** — the same teacher's voice in both languages, and no
+> pause when it switches.
+>
+> **Hard part** — most engines change speaker when they change
+> language; reloading a pipeline per language costs seconds.
+
+**Solution — what to use**
+
+- `NeuTTSMultilingualPipeline` — keeps the speaker across languages.
+- `tts.set_voice(voice_id:language:)` between sentences — no reload.
+- Language names are lowercase words: `"spanish"`, not `"es"`.
+- Flutter fixes the voice at load: run two handles (`tts_en`,
+  `tts_es`) that share one cached engine.
+
+![A lesson screen with the same voice in English and Spanish](./assets/ui_tts_tutor.svg)
+
+**Swift**
+
+```swift
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
+player.start()
+
+try tts.set_voice(voice_id: "paul", language: "english")
+player.enqueue(tts.infer(text: "Now repeat after me.").samples)
+
+try tts.set_voice(voice_id: "paul", language: "spanish")
+player.enqueue(tts.infer(text: "¿Dónde está la estación?").samples)
+
+await player.drain()
+```
+
+**Flutter**
+
+```dart
+// Flutter fixes the voice at load: run two handles, one per language.
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts_en',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'paul', 'language': 'english'},
+);
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts_es',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'paul', 'language': 'spanish'},
+);
+// Both share one cached engine on disk; only the voice differs.
+```
+
+> [!TIP]
+> - Language names are lowercase words — `"spanish"`, not `"es"`.
+> - A sentence in the wrong language sounds *phonetically* wrong, not
+>   broken. If Spanish sounds like an English speaker reading it, the
+>   `language` did not switch.
+> - The end-to-end pattern with tagged scripts and gapless playback:
+>   [apple_sdk_tts_language_switching](https://docs.thestage.ai/tutorials/source/apple_sdk_tts_language_switching.html).
+
+### Ship a brand voice with the app
+
+> **Problem**
+>
+> **Building** — an app whose every prompt is spoken by the company's
+> voice actor.
+>
+> **Users want** — one recognisable voice everywhere in the product,
+> without a custom model and without a download on first launch.
+>
+> **Hard part** — the reference clip has to be encoded once into
+> something the pipeline loads in milliseconds, and it has to survive
+> app updates.
+
+**Solution — what to use**
+
+- `prepare_neutts_voice_pack.py` (in the AppleSDK repo) — turns a 3–10
+  s reference clip into a **voice pack** folder.
+- Bundle the folder;
+  `NeuTTSMultilingualPipeline(engines_path:voice_dir:)` —
+  `voice_dir` wins over `voice_id`.
+- `tts.available_voices` — list bundle voices next to yours in a
+  picker.
+- Flutter: copy the pack out of assets to a real path, then ``config:
+  {'voice_dir': …}``.
+
+![A voice picker with the bundled brand voice selected](./assets/ui_tts_voice.svg)
+
+**Prepare (once)**
+
+```bash
+# From github.com/TheStageAI/AppleSDK — PyPI + Hugging Face only
+cd examples/tools/prepare_voice_packs
+python3 -m venv .venv && source .venv/bin/activate
+
+pip install -r requirements-neutts.txt
+python prepare_neutts_voice_pack.py \
+  --ref-audio ./brand_voice.wav \
+  --ref-text  "Welcome to Acme. How can I help you today?" \
+  --language english \
+  --name acme \
+  --out-dir ./VoicePacks/acme
+
+# Qwen3-TTS: requirements-qwen3.txt + prepare_qwen3_voice_pack.py
+```
+
+**Swift**
+
+```swift
+let packURL = Bundle.main.url(forResource: "acme", withExtension: nil,
+                              subdirectory: "VoicePacks")!
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    // wins over voice_id
+    voice_dir: packURL.path,
+)
+```
+
+**Flutter**
+
+```dart
+// Copy the pack out of Flutter assets to a real path first —
+// the native side needs a filesystem folder.
+final packDir = await copyAssetFolder('VoicePacks/acme');
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_dir': packDir.path},
+);
+```
+
+> [!TIP]
+> - Reference clip: NeuTTS 3–10 s, Qwen3 2–4 s. Close mic, no music,
+>   one speaker, no clipping. `--ref-text` must match the audio
+>   exactly.
+> - The pack is one `voice.json`; it loads in milliseconds and is
+>   validated at load — a bad file throws before the first `infer`.
+> - Record one clip per language with the same mic setup if the brand
+>   voice must speak several languages.
+
+### Audio plays too fast, too slow, or clicks
+
+> **Problem**
+>
+> **Building** — any app that plays what TTS returns.
+>
+> **Users want** — natural speech at the right pitch on every device,
+> no tick between sentences.
+>
+> **Hard part** — the speed bug is invisible in code — a player opened
+> at 44.1 kHz happily plays a 24 kHz clip, slow and deep — and seam
+> clicks only show up while streaming.
+
+**Solution — what to use**
+
+- `result.sample_rate` — open the player at that rate, every time;
+  never a hard-coded number.
+- `TTSStreamConfig(overlap_frames: 3)` — smooths chunk seams while
+  streaming.
+- Inside the Voice Agent set the speaker rate with the agent's
+  `sample_rate_out`, not on the TTS config.
+
+**Swift**
+
+```swift
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+var config = TTSGenerationConfig()
+
+// ✅ player follows the result
+let result = tts.infer(text: text, config: config)
+let player = AudioStreamPlayer(
+    config: AudioStreamConfig(sample_rate: Double(result.sample_rate)))
+
+// ❌ hard-coded 44_100 while the clip is 24 kHz → slow and deep
+// let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 44_100))
+
+// Clicks at seams while streaming:
+let speech = tts.open_stream(config: TTSStreamConfig(overlap_frames: 3))
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
+);
+
+// ✅ player follows the result
+final rate = rows[0]['sample_rate'] as int;
+final player = TSAudioPlayer(sampleRate: rate);
+
+// ❌ TSAudioPlayer(sampleRate: 44100) for a 24 kHz clip → slow and deep
+
+// Clicks at seams while streaming:
+final speech = await TTSStream.open(
+  model_name: 'tts',
+  stream_config: const TTSStreamConfig(overlap_frames: 3),
+);
+```
+
+> [!TIP]
+> - Read `sample_rate` off the result every time; never assume 24 000
+>   once `sample_rate_out` is in play.
+> - Inside the Voice Agent the speaker rate is the agent's
+>   `sample_rate_out` — set it there, not on the TTS config.
+
+### First audio takes too long
+
+> **Problem**
+>
+> **Building** — an assistant that answers short questions.
+>
+> **Users want** — the first syllable almost immediately, even for a
+> one-line reply.
+>
+> **Hard part** — the very first synthesis after load is the slowest,
+> and a full first chunk has to be rendered before anything can play.
+
+**Solution — what to use**
+
+- `tts.open_stream(config:)` instead of batch `infer`.
+- `TTSStreamConfig(first_frames_per_chunk: 8)` — a short first chunk;
+  later chunks stay full size.
+- Warm the pipeline once at launch (`tts.infer(text: "Ready.")`) off
+  the main path.
+- `prefetch_engines` on a splash screen so the first *load* is local.
+
+**Swift**
+
+```swift
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: "TheStageAI/neutts-nano-multilingual",
+    voice_id: "dave",
+    language: "english"
+)
+
+// 1. Stream, don't batch
+let speech = tts.open_stream(
+    // 2. A short first chunk — later chunks stay full size
+    config: TTSStreamConfig(first_frames_per_chunk: 8)
+)
+
+// 3. Warm once at launch, off the main path
+Task.detached { _ = tts.infer(text: "Ready.") }
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.start_model(
+  model_name: 'tts',
+  engines_path: 'TheStageAI/neutts-nano-multilingual',
+  config: {'voice_id': 'dave', 'language': 'english'},
+);
+
+// 1 + 2
+final speech = await TTSStream.open(
+  model_name: 'tts',
+  stream_config: const TTSStreamConfig(first_frames_per_chunk: 8),
+);
+
+// 3. Warm once at launch
+unawaited(TheStageFlutterSDK.infer(
+  model_name: 'tts', input_json: {'text': 'Ready.'}));
+```
+
+> [!TIP]
+> - `first_frames_per_chunk` below `6` starts to sound clipped;
+>   `8`–`12` is the sweet spot.
+> - The very first synthesis after load is slower than every later one.
+>   Warm it during onboarding, not when the user taps the mic.
+> - Prefetch the pack on a splash screen so first *load* is local too.
 
 ## Troubleshooting
 
-### Empty `samples` / no audio
-
-1. Non-empty `text` (not whitespace-only).
-2. `voice_id` must exist under `voices/` (or a valid `voice_dir`).
-3. `return_debug_info: true` and inspect `debug_info`.
-4. Confirm `start_model` / constructor finished before `infer`.
-
-### Choppy or robotic streaming
-
-1. Keep `overlap_frames >= 1`.
-2. Drain `output` **concurrently** with `send` — never after all text.
-3. Try larger `frames_per_chunk` if individual chunks sound thin.
-
-### Wrong language pronunciation (NeuTTS)
-
-Set `language` to match the text (e.g. `"french"`). Default English
-phonemization mangles other languages.
-
-### High latency before first audio
-
-1. Prefer streaming over batch `infer`.
-2. Lower `first_frames_per_chunk` (6–12).
-3. `prefetch_engines` so the first load is local-only.
-
-### Playback wrong speed
-
-Player not at 24000 Hz. Fix the player, resample, or use agent
-`sample_rate_out`.
-
-### Unknown / missing voice
-
-Confirm the voice folder exists in the cached bundle. espeak English
-nano (`TheStageAI/neutts`) is **not** in the current fleet — use
-`neutts-nano-multilingual` or Qwen3-TTS.
+| Symptom | Cause | Fix |
+|---|---|---|
+| Empty `samples` | Empty or whitespace text; unknown `voice_id`; called before load finished. | Check the text; `available_voices`; await the constructor. |
+| Nothing plays while streaming | Consumer attached after `send`. | Drain `output` first. |
+| Too fast / too slow | Player rate ≠ `sample_rate`. | Read the rate off the result. |
+| Clicks between sentences | Chunk seams. | `overlap_frames: 2`–`3`. |
+| Wrong pronunciation | `language` does not match the text (NeuTTS). | `set_voice(language:)`. |
+| Slow first audio | Batch call, or large first chunk, or cold pipeline. | Stream; `first_frames_per_chunk: 8`; warm at launch. |
+| Voice sounds like the default, not the pack | `voice_dir` path wrong or empty. | Pass an absolute folder path containing `voice.json`. |
+| Flutter: voice did not change | Voice is fixed at `start_model`. | `stop_model` then `start_model` with the new config. |
 
 ## Load Progress / Prefetch / Cleanup
 
-### Load progress
+First run downloads and prepares the pack; later runs hit the cache.
+Show progress the first time, warm the cache on a splash screen, and
+release models you are done with.
+
+**Swift**
 
 ```swift
+let ai = TheStageAI.shared
+
+// Progress
 let tts = try await NeuTTSMultilingualPipeline(
     engines_path: "TheStageAI/neutts-nano-multilingual",
     voice_id: "dave",
@@ -817,19 +1018,24 @@ let tts = try await NeuTTSMultilingualPipeline(
         print("[\(p.model)] \(p.phase) \(Int(p.fraction * 100))%")
     }
 )
+
+// Prefetch on a splash screen, construct later
+let engines_dir = try await ai.prefetch_engines(
+    repo_id: "TheStageAI/neutts-nano-multilingual")
+let tts = try await NeuTTSMultilingualPipeline(
+    engines_path: engines_dir, voice_id: "dave")
+
+// Cleanup: drop the reference, or
+_ = try ai.stop_model(model_name: "tts")
 ```
 
-Same on `start_model` / `prefetch_engines`. See
-[Load Progress](./README.md#load-progress).
-
-**Flutter:**
+**Flutter**
 
 ```dart
+// Progress
 TheStageFlutterSDK.on_progress.listen((event) {
   if (event['model_name'] != 'tts') return;
-  final phase = event['phase'] as String?;
-  final fraction = event['progress'] as double?;
-  print('[tts] $phase ${(fraction ?? 0) * 100}%');
+  print('[tts] ${event['phase']} ${((event['progress'] ?? 0) * 100).round()}%');
 });
 
 await TheStageFlutterSDK.start_model(
@@ -837,28 +1043,11 @@ await TheStageFlutterSDK.start_model(
   engines_path: 'TheStageAI/neutts-nano-multilingual',
   config: {'voice_id': 'dave', 'language': 'english'},
 );
-```
 
-### Prefetch
-
-```swift
-let engines_dir = try await ai.prefetch_engines(
-    repo_id: "TheStageAI/neutts-nano-multilingual"
-)
-let tts = try await NeuTTSMultilingualPipeline(
-    engines_path: engines_dir,
-    voice_id: "dave"
-)
-```
-
-### Cleanup
-
-Drop the pipeline reference, or:
-
-```swift
-_ = try ai.stop_model(model_name: "tts")
-```
-
-```dart
+// Cleanup
 await TheStageFlutterSDK.stop_model(model_name: 'tts');
 ```
+
+Phases: `downloading` → `extracting` → `loading` → `ready`. Cache
+hits skip the first two. Full contract: [Get started](./README.md)
+(**Load Progress**).

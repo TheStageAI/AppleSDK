@@ -13,10 +13,22 @@ class MethodChannels {
       'thestage_apple_sdk/voice_agent_transcripts';
   static const String voiceAgentVADProbabilities =
       'thestage_apple_sdk/voice_agent_vad_probabilities';
+  static const String voiceAgentTTSLevels =
+      'thestage_apple_sdk/voice_agent_tts_levels';
   static const String voiceAgentPorts =
       'thestage_apple_sdk/voice_agent_ports';
   static const String voiceAgentNodes =
       'thestage_apple_sdk/voice_agent_nodes';
+  static const String asrEngineEvents =
+      'thestage_apple_sdk/asr_engine_events';
+  static const String asrEngineTurns =
+      'thestage_apple_sdk/asr_engine_turns';
+  static const String asrEngineTranscripts =
+      'thestage_apple_sdk/asr_engine_transcripts';
+  static const String asrEnginePartials =
+      'thestage_apple_sdk/asr_engine_partials';
+  static const String asrEngineVADProbabilities =
+      'thestage_apple_sdk/asr_engine_vad_probabilities';
   static const String logs = 'thestage_apple_sdk/logs';
 }
 
@@ -38,9 +50,13 @@ class MethodRoute {
 
   static const String infer = 'infer';
   static const String startStream = 'start_stream';
+  static const String openStream = 'open_stream';
   static const String send = 'send';
+  static const String flush = 'flush';
   static const String finishStream = 'finish_stream';
+  static const String closeStream = 'close_stream';
   static const String stopStream = 'stop_stream';
+  static const String cancelStream = 'cancel_stream';
 
   static const String audioStart = 'audio_start';
   static const String audioEnqueue = 'audio_enqueue';
@@ -70,8 +86,20 @@ class MethodRoute {
   static const String voiceAgentSendRequest =
       'voice_agent.send_request';
 
+  static const String asrEngineStart = 'asr_engine.start';
+  static const String asrEngineStop = 'asr_engine.stop';
+
   static const String screenRecorderIsRecording =
       'screen_recorder.is_recording';
   static const String screenRecorderStart = 'screen_recorder.start';
   static const String screenRecorderStop = 'screen_recorder.stop';
+
+  static const String cacheList = 'cache.list';
+  static const String cacheVerify = 'cache.verify';
+  static const String cacheRepair = 'cache.repair';
+  static const String cacheRepairAll = 'cache.repair_all';
+  static const String previousLaunch = 'previous_launch';
+  static const String fieldCounters = 'field_counters';
+  static const String durabilityFlags = 'durability_flags';
+  static const String setDurabilityFlag = 'set_durability_flag';
 }

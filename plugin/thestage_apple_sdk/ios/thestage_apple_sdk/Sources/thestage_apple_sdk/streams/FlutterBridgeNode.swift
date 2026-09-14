@@ -7,21 +7,21 @@ import TheStageCore
 // --------------------------------------------------------------------------------------
 /// Custom agent node that forwards lifecycle hooks to Dart via
 /// ``MethodChannels/voiceAgentNodes``.
-final class FlutterBridgeNode: TheStageAgentNode, @unchecked Sendable {
+final class FlutterBridgeNode: TSAgentNode, @unchecked Sendable {
 
     // ----------------------------------------------------------------------------------
     // Private Attributes
     // ----------------------------------------------------------------------------------
-    private let __run_when_states: Set<TheStageAgentState>
+    private let __run_when_states: Set<TSAgentState>
     private let __channel: FlutterMethodChannel
-    private var __current_state: TheStageAgentState = .idle
+    private var __current_state: TSAgentState = .idle
     private var __event_task: Task<Void, Never>?
     private var __port_forwarders: [String: AgentConnector<String>] = [:]
 
     // ----------------------------------------------------------------------------------
     // Public Attributes
     // ----------------------------------------------------------------------------------
-    override var run_when: Set<TheStageAgentState> { __run_when_states }
+    override var run_when: Set<TSAgentState> { __run_when_states }
 
     var is_gate_open: Bool {
         if __run_when_states.isEmpty { return true }
@@ -33,7 +33,7 @@ final class FlutterBridgeNode: TheStageAgentNode, @unchecked Sendable {
     // ----------------------------------------------------------------------------------
     init(
         id: String,
-        run_when states: [TheStageAgentState],
+        run_when states: [TSAgentState],
         channel: FlutterMethodChannel
     ) {
         self.__run_when_states = Set(states)
@@ -160,6 +160,53 @@ final class FlutterBridgeNode: TheStageAgentNode, @unchecked Sendable {
 
     private static func __serialize_event(_ event: AgentEvent) -> [String: Any] {
         switch event {
+        // Canonical vocabulary. SDK-owned producers emit these; the
+        // compatibility inputs below are what external producers may send.
+        case .CAPTURE_STARTED(let probability):
+            return ["kind": "CAPTURE_STARTED", "prob": probability]
+        case .CAPTURE_FINISHED(let turn_end):
+            // `voice_position` is internal sequencing, not a fact a Flutter
+            // caller can act on -- the wire keeps the shape it had.
+            return [
+                "kind": "CAPTURE_FINISHED",
+                "silence_ms": turn_end.silence_ms,
+            ]
+        case .INTERRUPTION_CANDIDATE(let probability):
+            return ["kind": "INTERRUPTION_CANDIDATE", "prob": probability]
+        case .INTERRUPTION_ACCEPTED(let probability):
+            return ["kind": "INTERRUPTION_ACCEPTED", "prob": probability]
+        case .REQUEST_COMMITTED(let request):
+            return [
+                "kind": "REQUEST_COMMITTED",
+                "text": request.text,
+                "source": request.source.rawValue,
+            ]
+        case .RESPONSE_FINISHED(let response):
+            return [
+                "kind": "RESPONSE_FINISHED",
+                "text": response.text,
+                "reason": response.reason.rawValue,
+            ]
+        case .TOOL_FINISHED(let tool):
+            return [
+                "kind": "TOOL_FINISHED",
+                "name": tool.name,
+                "content": tool.content,
+            ]
+        case .SYNTHESIS_FINISHED(let reason):
+            return ["kind": "SYNTHESIS_FINISHED", "reason": reason.rawValue]
+        case .PLAYBACK_FINISHED(let reason):
+            return ["kind": "PLAYBACK_FINISHED", "reason": reason.rawValue]
+        case .STATE_CHANGED(let state):
+            return ["kind": "STATE_CHANGED", "state": state.rawValue]
+        case .NODE_FAILED(let failure):
+            return [
+                "kind": "NODE_FAILED",
+                "node_id": failure.node_id,
+                "code": failure.code,
+                "message": failure.message,
+                "recoverable": failure.recoverable,
+            ]
         case .SPEECH_STARTED(let prob):
             return ["kind": "SPEECH_STARTED", "prob": prob]
         case .SPEECH_ENDED(let silence_ms):
@@ -214,6 +261,13 @@ final class FlutterBridgeNode: TheStageAgentNode, @unchecked Sendable {
             return ["kind": "STATE", "state": state.rawValue]
         case .ERROR(let message):
             return ["kind": "ERROR", "message": message]
+        @unknown default:
+            // A case added to AgentEvent after this plugin was built. Forward
+            // it as an opaque kind rather than failing to compile the whole
+            // bridge: a custom node that does not care is unaffected, and one
+            // that does can be taught the new kind. This switch silently fell
+            // behind the SDK once already.
+            return ["kind": "UNKNOWN"]
         }
     }
 }

@@ -26,7 +26,7 @@ guard let token = ProcessInfo.processInfo.environment["TS_API_TOKEN"],
 }
 
 // 2. Initialize the SDK (validated once, then runs offline).
-try await TheStageAI.shared.initialize(apiToken: token)
+try await TheStageAI.shared.initialize(api_token: token)
 
 // 3. Load NeuTTS nano-multilingual from HuggingFace. The handler fires
 //    through downloading -> extracting -> loading -> ready;

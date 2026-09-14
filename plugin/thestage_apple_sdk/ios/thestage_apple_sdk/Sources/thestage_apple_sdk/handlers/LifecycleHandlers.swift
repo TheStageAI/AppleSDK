@@ -17,10 +17,25 @@ extension TheStageFlutterPlugin {
             __fail(result, msg: "Missing api_token.")
             return
         }
+        let hf_token = args["hf_token"] as? String
+        // The SDK timeline (model loads, agent turns, interruptions) in the
+        // app's Documents, so a phone run can be pulled with
+        // `devicectl device copy from … Documents/session.log` and read,
+        // instead of reconstructed from what the user remembers.
+        if let docs = FileManager.default.urls(
+            for: .documentDirectory, in: .userDomainMask
+        ).first {
+            try? TSLog.start_session_log(
+                to: docs.appendingPathComponent("session.log"),
+                level: .debug,
+                tee_console: false
+            )
+        }
         Task { @MainActor in
             do {
                 try await TheStageAI.shared.initialize(
-                    apiToken: api_token
+                    api_token: api_token,
+                    hf_token: hf_token
                 )
                 result(nil)
             } catch {
@@ -146,5 +161,90 @@ extension TheStageFlutterPlugin {
                 __fail(result, error: error)
             }
         }
+    }
+
+    func __handle_cache_list(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        let items = TheStageAI.list_model_cache().map { info -> [String: Any] in
+            [
+                "key": info.key,
+                "bytes": info.bytes,
+                "has_manifest": info.hasManifest,
+                "verified": info.verified,
+            ]
+        }
+        result(items)
+    }
+
+    func __handle_cache_verify(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        let key = (call.arguments as? [String: Any])?["key"] as? String ?? ""
+        result(TheStageAI.verify_model_cache(key: key))
+    }
+
+    func __handle_cache_repair(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        let key = (call.arguments as? [String: Any])?["key"] as? String ?? ""
+        result(TheStageAI.repair_model_cache(key: key))
+    }
+
+    func __handle_cache_repair_all(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        TheStageAI.repair_all_model_cache()
+        result(nil)
+    }
+
+    func __handle_previous_launch(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let snap = TheStageAI.previous_launch else {
+            result(nil)
+            return
+        }
+        result([
+            "verdict": snap.verdict.rawValue,
+            "handle": snap.handle,
+            "phase": snap.phase,
+            "footprint_mb": snap.footprintMB,
+            "available_mb": snap.availableMB,
+        ] as [String: Any])
+    }
+
+    func __handle_field_counters(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        result(TheStageAI.field_counters)
+    }
+
+    func __handle_durability_flags(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        result(TheStageAI.durability_flags)
+    }
+
+    func __handle_set_durability_flag(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let args = call.arguments as? [String: Any],
+              let name = args["name"] as? String,
+              let value = args["value"] as? Bool
+        else {
+            __fail(result, msg: "Missing name or value.")
+            return
+        }
+        TheStageAI.set_durability_flag(name, value: value)
+        result(TheStageAI.durability_flags)
     }
 }

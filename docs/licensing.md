@@ -1,49 +1,144 @@
 # Licensing & Device Identity
 
-How seats work when your app embeds the TheStage Apple SDK.
+How seats work when your app embeds the SDK, and what that means for
+your code: one `initialize` call, an online check on first use, and
+offline operation after that. Commercial terms are in the
+[Apple SDK Product Terms](./product_terms.md).
 
-Commercial terms and pricing are in the
-[TheStage Apple SDK Product Terms](./product_terms.md) — contact TheStage AI
-for quotes. This page is the integrator-facing product summary only.
+> **Main features**
+>
+> - **One call**: `initialize(api_token:)` registers the device and
+>   unlocks every pipeline.
+> - **Online once**: the token is validated on first model start; after
+>   that inference is fully offline.
+> - **Offline grace**: a temporary loss of connectivity does not stop a
+>   registered device.
+> - **Stable seats**: reinstalling the same app on the same device keeps
+>   the same seat.
 
-## Initialize registers the device
+## Quick start
 
-Call once before any pipeline / `start_model`:
+**Swift**
 
-| Surface | Call |
+```swift
+import TheStageSDK
+
+// Once per process, before any pipeline or start_model
+try await TheStageAI.shared.initialize(api_token: token)
+```
+
+**Flutter**
+
+```dart
+import 'package:thestage_apple_sdk/thestage_apple_sdk.dart';
+
+// Once per process, before any start_model
+await TheStageFlutterSDK.initialize(api_token: token);
+```
+
+### Important API
+
+| Term | Meaning |
 |---|---|
-| Swift | `try await TheStageAI.shared.initialize(apiToken: "…")` |
-| Flutter | `await TheStageFlutterSDK.initialize(api_token: '…')` |
+| **Seat** | One `(apiToken, deviceId)` pair. Two tokens on one phone are two seats; one token on two phones is two seats. |
+| **`apiToken`** | Identifies your organisation. Generate it at [app.thestage.ai](https://app.thestage.ai/) → Profile → API tokens. |
+| **`deviceId`** | Identifies the registered device for that token. Survives reinstalls of the same app. |
+| **Grace period** | After a successful online validation, the device keeps working offline for a limited window. |
 
-A successful initialize **registers the device** with TheStage (online
-validation). Pipelines throw if the SDK has not been initialized.
+## Usage Guides
 
-## Seat = `(apiToken, deviceId)`
+### Keep the token out of the binary
 
-A billable **Device Seat** is the pair `(apiToken, deviceId)`:
+> **Problem**
+>
+> **Building** — any shipping app.
+>
+> **Users want** — nothing; this is for you — the token must not be in
+> git or readable from the bundle.
+>
+> **Hard part** — `initialize` needs the token at runtime, so it has
+> to come from somewhere the build controls.
 
-- **`apiToken`** identifies the customer. Different tokens on the same
-  physical phone or Mac are different seats.
-- **`deviceId`** identifies the registered device for that token.
+**Solution — what to use**
 
-**Product guarantee:** reinstalling the **same app** on the **same device**
-is intended to keep the **same seat** (not a new charge for that pair).
+- Build setting → `Info.plist` →
+  `Bundle.main.object(forInfoDictionaryKey:)` at launch.
+- Flutter: `--dart-define-from-file=secrets.json` →
+  `String.fromEnvironment`.
+- `.gitignore` the secrets file and the xcconfig.
+- Or fetch it from your backend on first launch.
 
-Seat counts, plan limits, and overages are defined in your commercial
-arrangement with TheStage — not in this page.
+**Swift**
 
-## Offline / network
+```swift
+// Build setting → Info.plist → read at launch
+let token = Bundle.main.object(forInfoDictionaryKey: "TS_API_TOKEN") as! String
+try await TheStageAI.shared.initialize(api_token: token)
+```
 
-`initialize` requires a successful online token validation. If the device
-is offline or the backend is unreachable, initialize fails — reconnect and
-call `initialize` again. After a successful initialize in the same process,
-inference runs fully on-device (no further phone-home for that session).
+**Flutter**
 
-## Agent checklist
+```dart
+// flutter run --dart-define-from-file=secrets.json
+const token = String.fromEnvironment('TS_API_TOKEN');
+await TheStageFlutterSDK.initialize(api_token: token);
+```
 
-- Always `initialize` before constructing pipelines or calling `start_model`.
-- One seat = `(apiToken, deviceId)`; do not invent your own device registry.
-- For pricing / seat plans → open a **Service Request** at
-  [app.thestage.ai/contact](https://app.thestage.ai/contact).
-- Do not document or depend on internal ID derivation or backend field
-  names — those are not part of the public contract.
+> [!TIP]
+> - Add `secrets.json` / the xcconfig to `.gitignore`.
+> - Rotating a token does not change seats already registered.
+
+### Ship an app that works with no network
+
+> **Problem**
+>
+> **Building** — a field-service app used in places with no signal for
+> days.
+>
+> **Users want** — dictation and transcription keep working underground
+> and on site.
+>
+> **Hard part** — the licence validates online and the models download
+> online; both have to happen while there is still connectivity.
+
+**Solution — what to use**
+
+- `TheStageAI.shared.initialize(api_token:)` during onboarding, online
+  — renews the offline grace period.
+- `prefetch_engines(repo_id:)` for every model right after.
+- In the field the same calls are served from cache.
+- Call `initialize` again whenever the app has connectivity.
+
+![A site-visit screen dictating with no signal](./assets/ui_licensing_offline.svg)
+
+**Swift**
+
+```swift
+// Onboarding, online:
+try await TheStageAI.shared.initialize(api_token: token)
+_ = try await TheStageAI.shared.prefetch_engines(
+    repo_id: "TheStageAI/thewhisper-large-v3-turbo")
+
+// In the field, offline: same calls, served from cache.
+```
+
+**Flutter**
+
+```dart
+await TheStageFlutterSDK.initialize(api_token: token);
+await TheStageFlutterSDK.prefetch_engines(
+  repo_id: 'TheStageAI/thewhisper-large-v3-turbo');
+```
+
+> [!TIP]
+> - The offline grace period renews on every successful online
+>   `initialize`; call it whenever the app has connectivity.
+> - First-run download needs network regardless — do it on onboarding.
+
+## Troubleshooting
+
+| Symptom | Cause | Fix |
+|---|---|---|
+| Pipelines throw "not initialized" | `initialize` not awaited before construction. | Await it first, once per process. |
+| Works on Wi-Fi, fails after a week offline | Grace period expired. | Call `initialize` whenever online; it renews silently. |
+| Seat count higher than devices | Multiple tokens in use, or test tokens on production devices. | One token per app; open a Service Request at [app.thestage.ai/contact](https://app.thestage.ai/contact) for plan questions. |

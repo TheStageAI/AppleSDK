@@ -109,7 +109,7 @@ final class TutorModel: ObservableObject {
             let token = (Bundle.main.object(forInfoDictionaryKey: "TSAPIToken")
                 as? String)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            try await TheStageAI.shared.initialize(apiToken: token)
+            try await TheStageAI.shared.initialize(api_token: token)
 
             let engines = Self.__engines_path(
                 model_name: __model_name, hf_repo: __hf_repo

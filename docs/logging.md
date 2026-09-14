@@ -128,7 +128,6 @@ func sendDiagnostics() async {
 - `TheStageAI.user_breadcrumbs_json()` — small, safe to attach on
   every upload.
 - Set it as a custom key when the reporter uploads.
-- Security events are not included by design.
 
 **Swift**
 
@@ -147,7 +146,6 @@ Crashlytics.crashlytics().setCustomValue(
 
 > [!TIP]
 > - Breadcrumbs are small and safe to attach on every upload.
-> - Security events are not included by design.
 
 ### Route SDK logs into your own logger
 
@@ -193,39 +191,9 @@ TheStageAI.log_level = .info
 > - `.debug` is verbose (per-chunk timings). Ship with `.info` or
 >   higher.
 
-### Run a Release build under the debugger
-
-> **Problem**
->
-> **Building** — QA profiling a Release build in Xcode or Instruments.
->
-> **Users want** — the same build that works from the home screen to
-> also work under the profiler.
->
-> **Hard part** — Release builds refuse to load models while a debugger
-> is attached; the error looks like a generic integrity failure.
-
-**Solution — what to use**
-
-- `TheStageAllowDebugger` = `true` in the **test / QA** target's
-  `Info.plist`.
-- Never in a production target.
-- Debug builds are never blocked and do not need it.
-
-```xml
-<key>TheStageAllowDebugger</key>
-<true/>
-```
-
-> [!CAUTION]
-> Set this only in test / QA targets. **Never ship it in a production
-> build** — it removes a protection your models rely on. Debug builds
-> are never blocked and do not need the key.
-
 ## Troubleshooting
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| Release build fails every model load under Xcode | Debugger attached to a Release build. | `TheStageAllowDebugger` in the test target's `Info.plist`. |
 | No SDK lines in the console | Level too high, or no sink. | `start_session_log` with `tee_console: true`, or `log stream`. |
 | Log file is empty | `end_session_log` not called before reading. | Call it, then read the returned URL. |

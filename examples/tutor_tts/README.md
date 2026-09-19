@@ -7,8 +7,8 @@ spans (`<en>…</en><es>…</es>` …).
 | | |
 | --- | --- |
 | Platform | Physical iPhone, **iOS 18+** (Simulator not supported) |
-| SDK | **`1.4.0`** — SwiftPM `TheStageSDK` from this repo (`Package.swift` → `TheStageCore.xcframework`). See also `VERSION`. |
-| App marketing version | `1.4.0` (`project.yml` / Info.plist) |
+| SDK | **`1.4.1`** — SwiftPM `TheStageSDK` from this repo (`Package.swift` → `TheStageCore.xcframework`). See also `VERSION`. |
+| App marketing version | `1.4.1` (`project.yml` / Info.plist) |
 | Model | HF `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` (downloaded on first **Load model**) |
 | Voices | **Bundled** in this example: `VoicePacks/tutor_{en,es,fr,de,pt}/voice.json` |
 
@@ -103,8 +103,8 @@ Public codec helpers (no private TheStage Models tooling):
 
 - By default the SDK dependency is **local path** `../..` (repo root) in
   `project.yml`. Whatever `TheStageCore.xcframework` is in this checkout
-  is what you link — for the `1.4.0` release tree that
-  is SDK **`1.4.0`**.
+  is what you link — for the `1.4.1` release tree that
+  is SDK **`1.4.1`**.
 - To pin a **published SwiftPM release tag** instead (same pattern as
   `macos_swift_tts`), replace the `packages:` block in `project.yml`:
 
@@ -112,10 +112,10 @@ Public codec helpers (no private TheStage Models tooling):
   packages:
     TheStageSDK:
       url: https://github.com/TheStageAI/AppleSDK.git
-      exactVersion: 1.4.0   # or: version: 1.4.0
+      exactVersion: 1.4.1   # or: version: 1.4.1
   ```
 
   Then re-run `xcodegen generate` and resolve packages in Xcode.
-  Use `from: 1.4.0` if you want
-  “`1.4.0` and newer” instead of an exact pin.
+  Use `from: 1.4.1` if you want
+  “`1.4.1` and newer” instead of an exact pin.
 - Mic is not used — output-only TTS.

@@ -12,7 +12,7 @@ settings:
   base:
     # Set your Apple Developer Team in Xcode → Signing & Capabilities.
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "1.4.0"
+    MARKETING_VERSION: "1.4.1"
     CURRENT_PROJECT_VERSION: "1"
 targets:
   EngineBench:
@@ -27,6 +27,11 @@ targets:
     sources:
       - path: Sources
       - path: Assets.xcassets
+      # Offline dev bundles (e.g. BundledModels/parakeet-tdt-0.6b-v3/);
+      # shipped as a folder reference so the runtime path survives.
+      - path: BundledModels
+        type: folder
+        optional: true
     info:
       path: EngineBench-Info.plist
       properties:

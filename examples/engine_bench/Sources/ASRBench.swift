@@ -11,6 +11,7 @@ import TheStageSDK
 enum ASRFamily: Hashable {
     case qwen3
     case whisper
+    case parakeet
 }
 
 struct BundledASRModel: Identifiable, Hashable {
@@ -59,6 +60,13 @@ enum ASRCatalog {
             revision: nil,
             family: .qwen3
         ),
+        BundledASRModel(
+            name: "parakeet-tdt-0.6b-v3",
+            displayName: "Parakeet-TDT 0.6b v3",
+            hfRepo: "",                       // dev-bundle only for now
+            revision: nil,
+            family: .parakeet
+        ),
     ]
     static var first: BundledASRModel { all[0] }
 }
@@ -72,6 +80,12 @@ protocol BenchASR: AnyObject {
 }
 
 extension WhisperPipeline: BenchASR {
+    func bench_infer(audio: [Float]) -> ASRResult {
+        (try? infer(audio: audio, config: ASRGenerationConfig(language: "en"))) ?? .empty
+    }
+}
+
+extension ParakeetASRPipeline: BenchASR {
     func bench_infer(audio: [Float]) -> ASRResult {
         (try? infer(audio: audio, config: ASRGenerationConfig(language: "en"))) ?? .empty
     }
@@ -130,6 +144,13 @@ final class ASRHost {
             )
         case .qwen3:
             asr = try await Qwen3ASRPipeline(
+                engines_path: path,
+                device: "npu",
+                revision: model.revision,
+                on_load_progress: onProgress
+            )
+        case .parakeet:
+            asr = try await ParakeetASRPipeline(
                 engines_path: path,
                 device: "npu",
                 revision: model.revision,

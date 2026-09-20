@@ -16,7 +16,7 @@
 - TSLLM
 - TSChatSession (llm.chat_session) — multi-turn memory + Path A tools
 - TSVLM
-- WhisperPipeline, Qwen3ASRPipeline
+- WhisperPipeline, Qwen3ASRPipeline, ParakeetASRPipeline
 - NeuTTSMultilingualPipeline, Qwen3TTSPipeline
   (prefer neutts-nano-multilingual; full neutts-multilingual temporarily out)
 - SileroVAD
@@ -30,7 +30,7 @@
 ## Pages
 - llm.md — TSLLM
 - vlm.md — TSVLM (LFM2.5-VL)
-- asr.md — WhisperPipeline + Qwen3ASRPipeline
+- asr.md — WhisperPipeline + Qwen3ASRPipeline + ParakeetASRPipeline
 - tts.md — NeuTTS + Qwen3-TTS
 - vad.md — SileroVAD
 - streaming.md — stream contracts

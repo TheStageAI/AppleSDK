@@ -9,7 +9,7 @@ leaves the device** — there is no server in the hot path.
 
 | | |
 | --- | --- |
-| Version | **`1.4.0`** (pin this tag / SwiftPM `exact:`) |
+| Version | **`1.4.1`** (pin this tag / SwiftPM `exact:`) |
 | Checksums | [`RELEASE.md`](./RELEASE.md) — binary sha256 and the pinned model packs |
 | Platforms | iOS **18+**, macOS **15+**, Apple Silicon only |
 | Surfaces | Native Swift (`TheStageSDK`) · Flutter plugin (iOS) |
@@ -18,7 +18,7 @@ leaves the device** — there is no server in the hot path.
 
 > **Not supported:** iOS Simulator, Intel Macs, Android, server-side inference.
 
-### Known issues (1.4.0)
+### Known issues (1.4.1)
 
 - **Voice tool-call streaming / parsing:** filler text and tool-call markup
   can appear interleaved on the same stream, so TTS may start speaking while
@@ -54,7 +54,7 @@ when something breaks.
 touch. Hard rules:
 
 1. Always `initialize` **before** any pipeline / `start_model`.
-2. Pin the SDK to tag **`1.4.0`** (do not float `from:`).
+2. Pin the SDK to tag **`1.4.1`** (do not float `from:`).
 3. Pass HF repo ids like `"TheStageAI/Qwen3-0.6B"` — omit `revision` unless
    you intentionally override (defaults track this SDK line).
 4. Audio is **mono `Float` / `Float32List` in `[-1.0, 1.0]`** — never
@@ -231,7 +231,7 @@ Xcode → **File → Add Package Dependencies…** → this repo URL → product
 ```swift
 .package(
     url: "https://github.com/TheStageAI/AppleSDK.git",
-    exact: Version(1, 4, 0)
+    exact: Version(1, 4, 1)
 )
 ```
 
@@ -270,7 +270,7 @@ dependencies:
     git:
       url: https://github.com/TheStageAI/AppleSDK.git
       path: plugin/thestage_apple_sdk
-      ref: 1.4.0
+      ref: 1.4.1
 ```
 
 ```bash
@@ -320,7 +320,7 @@ path to a working UI: copy an `examples/` app.
 ### Revisions
 
 Omit `revision:` in normal apps. This build resolves HF tags via an
-internal map aligned with SDK **`1.4.0`** → fleet
+internal map aligned with SDK **`1.4.1`** → fleet
 **`v1.4`**. Override only when
 you intentionally pin an older engine tag.
 
@@ -412,7 +412,7 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | First infer very slow | HF download | Wait for `ready`; later runs use cache |
 | Flutter audio glitches / NaNs | `Float64List` or wrong rate | Use `Float32List`; match table above |
 | TTS / ASR “wrong” model type | Bundle auto-route | Pass the correct HF repo; see tts.md |
-| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.4.0` |
+| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.4.1` |
 | Voice agent never commits turn | Thresholds / mode | See smart-turn knobs in voice_agent.md |
 | Tool call + spoken filler overlap / odd parse | Known streaming gap this release | See Known issues above; fix planned next release |
 

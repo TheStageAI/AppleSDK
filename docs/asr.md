@@ -1,8 +1,8 @@
 # ASR (Speech-to-Text)
 
-On-device speech recognition. Two model families ship — **TheWhisper**
-and **Qwen3-ASR** — and both take the same **16 kHz mono float** audio
-and return the same `ASRResult`. Nothing you record leaves the device.
+On-device speech recognition. Three model families ship — **TheWhisper**,
+**Qwen3-ASR** and **Parakeet-TDT** — and all take the same **16 kHz mono
+float** audio and return the same `ASRResult`. Nothing you record leaves the device.
 
 Use it in two ways: hand over a clip and get a transcript back, or open
 a live session and get captions while the user is still talking.
@@ -19,7 +19,8 @@ a live session and get captions while the user is still talking.
 > - **Or you keep your audio pipeline**: push 16 kHz frames into
 >   `open_stream` from any source.
 > - **Long recordings**: pass the whole file; windowing and stitching are
->   automatic.
+>   automatic. With a VAD on the engine, each window ends in a pause and
+>   silent stretches are not decoded.
 > - **Word timestamps**: `timestamps: .WORD` returns every word with
 >   start and end, for seeking and highlighting.
 > - **Language detection**: `language: "auto"` when you do not know
@@ -40,22 +41,23 @@ Here we will cover the following topics:
 
 ## Supported models
 
-Two families, chosen by what your product needs rather than by API —
+Three families, chosen by what your product needs rather than by API —
 the calls are identical.
 
 | Model | HF repo | Base | Device | Fleet pin |
 |---|---|---|---|---|
 | TheWhisper Large V3 Turbo | `TheStageAI/thewhisper-large-v3-turbo` | Whisper-large-v3-turbo | NPU | v1.1 |
 | Qwen3-ASR 0.6B | `TheStageAI/Qwen3-ASR-0.6B` | 0.6B | NPU | v1.1 |
+| Parakeet-TDT 0.6B v3 | `TheStageAI/parakeet-tdt-0.6b-v3` | parakeet-tdt-0.6b-v3 | NPU | v1.4 |
 
-| Feature | TheWhisper turbo | Qwen3-ASR 0.6B |
-|---|---|---|
-| Batch `infer` | yes | yes |
-| Live captions (`open_stream`) | yes, sentence-level commits | yes, prefix commits |
-| Word timestamps | yes, measured | approximate |
-| Language hint | `auto` / ISO code | `auto` / ISO code / English name |
-| Long audio | 10 s windows, stitched | 30 s windows, stitched |
-| Voice Agent STT | yes | yes |
+| Feature | TheWhisper turbo | Qwen3-ASR 0.6B | Parakeet-TDT 0.6B |
+|---|---|---|---|
+| Batch `infer` | yes | yes | yes |
+| Live captions (`open_stream`) | yes, sentence-level commits | yes, prefix commits | yes, sentence-level commits |
+| Word timestamps | yes, measured | approximate | yes, measured (from the decoder) |
+| Language hint | `auto` / ISO code | `auto` / ISO code / English name | `auto` (25 European languages) |
+| Long audio | 10 s windows, stitched | 8 s windows, stitched | 10 s windows, stitched |
+| Voice Agent STT | yes | yes | yes |
 
 **Which one?**
 
@@ -64,6 +66,7 @@ the calls are identical.
 | Live captions that read well while the user talks | **TheWhisper** | Measured word timing lets it commit whole sentences with punctuation, so text does not flicker. |
 | Word-level timestamps for seeking or highlighting | **TheWhisper** | Timings are measured, not estimated. |
 | Transcripts fed straight into an LLM prompt | **Qwen3-ASR** | Same tokenizer family as Qwen3 LLMs; output is plain text. |
+| Fastest transcription of European speech | **Parakeet-TDT** | A transducer with no autoregressive text decoder: about 13× real time on an M2 Max, word times measured per frame. |
 | Smallest footprint | **TheWhisper** | Smaller decoder, faster first result on Apple Silicon. |
 | Voice Agent | Either | The agent routes automatically from the pack. |
 
@@ -346,7 +349,7 @@ for (final w in result.words ?? const <ASRWord>[]) {
 |---|---|---|
 | `language` | `"en"` | ISO code, or `"auto"` to let the model detect it. Qwen3-ASR also accepts an English name (`"German"`). A wrong hint is worse than no hint — TheWhisper will decode foreign speech as English. |
 | `timestamps` | `.WORD` | `.NONE` is fastest; `.SEGMENT` gives phrase ranges; `.WORD` gives every word with `t0` / `t1`. |
-| `overlap` | `0` | Long audio is cut into windows (10 s TheWhisper, 30 s Qwen3-ASR). `0.2` reuses 20% of each window in the next, so words on a cut are not lost. Raise it if words drop mid-file. |
+| `overlap` | `0.2` | Long audio is cut into windows (10 s TheWhisper and Parakeet, 8 s Qwen3-ASR). `0.2` reuses 20% of each window in the next, so a word on a cut is decoded by both windows and kept once. `0` decodes every sample once and loses words that straddle a cut. |
 | `max_new_tokens` | derived | Cap on decode per window. Leave unset — the default follows the real audio length. |
 | `return_tokens` | `false` | Include token IDs in the result. Debugging only. |
 
@@ -672,9 +675,13 @@ Future<void> onPressEnd() => asr.stop();
   (anything `AVAudioFile` reads: WAV, M4A, CAF) and resamples to
   16 kHz.
 - `infer(audio:config:)` with the **whole file** — windowing and
-  stitching are automatic.
-- `overlap: 0.2` — reuses 20 % of each window so a word on a cut is
-  not lost.
+  stitching are automatic. Through `ASREngine` with a VAD, every window
+  ends in a confirmed pause where one exists in its second half, and a
+  window with no speech is skipped; windows stay contiguous audio, so
+  punctuation and word clocks are unchanged.
+- `overlap` — `0.2` by default: 20 % of each window is reused so a word
+  on a cut is not lost. It applies to every cut that could not be placed
+  in a pause; a cut inside a pause has nothing to lose and takes none.
 - `timestamps: .WORD` — `t0` / `t1` per word, which is your seek
   position.
 
@@ -736,8 +743,8 @@ void seek(ASRWord word) =>
 > - Windows decode one after another: expect about `duration / rtf`
 >   of wall time. On an M-series Mac a 40-minute file takes about two
 >   minutes — run it off the main thread and show progress.
-> - `overlap: 0` (the default) *will* lose words that straddle a
->   10-second cut. `0.2` is the right starting point.
+> - `overlap` defaults to `0.2`, so a word that straddles a cut is
+>   decoded by both windows. `0` is faster and *will* lose those words.
 > - Build rows from `result.words` (each has `t0` / `t1`), not by
 >   splitting `result.text` — the text has no times.
 
@@ -1045,7 +1052,7 @@ await asr.start(config: {
 | Symptom | Cause | Fix |
 |---|---|---|
 | Empty or nonsense transcript | Audio is not 16 kHz mono float. | Check the rate first. Convert Int16 with `/ 32768`. See [Audio arrives from somewhere else](#audio-arrives-from-somewhere-else). |
-| Words drop mid-file | `overlap` is `0` and a word straddled a window cut. | `overlap: 0.2`. |
+| Words drop mid-file | `overlap` was set to `0` and a word straddled a window cut. | Leave `overlap` at its default `0.2`, or raise it. |
 | Foreign speech comes out as English | Wrong `language` hint. | `language: "auto"`, then pin the detected code. |
 | "Thank you." on silence | Decoder ran on hush without VAD. | Use `ASREngine(config:)` or pass `SileroVAD` into `open_stream`; gate `infer` on speech. |
 | Captions are empty | Subscribed after `start()` / first `send`. | Subscribe first. |

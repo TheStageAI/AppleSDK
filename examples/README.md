@@ -1,6 +1,6 @@
-# Examples (Apple SDK 1.4.0)
+# Examples (Apple SDK 1.4.1)
 
-All examples in this folder target **TheStage Apple SDK 1.4.0**.
+All examples in this folder target **TheStage Apple SDK 1.4.1**.
 
 | Example | Platform | Notes |
 | --- | --- | --- |
@@ -12,4 +12,4 @@ All examples in this folder target **TheStage Apple SDK 1.4.0**.
 | [`voice_agent_custom_nodes/`](./voice_agent_custom_nodes/) | iPhone (Flutter) | Custom nodes, VLM captions, ModelRoster |
 
 Each example has its own `VERSION` file matching this SDK line. Pin the
-SDK to tag `1.4.0` (see each README).
+SDK to tag `1.4.1` (see each README).

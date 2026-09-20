@@ -845,7 +845,7 @@ public enum ASRGlue {
   }
   @objc deinit
   final public func check(_ config: TheStageCore.ASRGenerationConfig) throws
-  final public func infer(audio: [Swift.Float], config: TheStageCore.ASRGenerationConfig = ASRGenerationConfig(), glue: any TheStageCore.ASRTimestampGlue = ClockGlue()) throws -> TheStageCore.ASRResult
+  final public func infer(audio: [Swift.Float], config: TheStageCore.ASRGenerationConfig = ASRGenerationConfig(), glue: any TheStageCore.ASRTimestampGlue = ClockGlue(), silence: [Swift.Range<Swift.Int>]? = nil) throws -> TheStageCore.ASRResult
   open func release()
 }
 public typealias ASRWindowTranscribe = @Sendable ([Swift.Float], TheStageCore.ASRGenerationConfig) async -> TheStageCore.ASRResult?
@@ -1120,7 +1120,7 @@ public struct ASRGenerationConfig : Swift.Sendable {
     get
     set
   }
-  public init(language: Swift.String = "en", timestamps: TheStageCore.ASRTimestampMode = .WORD, max_new_tokens: Swift.Int? = nil, return_tokens: Swift.Bool = false, text_context: TheStageCore.ASRTextContext = .NONE, context_text: Swift.String = "", language_detection: Swift.Bool = false, overlap: Swift.Double = 0)
+  public init(language: Swift.String = "en", timestamps: TheStageCore.ASRTimestampMode = .WORD, max_new_tokens: Swift.Int? = nil, return_tokens: Swift.Bool = false, text_context: TheStageCore.ASRTextContext = .NONE, context_text: Swift.String = "", language_detection: Swift.Bool = false, overlap: Swift.Double = 0.2)
 }
 extension TheStageCore.ASRGenerationConfig : Swift.Decodable {
   public init(from decoder: any Swift.Decoder) throws
@@ -1170,7 +1170,8 @@ public struct VADConfig : Swift.Sendable {
   public var onset_min_detections: Swift.Int
   public var silence_confirm_s: Swift.Double
   public var zero_silence_hangover: Swift.Bool
-  public init(threshold: Swift.Double = 0.5, neg_threshold: Swift.Double? = nil, speech_pad_ms: Swift.Int = 50, min_silence_s: Swift.Double = 0.20, pre_roll_s: Swift.Double = 0.35, onset_window_s: Swift.Double = 0.25, onset_min_detections: Swift.Int = 3, silence_confirm_s: Swift.Double = 0.30, zero_silence_hangover: Swift.Bool = true)
+  public var silence_raw_s: Swift.Double
+  public init(threshold: Swift.Double = 0.7, neg_threshold: Swift.Double? = 0.15, speech_pad_ms: Swift.Int = 50, min_silence_s: Swift.Double = 0.20, pre_roll_s: Swift.Double = 0.30, onset_window_s: Swift.Double = 0.256, onset_min_detections: Swift.Int = 2, silence_confirm_s: Swift.Double = 0.30, zero_silence_hangover: Swift.Bool = true, silence_raw_s: Swift.Double = 0.064)
   public var resolved_neg_threshold: Swift.Double {
     get
   }
@@ -1192,6 +1193,14 @@ public enum SentenceGate {
   public static func ends_sentence(_ text: Swift.String) -> Swift.Bool
   public static func ends_phrase(_ text: Swift.String) -> Swift.Bool
   public static func complete_sentences(_ text: Swift.String) -> (done: [Swift.String], tail: Swift.String)
+}
+@_hasMissingDesignatedInitializers final public class ParakeetASRPipeline : TheStageCore.ASRPipeline, @unchecked Swift.Sendable {
+  public init(engines_path: Swift.String, device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, revision: Swift.String? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws
+  override final public var capabilities: TheStageCore.ASRCapabilitySet {
+    get
+  }
+  @objc deinit
+  override final public func release()
 }
 @_hasMissingDesignatedInitializers final public class Qwen3ASRPipeline : TheStageCore.ASRPipeline, @unchecked Swift.Sendable {
   public init(engines_path: Swift.String, device: Swift.String = "npu", devices: [Swift.String : Swift.String]? = nil, revision: Swift.String? = nil, on_load_progress: TheStageCore.LoadProgressHandler? = nil) async throws

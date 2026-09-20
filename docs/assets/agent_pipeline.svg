@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 587" width="900" height="587" role="img" aria-label="What runs on device">
+  <style>
+  .bg{fill:#131313}
+  .dot{fill:#1F1F1F}
+  .card{fill:#1A1A1A;stroke:#303030;stroke-width:1}
+  .card-accent{fill:#1F1714;stroke:#FF885A;stroke-width:1.5}
+  .card-hi{fill:#FFF844;stroke:#FFF844;stroke-width:1.5}
+  .card-muted{fill:#161616;stroke:#242424;stroke-width:1}
+  .h{fill:#FFFFFF;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  .b{fill:#646464;font:400 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px}
+  .m{fill:#6F6F6F;font:11px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .hi-t{fill:#131313;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  .hi-b{fill:#131313;font:400 12.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px;opacity:.72}
+  .hi-m{fill:#3D3A10;font:11px 'DM Mono',ui-monospace,SFMono-Regular,Menlo,monospace}
+  .ttl{fill:#FFFFFF;font:500 20px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.8px}
+  .sub{fill:#646464;font:400 13px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.35px}
+  .edge{stroke:#4A4A4A;stroke-width:1.5;fill:none}
+  .ah{fill:#4A4A4A}
+  .edge-d{stroke:#4A4A4A;stroke-width:1.5;fill:none;stroke-dasharray:4 4}
+  .el{fill:#646464;font:400 10.5px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.2px}
+  .badge{fill:#242424;stroke:#303030}
+  .badge-t{fill:#8A8A8A;font:500 10px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.2px}
+  .num{fill:#646464;font:500 14px Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;letter-spacing:-0.56px}
+  </style>
+  <defs>
+  <pattern id="dots" width="20" height="20" patternUnits="userSpaceOnUse">
+    <circle class="dot" cx="1" cy="1" r="1"/></pattern>
+  <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="5.5" markerHeight="5.5" orient="auto-start-reverse">
+    <path class="ah" d="M0,0 L10,5 L0,10 z"/></marker></defs>
+  <rect class="bg" width="900" height="587" rx="14"/>
+  <rect width="900" height="587" rx="14" fill="url(#dots)"/>
+  <text class="ttl" x="28" y="40">What runs on device</text>
+  <text class="sub" x="28" y="62">Every stage runs locally. No audio, transcript or reply leaves the phone.</text>
+  <rect class="card" x="28.0" y="92" width="386.0" height="129" rx="14"/>
+  <text class="h" x="46.0" y="123.0">Microphone</text>
+  <text class="b" x="46.0" y="143.0">Capture, echo cancellation,</text>
+  <text class="b" x="46.0" y="161.0">and resampling.</text>
+  <text class="m" x="46.0" y="185.0">AEC keeps the agent</text>
+  <text class="m" x="46.0" y="201.0">from hearing itself</text>
+  <rect class="card" x="486.0" y="92" width="386.0" height="129" rx="14"/>
+  <text class="h" x="504.0" y="131.0">Turn taking</text>
+  <text class="b" x="504.0" y="151.0">Detects speech and decides when</text>
+  <text class="b" x="504.0" y="169.0">the user has finished.</text>
+  <text class="m" x="504.0" y="193.0">VAD + turn detector</text>
+  <rect class="card" x="28.0" y="279" width="386.0" height="113" rx="14"/>
+  <text class="h" x="46.0" y="310.0">Speech to text</text>
+  <text class="b" x="46.0" y="330.0">Streaming transcription with</text>
+  <text class="b" x="46.0" y="348.0">live partials.</text>
+  <text class="m" x="46.0" y="372.0">ASR model</text>
+  <rect class="card-accent" x="486.0" y="279" width="386.0" height="113" rx="14"/>
+  <text class="h" x="504.0" y="310.0">Language model</text>
+  <text class="b" x="504.0" y="330.0">On device, or your own provider.</text>
+  <text class="b" x="504.0" y="348.0">Tools run here.</text>
+  <text class="m" x="504.0" y="372.0">swappable</text>
+  <rect class="card" x="28.0" y="450" width="386.0" height="113" rx="14"/>
+  <text class="h" x="46.0" y="481.0">Text to speech</text>
+  <text class="b" x="46.0" y="501.0">Streams audio so the first words</text>
+  <text class="b" x="46.0" y="519.0">play before the reply is complete.</text>
+  <text class="m" x="46.0" y="543.0">TTS model + voice</text>
+  <rect class="card" x="486.0" y="450" width="386.0" height="113" rx="14"/>
+  <text class="h" x="504.0" y="481.0">Speaker</text>
+  <text class="b" x="504.0" y="501.0">Playback, with barge-in</text>
+  <text class="b" x="504.0" y="519.0">cancelling it mid-sentence.</text>
+  <text class="m" x="504.0" y="543.0">playback_ended</text>
+  <path class="edge" d="M420.0,156.5 L480.0,156.5" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="148.5" text-anchor="middle">audio</text>
+  <path class="edge" d="M679.0,226 V243 H221.0 V271" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="237" text-anchor="middle">final text</text>
+  <path class="edge" d="M420.0,335.5 L480.0,335.5" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="327.5" text-anchor="middle">request</text>
+  <path class="edge" d="M679.0,397 V414 H221.0 V442" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="408" text-anchor="middle">reply text</text>
+  <path class="edge" d="M420.0,506.5 L480.0,506.5" marker-end="url(#ah)"/>
+  <text class="el" x="450.0" y="498.5" text-anchor="middle">PCM</text>
+</svg>

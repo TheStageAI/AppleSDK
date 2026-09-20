@@ -65,7 +65,7 @@ class ASRGenerationConfig {
     this.text_context = ASRTextContext.NONE,
     this.context_text = '',
     this.language_detection = false,
-    this.overlap = 0,
+    this.overlap = 0.2,
   });
 
   Map<String, dynamic> to_json() => {

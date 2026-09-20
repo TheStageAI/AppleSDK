@@ -107,6 +107,7 @@ class VoiceAgentSettings extends ChangeNotifier {
   static const availableHfAsr = [
     'TheStageAI/thewhisper-large-v3-turbo',
     'TheStageAI/Qwen3-ASR-0.6B',
+    'TheStageAI/parakeet-tdt-0.6b-v3',
   ];
 
   /// Shipping HF TTS repos.
@@ -125,6 +126,7 @@ class VoiceAgentSettings extends ChangeNotifier {
   static const availableLocalAsr = [
     'thewhisper-large-v3-turbo',
     'qwen3-asr-0.6b',
+    'parakeet-tdt-0.6b-v3',
   ];
   static const availableLocalTts = [
     'qwen3-tts-12hz-0.6b-base',
@@ -215,8 +217,8 @@ Never invent facts. Never name a place, time, or number the user did not ask and
 
   // ── Endpointing (VAD) ────────────────────────────────────────────────────
   int silenceTimeoutMs = 608; // SDK default
-  double vadThreshold = 0.75; // product choice, same as the gallery (negative 0.225)
-  int vadOnsetMs = 96;
+  double vadThreshold = 0.7; // SDK default (negative 0.15), same as the ASR test app
+  int vadOnsetMs = 256; // SDK default: 2 hits inside this window
   int maxAccumulationMs = 30000;
 
   // ── Turn detection (end-of-turn). DNN = pipecat smart-turn on the ANE. ────
@@ -278,7 +280,7 @@ Never invent facts. Never name a place, time, or number the user did not ask and
   int interruptThinkingLockoutMs = 600;
 
   // ── Audio ────────────────────────────────────────────────────────────────
-  int preRollMs = 200;
+  int preRollMs = 300; // SDK default
   // iOS Voice Processing IO (hardware AEC). Off previously while debugging
   // model-load crashes; back on so the agent doesn't hear its own TTS.
   bool aecEnabled = true;

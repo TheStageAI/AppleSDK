@@ -433,7 +433,7 @@ await agent.start(config: {
 | `turn_eot_threshold` | 0.85 | **yes** (`update_turn_config`) | DNN mode: lower to commit sooner, raise to wait longer. |
 | `interrupt_mode` | iOS `.vad` · macOS `.none` | **yes** (`update_interrupt_config`) | `.none` to disable barge-in; `.vad_speaker_id` to accept only the enrolled voice; `.vad_wake_word` to require the wake word. |
 | `interrupt_min_speech_ms` | 600 | **yes** | Snappier barge-in — lower (more false triggers); twitchy — raise. |
-| `vad_threshold` | 0.5 | no | Starts on background noise — raise; misses quiet users — lower. |
+| `vad_threshold` | 0.7 | no | Starts on background noise — raise; misses quiet users — lower. |
 | `auto_listen` | true | no | Start muted and open the mic with `begin_listening()` after a welcome message. |
 | `audio.*` | see [Audio Nodes](./audio_nodes.md) | no | Speaker rate, echo cancellation, custom audio source. |
 

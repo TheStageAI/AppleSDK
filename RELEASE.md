@@ -1,13 +1,13 @@
-# TheStage Apple SDK 1.4.0
+# TheStage Apple SDK 1.4.1
 
-Built 2026-09-14. Pin this tag; the examples use `exact: Version(1, 4, 0)`.
+Built 2026-09-19. Pin this tag; the examples use `exact: Version(1, 4, 1)`.
 
 ## Binary
 
 | slice | sha256 |
 |---|---|
-| `ios-arm64` | `f58c21684a7433a2ab69d69f34a161dbbc78292950f35827ca57c4aea472e270` |
-| `macos-arm64` | `9f1cc4729068bfd82cfefd18ad6944d0866c6062fec4e97403b13e4f34e67249` |
+| `ios-arm64` | `451a77bddefd4b2df011dfc1053d11bc748a9b8cadb2709c0f853eaa3d46fbd6` |
+| `macos-arm64` | `43bfc405633f8088cc588867a2ace3666f72d670228a0978f941c25bf24cc6dc` |
 
 ## Models
 
@@ -22,6 +22,7 @@ sha256 is of the `.thestage` pack on Hugging Face.
 | `lfm2.5-350m` | `TheStageAI/LFM2.5-350M` | `v1.4` | `36293d8bcbe485461018ed92c646b95a7238cbcce7a8ddfcfb9c06638bf16efa` | 254.0 MB |
 | `thewhisper-large-v3-turbo` | `TheStageAI/thewhisper-large-v3-turbo` | `v1.4` | `25122345c95566e1053d2a1d5e07d51543274bd2873fb955f03feb2c0f2df7ad` | 569.0 MB |
 | `qwen3-asr-0.6b` | `TheStageAI/Qwen3-ASR-0.6B` | `v1.4` | `af863212a49653bd04d65983245f5d7b0b70a9860f46b7d8007c7d1ec91eb26c` | 505.1 MB |
+| `parakeet-tdt-0.6b-v3` | `TheStageAI/parakeet-tdt-0.6b-v3` | `v1.4` | `2a1064b8b99eeab173847e40e757c00e6fcc1914f2ed56eea81397218cfb9d20` | 250.0 MB |
 | `neutts-nano-multilingual` | `TheStageAI/neutts-nano-multilingual` | `v1.4` | `f7a0f92f3617715915f62f28e8fc754585f2d4a8921e4245034a0046a5db486c` | 248.1 MB |
 | `qwen3-tts-12hz-0.6b-base` | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | `v1.4` | `0351b57d097ba76fd67948422cc97df4a299ec138b9a3e1290d050a5fd7ca8a6` | 633.5 MB |
 | `silero-vad` | `TheStageAI/silero-vad` | `v1.4` | `71bb26577c55b4a697e4513d95d9995468df22d3f68fcdbd5e2c26f59cf8ed8e` | 0.7 MB |

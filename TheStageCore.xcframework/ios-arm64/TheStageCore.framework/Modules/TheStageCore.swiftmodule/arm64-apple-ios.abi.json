@@ -13662,6 +13662,13 @@
       },
       {
         "kind": "Import",
+        "name": "QlipKernels",
+        "printedName": "QlipKernels",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
         "name": "os",
         "printedName": "os",
         "declKind": "Import",
@@ -28829,7 +28836,7 @@
           {
             "kind": "Function",
             "name": "infer",
-            "printedName": "infer(audio:config:glue:)",
+            "printedName": "infer(audio:config:glue:silence:)",
             "children": [
               {
                 "kind": "TypeNominal",
@@ -28864,11 +28871,42 @@
                 "printedName": "any TheStageCore.ASRTimestampGlue",
                 "hasDefaultArg": true,
                 "usr": "s:12TheStageCore16ASRTimestampGlueP"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "[Swift.Range<Swift.Int>]?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Array",
+                    "printedName": "[Swift.Range<Swift.Int>]",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Range",
+                        "printedName": "Swift.Range<Swift.Int>",
+                        "children": [
+                          {
+                            "kind": "TypeNominal",
+                            "name": "Int",
+                            "printedName": "Swift.Int",
+                            "usr": "s:Si"
+                          }
+                        ],
+                        "usr": "s:Sn"
+                      }
+                    ],
+                    "usr": "s:Sa"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
               }
             ],
             "declKind": "Func",
-            "usr": "s:12TheStageCore11ASRPipelineC5infer5audio6config4glueAA9ASRResultVSaySfG_AA19ASRGenerationConfigVAA16ASRTimestampGlue_ptKF",
-            "mangledName": "$s12TheStageCore11ASRPipelineC5infer5audio6config4glueAA9ASRResultVSaySfG_AA19ASRGenerationConfigVAA16ASRTimestampGlue_ptKF",
+            "usr": "s:12TheStageCore11ASRPipelineC5infer5audio6config4glue7silenceAA9ASRResultVSaySfG_AA19ASRGenerationConfigVAA16ASRTimestampGlue_pSaySnySiGGSgtKF",
+            "mangledName": "$s12TheStageCore11ASRPipelineC5infer5audio6config4glue7silenceAA9ASRResultVSaySfG_AA19ASRGenerationConfigVAA16ASRTimestampGlue_pSaySnySiGGSgtKF",
             "moduleName": "TheStageCore",
             "declAttributes": [
               "Final",
@@ -45163,9 +45201,95 @@
             ]
           },
           {
+            "kind": "Var",
+            "name": "silence_raw_s",
+            "printedName": "silence_raw_s",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "usr": "s:Sd"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore9VADConfigV13silence_raw_sSdvp",
+            "mangledName": "$s12TheStageCore9VADConfigV13silence_raw_sSdvp",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "HasStorage",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "hasStorage": true,
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore9VADConfigV13silence_raw_sSdvg",
+                "mangledName": "$s12TheStageCore9VADConfigV13silence_raw_sSdvg",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "get"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Set",
+                "printedName": "Set()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  },
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Double",
+                    "printedName": "Swift.Double",
+                    "usr": "s:Sd"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore9VADConfigV13silence_raw_sSdvs",
+                "mangledName": "$s12TheStageCore9VADConfigV13silence_raw_sSdvs",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "set"
+              },
+              {
+                "kind": "Accessor",
+                "name": "Modify",
+                "printedName": "Modify()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Void",
+                    "printedName": "()"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore9VADConfigV13silence_raw_sSdvM",
+                "mangledName": "$s12TheStageCore9VADConfigV13silence_raw_sSdvM",
+                "moduleName": "TheStageCore",
+                "implicit": true,
+                "accessorKind": "_modify"
+              }
+            ]
+          },
+          {
             "kind": "Constructor",
             "name": "init",
-            "printedName": "init(threshold:neg_threshold:speech_pad_ms:min_silence_s:pre_roll_s:onset_window_s:onset_min_detections:silence_confirm_s:zero_silence_hangover:)",
+            "printedName": "init(threshold:neg_threshold:speech_pad_ms:min_silence_s:pre_roll_s:onset_window_s:onset_min_detections:silence_confirm_s:zero_silence_hangover:silence_raw_s:)",
             "children": [
               {
                 "kind": "TypeNominal",
@@ -45243,14 +45367,22 @@
                 "printedName": "Swift.Bool",
                 "hasDefaultArg": true,
                 "usr": "s:Sb"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Double",
+                "printedName": "Swift.Double",
+                "hasDefaultArg": true,
+                "usr": "s:Sd"
               }
             ],
             "declKind": "Constructor",
-            "usr": "s:12TheStageCore9VADConfigV9threshold04neg_E013speech_pad_ms13min_silence_s10pre_roll_s14onset_window_s0n1_J11_detections0K10_confirm_s05zero_K9_hangoverACSd_SdSgSiS3dSiSdSbtcfc",
-            "mangledName": "$s12TheStageCore9VADConfigV9threshold04neg_E013speech_pad_ms13min_silence_s10pre_roll_s14onset_window_s0n1_J11_detections0K10_confirm_s05zero_K9_hangoverACSd_SdSgSiS3dSiSdSbtcfc",
+            "usr": "s:12TheStageCore9VADConfigV9threshold04neg_E013speech_pad_ms13min_silence_s10pre_roll_s14onset_window_s0n1_J11_detections0K10_confirm_s05zero_K9_hangover0K6_raw_sACSd_SdSgSiS3dSiSdSbSdtcfc",
+            "mangledName": "$s12TheStageCore9VADConfigV9threshold04neg_E013speech_pad_ms13min_silence_s10pre_roll_s14onset_window_s0n1_J11_detections0K10_confirm_s05zero_K9_hangover0K6_raw_sACSd_SdSgSiS3dSiSdSbSdtcfc",
             "moduleName": "TheStageCore",
             "declAttributes": [
-              "AccessControl"
+              "AccessControl",
+              "RawDocComment"
             ],
             "init_kind": "Designated"
           },
@@ -50779,6 +50911,279 @@
             "mangledName": "$ss8SendableP"
           }
         ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "os",
+        "printedName": "os",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "TypeDecl",
+        "name": "ParakeetASRPipeline",
+        "printedName": "ParakeetASRPipeline",
+        "children": [
+          {
+            "kind": "Constructor",
+            "name": "init",
+            "printedName": "init(engines_path:device:devices:revision:on_load_progress:)",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ParakeetASRPipeline",
+                "printedName": "TheStageCore.ParakeetASRPipeline",
+                "usr": "s:12TheStageCore19ParakeetASRPipelineC"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "String",
+                "printedName": "Swift.String",
+                "hasDefaultArg": true,
+                "usr": "s:SS"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "[Swift.String : Swift.String]?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "Dictionary",
+                    "printedName": "[Swift.String : Swift.String]",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "String",
+                        "printedName": "Swift.String",
+                        "usr": "s:SS"
+                      }
+                    ],
+                    "usr": "s:SD"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "Swift.String?",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "String",
+                    "printedName": "Swift.String",
+                    "usr": "s:SS"
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              },
+              {
+                "kind": "TypeNominal",
+                "name": "Optional",
+                "printedName": "((TheStageCore.LoadProgress) -> ())?",
+                "children": [
+                  {
+                    "kind": "TypeFunc",
+                    "name": "Function",
+                    "printedName": "(TheStageCore.LoadProgress) -> ()",
+                    "children": [
+                      {
+                        "kind": "TypeNominal",
+                        "name": "Void",
+                        "printedName": "()"
+                      },
+                      {
+                        "kind": "TypeNominal",
+                        "name": "LoadProgress",
+                        "printedName": "TheStageCore.LoadProgress",
+                        "usr": "s:12TheStageCore12LoadProgressV"
+                      }
+                    ]
+                  }
+                ],
+                "hasDefaultArg": true,
+                "usr": "s:Sq"
+              }
+            ],
+            "declKind": "Constructor",
+            "usr": "s:12TheStageCore19ParakeetASRPipelineC12engines_path6device7devices8revision16on_load_progressACSS_SSSDyS2SGSgSSSgyAA12LoadProgressVYbcSgtYaKcfc",
+            "mangledName": "$s12TheStageCore19ParakeetASRPipelineC12engines_path6device7devices8revision16on_load_progressACSS_SSSDyS2SGSgSSSgyAA12LoadProgressVYbcSgtYaKcfc",
+            "moduleName": "TheStageCore",
+            "declAttributes": [
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "throwing": true,
+            "init_kind": "Designated"
+          },
+          {
+            "kind": "Var",
+            "name": "capabilities",
+            "printedName": "capabilities",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "ASRCapabilitySet",
+                "printedName": "TheStageCore.ASRCapabilitySet",
+                "usr": "s:12TheStageCore16ASRCapabilitySetV"
+              }
+            ],
+            "declKind": "Var",
+            "usr": "s:12TheStageCore19ParakeetASRPipelineC12capabilitiesAA16ASRCapabilitySetVvp",
+            "mangledName": "$s12TheStageCore19ParakeetASRPipelineC12capabilitiesAA16ASRCapabilitySetVvp",
+            "moduleName": "TheStageCore",
+            "overriding": true,
+            "declAttributes": [
+              "Final",
+              "Override",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "accessors": [
+              {
+                "kind": "Accessor",
+                "name": "Get",
+                "printedName": "Get()",
+                "children": [
+                  {
+                    "kind": "TypeNominal",
+                    "name": "ASRCapabilitySet",
+                    "printedName": "TheStageCore.ASRCapabilitySet",
+                    "usr": "s:12TheStageCore16ASRCapabilitySetV"
+                  }
+                ],
+                "declKind": "Accessor",
+                "usr": "s:12TheStageCore19ParakeetASRPipelineC12capabilitiesAA16ASRCapabilitySetVvg",
+                "mangledName": "$s12TheStageCore19ParakeetASRPipelineC12capabilitiesAA16ASRCapabilitySetVvg",
+                "moduleName": "TheStageCore",
+                "overriding": true,
+                "declAttributes": [
+                  "Final"
+                ],
+                "accessorKind": "get"
+              }
+            ]
+          },
+          {
+            "kind": "Function",
+            "name": "release",
+            "printedName": "release()",
+            "children": [
+              {
+                "kind": "TypeNominal",
+                "name": "Void",
+                "printedName": "()"
+              }
+            ],
+            "declKind": "Func",
+            "usr": "s:12TheStageCore19ParakeetASRPipelineC7releaseyyF",
+            "mangledName": "$s12TheStageCore19ParakeetASRPipelineC7releaseyyF",
+            "moduleName": "TheStageCore",
+            "overriding": true,
+            "declAttributes": [
+              "Final",
+              "Override",
+              "AccessControl",
+              "RawDocComment"
+            ],
+            "funcSelfKind": "NonMutating"
+          }
+        ],
+        "declKind": "Class",
+        "usr": "s:12TheStageCore19ParakeetASRPipelineC",
+        "mangledName": "$s12TheStageCore19ParakeetASRPipelineC",
+        "moduleName": "TheStageCore",
+        "declAttributes": [
+          "Final",
+          "AccessControl",
+          "RawDocComment"
+        ],
+        "superclassUsr": "s:12TheStageCore11ASRPipelineC",
+        "hasMissingDesignatedInitializers": true,
+        "superclassNames": [
+          "TheStageCore.ASRPipeline",
+          "TheStageCore.BasePipeline"
+        ],
+        "conformances": [
+          {
+            "kind": "Conformance",
+            "name": "Copyable",
+            "printedName": "Copyable",
+            "usr": "s:s8CopyableP",
+            "mangledName": "$ss8CopyableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Escapable",
+            "printedName": "Escapable",
+            "usr": "s:s9EscapableP",
+            "mangledName": "$ss9EscapableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "Sendable",
+            "printedName": "Sendable",
+            "usr": "s:s8SendableP",
+            "mangledName": "$ss8SendableP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "SendableMetatype",
+            "printedName": "SendableMetatype",
+            "usr": "s:s16SendableMetatypeP",
+            "mangledName": "$ss16SendableMetatypeP"
+          },
+          {
+            "kind": "Conformance",
+            "name": "ModelComponentControlling",
+            "printedName": "ModelComponentControlling",
+            "usr": "s:12TheStageCore25ModelComponentControllingP",
+            "mangledName": "$s12TheStageCore25ModelComponentControllingP"
+          }
+        ]
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
       },
       {
         "kind": "Import",
@@ -150424,7 +150829,8 @@
             "declAttributes": [
               "HasInitialValue",
               "HasStorage",
-              "AccessControl"
+              "AccessControl",
+              "RawDocComment"
             ],
             "hasStorage": true,
             "accessors": [
@@ -161970,119 +162376,147 @@
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 16297,
+      "offset": 16316,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 18197,
+      "offset": 18216,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 18233,
+      "offset": 18252,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 29699,
+      "length": 4,
+      "value": "1e-5"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 31623,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 32059,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 32792,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
       "kind": "Dictionary",
-      "offset": 32268,
+      "offset": 39421,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 32726,
+      "offset": 39879,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 32784,
+      "offset": 39937,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 32882,
+      "offset": 40035,
       "length": 10,
       "value": "\"Qlip.SDK\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 32904,
+      "offset": 40057,
       "length": 11,
       "value": "\"QlipGraph\""
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 34552,
+      "offset": 41705,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 34636,
+      "offset": 41789,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 55696,
+      "offset": 62849,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 55750,
+      "offset": 62903,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 57272,
+      "offset": 64425,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 57320,
+      "offset": 64473,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 59171,
+      "offset": 66324,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 60701,
+      "offset": 67854,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 61933,
+      "offset": 69086,
       "length": 3,
       "value": "[]"
     },
@@ -162488,35 +162922,35 @@
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 6843,
+      "offset": 9510,
       "length": 1,
       "value": "6"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 7453,
+      "offset": 10120,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 7687,
+      "offset": 10354,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 13770,
+      "offset": 16437,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 14460,
+      "offset": 17127,
       "length": 3,
       "value": "[]"
     },
@@ -162698,107 +163132,121 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 26643,
+      "offset": 26901,
       "length": 4,
       "value": "\"en\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 26761,
+      "offset": 27019,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 26845,
+      "offset": 27103,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 26884,
+      "offset": 27142,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 26917,
-      "length": 1,
-      "value": "0"
+      "kind": "FloatLiteral",
+      "offset": 27175,
+      "length": 3,
+      "value": "0.2"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 47713,
+      "offset": 48630,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 53859,
+      "offset": 54776,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 55673,
+      "offset": 57153,
       "length": 3,
-      "value": "0.5"
+      "value": "0.7"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 57191,
+      "length": 4,
+      "value": "0.15"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 55745,
+      "offset": 57226,
       "length": 2,
       "value": "50"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 55781,
+      "offset": 57262,
       "length": 4,
       "value": "0.20"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 55816,
+      "offset": 57297,
       "length": 4,
-      "value": "0.35"
+      "value": "0.30"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 55855,
-      "length": 4,
-      "value": "0.25"
+      "offset": 57336,
+      "length": 5,
+      "value": "0.256"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 55897,
+      "offset": 57379,
       "length": 1,
-      "value": "3"
+      "value": "2"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 55936,
+      "offset": 57418,
       "length": 4,
       "value": "0.30"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 55980,
+      "offset": 57462,
       "length": 4,
       "value": "true"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 57500,
+      "length": 5,
+      "value": "0.064"
     },
     {
       "filePath": "",
@@ -162820,6 +163268,20 @@
       "offset": 3531,
       "length": 1,
       "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 4708,
+      "length": 3,
+      "value": "0.5"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 6018,
+      "length": 5,
+      "value": "4800"
     },
     {
       "filePath": "",
@@ -162880,63 +163342,63 @@
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 9931,
+      "offset": 10689,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 35365,
+      "offset": 38238,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 43267,
+      "offset": 46140,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 44235,
+      "offset": 47108,
       "length": 4,
       "value": "0.04"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 44274,
+      "offset": 47147,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 48365,
+      "offset": 51238,
       "length": 1,
       "value": "3"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 49810,
+      "offset": 52683,
       "length": 1,
       "value": "4"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 53762,
+      "offset": 56635,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 58266,
+      "offset": 61139,
       "length": 1,
       "value": "3"
     },
@@ -163495,6 +163957,153 @@
     },
     {
       "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1575,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "Array",
+      "offset": 1617,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1664,
+      "length": 1,
+      "value": "1"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1701,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1939,
+      "length": 7,
+      "value": "\"frame\""
+    },
+    {
+      "filePath": "",
+      "kind": "Array",
+      "offset": 2004,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2042,
+      "length": 6,
+      "value": "16000"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 2083,
+      "length": 3,
+      "value": "160"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2334,
+      "length": 15,
+      "value": "\"valid_samples\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2396,
+      "length": 14,
+      "value": "\"valid_frames\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2458,
+      "length": 15,
+      "value": "\"extend_frames\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1041,
+      "length": 10,
+      "value": "\"Qlip.SDK\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1063,
+      "length": 21,
+      "value": "\"ParakeetASRPipeline\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1128,
+      "length": 14,
+      "value": "\"parakeet-tdt\""
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1469,
+      "length": 2,
+      "value": "25"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2082,
+      "length": 5,
+      "value": "\"npu\""
+    },
+    {
+      "filePath": "",
+      "kind": "Array",
+      "offset": 5367,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "Array",
+      "offset": 5401,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 5424,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 5448,
+      "length": 3,
+      "value": "0.0"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 759,
+      "length": 14,
+      "value": "\"parakeet-tdt\""
+    },
+    {
+      "filePath": "",
       "kind": "StringLiteral",
       "offset": 754,
       "length": 19,
@@ -163586,43 +164195,57 @@
     },
     {
       "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 1533,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 1704,
-      "length": 1,
-      "value": "4"
-    },
-    {
-      "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 5675,
-      "length": 1,
-      "value": "0"
-    },
-    {
-      "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 5837,
+      "offset": 1347,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 5873,
+      "offset": 1778,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 1949,
+      "length": 1,
+      "value": "4"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 6493,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 14032,
+      "offset": 6655,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 6691,
+      "length": 1,
+      "value": "0"
+    },
+    {
+      "filePath": "",
+      "kind": "BooleanLiteral",
+      "offset": 12909,
+      "length": 5,
+      "value": "false"
+    },
+    {
+      "filePath": "",
+      "kind": "BooleanLiteral",
+      "offset": 16993,
       "length": 4,
       "value": "true"
     },
@@ -163916,14 +164539,14 @@
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 31831,
+      "offset": 32558,
       "length": 1,
       "value": "8"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 31885,
+      "offset": 32612,
       "length": 4,
       "value": "0.25"
     },
@@ -164118,157 +164741,185 @@
     },
     {
       "filePath": "",
+      "kind": "Array",
+      "offset": 1114,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2002,
+      "offset": 2901,
       "length": 5,
       "value": "\"cpu\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2027,
+      "offset": 2926,
       "length": 5,
       "value": "\"gpu\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2054,
+      "offset": 2953,
       "length": 5,
       "value": "\"npu\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2090,
+      "offset": 2989,
       "length": 5,
       "value": "\"all\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2169,
+      "offset": 3068,
       "length": 10,
       "value": "\"Qlip.SDK\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2191,
+      "offset": 3090,
       "length": 20,
       "value": "\"QlipCompiledModule\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2544,
+      "offset": 3443,
       "length": 5,
       "value": "\"all\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 3369,
+      "offset": 4713,
       "length": 5,
       "value": "\"all\""
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 12270,
+      "offset": 14941,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 17511,
+      "offset": 20182,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 32225,
+      "offset": 34896,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 32936,
+      "offset": 35607,
       "length": 7,
       "value": "\"model\""
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 33016,
+      "offset": 35687,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 33200,
+      "offset": 35871,
       "length": 10,
       "value": "\"Qlip.SDK\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 33222,
+      "offset": 35893,
       "length": 11,
       "value": "\"QlipModel\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 33398,
+      "offset": 36069,
       "length": 5,
       "value": "\"gpu\""
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 42983,
+      "offset": 45654,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 43524,
+      "offset": 46195,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 44309,
+      "offset": 47341,
+      "length": 3,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "Dictionary",
+      "offset": 47378,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 44344,
-      "length": 2,
-      "value": "[]"
-    },
-    {
-      "filePath": "",
-      "kind": "Array",
-      "offset": 44831,
+      "offset": 47413,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 46516,
+      "offset": 48034,
       "length": 3,
       "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "Array",
+      "offset": 48069,
+      "length": 2,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "Dictionary",
+      "offset": 49980,
+      "length": 3,
+      "value": "[]"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2593,
+      "length": 11,
+      "value": "\"tokenizer\""
     },
     {
       "filePath": "",
@@ -164357,21 +165008,21 @@
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 5611,
+      "offset": 5691,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 5716,
+      "offset": 5796,
       "length": 56,
       "value": "\"LeafOpenerRegistry: id '\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 5753,
+      "offset": 5833,
       "length": 19,
       "value": "\"' registered twice\""
     },
@@ -167660,6 +168311,20 @@
     },
     {
       "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 45813,
+      "length": 2,
+      "value": "30"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 45818,
+      "length": 2,
+      "value": "60"
+    },
+    {
+      "filePath": "",
       "kind": "FloatLiteral",
       "offset": 974,
       "length": 4,
@@ -167955,14 +168620,14 @@
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 45215,
+      "offset": 45636,
       "length": 1,
       "value": "4"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 45220,
+      "offset": 45641,
       "length": 2,
       "value": "20"
     },
@@ -168950,139 +169615,146 @@
       "filePath": "",
       "kind": "StringLiteral",
       "offset": 7094,
+      "length": 19,
+      "value": "\"ParakeetTokenizer\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 7142,
       "length": 21,
       "value": "\"PreTrainedTokenizer\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 7144,
+      "offset": 7192,
       "length": 16,
       "value": "\"Qwen2Tokenizer\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 7189,
+      "offset": 7237,
       "length": 18,
       "value": "\"WhisperTokenizer\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 7236,
+      "offset": 7284,
       "length": 21,
       "value": "\"XLMRobertaTokenizer\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 7567,
+      "offset": 7615,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 18296,
+      "offset": 18344,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 18747,
+      "offset": 18795,
       "length": 156,
       "value": "[\"bos_token\", \"eos_token\", \"unk_token\", \"sep_token\", \"pad_token\", \"cls_token\", \"mask_token\", \"additional_special_tokens\"]"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 20644,
+      "offset": 20692,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 23616,
+      "offset": 23664,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 26505,
+      "offset": 26553,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 27242,
+      "offset": 27290,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 29618,
+      "offset": 29666,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 29652,
+      "offset": 29700,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 29973,
+      "offset": 30021,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 30007,
+      "offset": 30055,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 30839,
+      "offset": 30887,
       "length": 16,
       "value": "\"LlamaTokenizer\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 32202,
+      "offset": 32250,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 33007,
+      "offset": 33055,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 34103,
+      "offset": 34151,
       "length": 5,
       "value": "\"▁\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 36338,
+      "offset": 36386,
       "length": 4,
       "value": "true"
     },
@@ -169544,28 +170216,28 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 6347,
+      "offset": 6368,
       "length": 22,
       "value": "\"([!?])(?:\\s*[!?])+\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 9624,
+      "offset": 9699,
       "length": 2,
       "value": "\"\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 9662,
+      "offset": 9737,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 9774,
+      "offset": 9849,
       "length": 5,
       "value": "false"
     },
@@ -170778,7 +171450,7 @@
       "kind": "StringLiteral",
       "offset": 2877,
       "length": 7,
-      "value": "\"1.4.0\""
+      "value": "\"1.4.1\""
     },
     {
       "filePath": "",
@@ -170826,8 +171498,8 @@
       "filePath": "",
       "kind": "Dictionary",
       "offset": 2129,
-      "length": 1148,
-      "value": "[(\"TheStageAI\/Qwen3-0.6B\", \"v1.4\"), (\"TheStageAI\/gemma-3-1b-it\", \"v1.4\"), (\"TheStageAI\/LFM2.5-230M\", \"v1.4\"), (\"TheStageAI\/LFM2.5-350M\", \"v1.4\"), (\"TheStageAI\/thewhisper-large-v3-turbo\", \"v1.4\"), (\"TheStageAI\/Qwen3-ASR-0.6B\", \"v1.4\"), (\"TheStageAI\/neutts-nano-multilingual\", \"v1.4\"), (\"TheStageAI\/Qwen3-TTS-12Hz-0.6B-Base\", \"v1.4\"), (\"TheStageAI\/silero-vad\", \"v1.4\"), (\"TheStageAI\/smart-turn-v3\", \"v1.4\"), (\"TheStageAI\/redimnet2\", \"v1.4\"), (\"TheStageAI\/speaker-segmentation\", \"v1.4\"), (\"TheStageAI\/LFM2.5-VL-450M\", \"v1.2\")]"
+      "length": 1199,
+      "value": "[(\"TheStageAI\/Qwen3-0.6B\", \"v1.4\"), (\"TheStageAI\/gemma-3-1b-it\", \"v1.4\"), (\"TheStageAI\/LFM2.5-230M\", \"v1.4\"), (\"TheStageAI\/LFM2.5-350M\", \"v1.4\"), (\"TheStageAI\/thewhisper-large-v3-turbo\", \"v1.4\"), (\"TheStageAI\/Qwen3-ASR-0.6B\", \"v1.4\"), (\"TheStageAI\/parakeet-tdt-0.6b-v3\", \"v1.4\"), (\"TheStageAI\/neutts-nano-multilingual\", \"v1.4\"), (\"TheStageAI\/Qwen3-TTS-12Hz-0.6B-Base\", \"v1.4\"), (\"TheStageAI\/silero-vad\", \"v1.4\"), (\"TheStageAI\/smart-turn-v3\", \"v1.4\"), (\"TheStageAI\/redimnet2\", \"v1.4\"), (\"TheStageAI\/speaker-segmentation\", \"v1.4\"), (\"TheStageAI\/LFM2.5-VL-450M\", \"v1.2\")]"
     },
     {
       "filePath": "",
@@ -170874,70 +171546,84 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1901,
+      "offset": 1914,
+      "length": 18,
+      "value": "\"parakeet_encoder\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1967,
+      "length": 18,
+      "value": "\"parakeet_decoder\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2007,
       "length": 5,
       "value": "\"vad\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1934,
+      "offset": 2040,
       "length": 11,
       "value": "\"wake_word\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1977,
+      "offset": 2083,
       "length": 15,
       "value": "\"turn_detector\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2020,
+      "offset": 2126,
       "length": 11,
       "value": "\"embedding\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2067,
+      "offset": 2173,
       "length": 19,
       "value": "\"speaker_embedding\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2116,
+      "offset": 2222,
       "length": 13,
       "value": "\"diarization\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2157,
+      "offset": 2263,
       "length": 11,
       "value": "\"detection\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2193,
+      "offset": 2299,
       "length": 8,
       "value": "\"vision\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 2290,
+      "offset": 2396,
       "length": 11,
       "value": "\"tokenizer\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 10189,
+      "offset": 10602,
       "length": 17,
       "value": "\"model_spec.json\""
     },
@@ -178413,315 +179099,315 @@
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 8850,
+      "offset": 8843,
       "length": 3,
-      "value": "0.5"
+      "value": "0.7"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 8889,
-      "length": 2,
-      "value": "96"
-    },
-    {
-      "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 8933,
-      "length": 3,
-      "value": "608"
-    },
-    {
-      "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 8979,
-      "length": 6,
-      "value": "30000"
-    },
-    {
-      "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 9020,
-      "length": 3,
-      "value": "200"
-    },
-    {
-      "filePath": "",
-      "kind": "StringLiteral",
-      "offset": 9382,
-      "length": 5,
-      "value": "\"npu\""
-    },
-    {
-      "filePath": "",
-      "kind": "FloatLiteral",
-      "offset": 9725,
-      "length": 4,
-      "value": "0.85"
-    },
-    {
-      "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 10008,
-      "length": 1,
-      "value": "2"
-    },
-    {
-      "filePath": "",
-      "kind": "FloatLiteral",
-      "offset": 10457,
-      "length": 3,
-      "value": "1.0"
-    },
-    {
-      "filePath": "",
-      "kind": "IntegerLiteral",
-      "offset": 10505,
+      "offset": 9029,
       "length": 3,
       "value": "256"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 10584,
+      "offset": 9074,
+      "length": 3,
+      "value": "608"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 9120,
+      "length": 6,
+      "value": "30000"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 9161,
+      "length": 3,
+      "value": "300"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 9523,
+      "length": 5,
+      "value": "\"npu\""
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 9866,
+      "length": 4,
+      "value": "0.85"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 10149,
+      "length": 1,
+      "value": "2"
+    },
+    {
+      "filePath": "",
+      "kind": "FloatLiteral",
+      "offset": 10598,
+      "length": 3,
+      "value": "1.0"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 10646,
+      "length": 3,
+      "value": "256"
+    },
+    {
+      "filePath": "",
+      "kind": "IntegerLiteral",
+      "offset": 10725,
       "length": 3,
       "value": "120"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 10663,
+      "offset": 10804,
       "length": 5,
       "value": "2000"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 10743,
+      "offset": 10884,
       "length": 5,
       "value": "8000"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 10790,
+      "offset": 10931,
       "length": 3,
       "value": "250"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 11938,
+      "offset": 12079,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 14820,
+      "offset": 14961,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 15111,
+      "offset": 15252,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 15318,
+      "offset": 15459,
       "length": 4,
       "value": "12.0"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 15425,
+      "offset": 15566,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 15968,
+      "offset": 16109,
       "length": 3,
       "value": "600"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 16244,
+      "offset": 16385,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 16520,
+      "offset": 16661,
       "length": 3,
       "value": "0.9"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 17170,
+      "offset": 17311,
       "length": 2,
       "value": "30"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 17499,
+      "offset": 17640,
       "length": 4,
       "value": "true"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 20164,
+      "offset": 20305,
       "length": 3,
       "value": "250"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 20689,
+      "offset": 20830,
       "length": 4,
       "value": "1500"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 21061,
+      "offset": 21202,
       "length": 3,
       "value": "600"
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 22378,
+      "offset": 22519,
       "length": 3,
       "value": "0.5"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 23616,
+      "offset": 23757,
       "length": 5,
       "value": "\"cpu\""
     },
     {
       "filePath": "",
       "kind": "FloatLiteral",
-      "offset": 23676,
+      "offset": 23817,
       "length": 4,
       "value": "0.75"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 23900,
+      "offset": 24041,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 25259,
+      "offset": 25400,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 27229,
+      "offset": 27370,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 27250,
+      "offset": 27391,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 27277,
+      "offset": 27418,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 27294,
+      "offset": 27435,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 27310,
+      "offset": 27451,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 28232,
+      "offset": 28373,
       "length": 12,
       "value": "\"TheStageAI\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 28256,
+      "offset": 28397,
       "length": 12,
       "value": "\"VoiceAgent\""
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 29622,
+      "offset": 29763,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 29688,
+      "offset": 29829,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 29801,
+      "offset": 29942,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 29835,
+      "offset": 29976,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 29990,
+      "offset": 30131,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 30033,
+      "offset": 30174,
       "length": 2,
       "value": "\"\""
     }

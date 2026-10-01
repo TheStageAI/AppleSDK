@@ -1,4 +1,4 @@
-// EngineBench — iPhone benchmark app driving the public SDK (TheStageLLM).
+// EngineBench — iPhone benchmark app driving the public SDK (TSLLM / TSVLM).
 //
 // Two clearly separated modes so numbers aren't tainted by text rendering:
 //   • Generate  — llm.infer_stream, per-token UI updates (feel + honest TTFT).
@@ -37,7 +37,33 @@ final class BenchModel: ObservableObject {
     @Published var running = false
 
     @Published var maxNew = 128
+    /// Speculative decoding on packs that ship a proposer; ignored elsewhere.
+    @Published var speculative = true
     @Published var runs = 5
+
+    /// Dataset benchmark: `nil` = the prompt field (warmup + N runs of one
+    /// prompt); otherwise a bundled prompt set, optionally one source, first
+    /// `datasetLimit` rows. Only models with a matching tokenizer family list
+    /// sets (``BundledModel/promptFamily``).
+    @Published var datasetID: String?
+    @Published var datasetSource: String?
+    @Published var datasetLimit = 20
+
+    var datasets: [PromptSet] { Self.setCache(for: selected) }
+    var dataset: PromptSet? { datasets.first { $0.id == datasetID } }
+    var datasetRows: [PromptRow] {
+        guard let set = dataset else { return [] }
+        return Array(set.rows(source: datasetSource).prefix(max(1, datasetLimit)))
+    }
+
+    private static var __sets: [String: [PromptSet]] = [:]
+    private static func setCache(for model: BundledModel) -> [PromptSet] {
+        guard let family = model.promptFamily else { return [] }
+        if let hit = __sets[family] { return hit }
+        let sets = PromptSetCatalog.sets(family: family)
+        __sets[family] = sets
+        return sets
+    }
 
     /// Model-load progress (HF download / extract / decrypt+compile). `nil`
     /// when no load is in flight; fraction is monotonic 0...1 across phases.
@@ -46,6 +72,20 @@ final class BenchModel: ObservableObject {
 
     private static let warmupRuns = 2
     private static let runCooldownNs: UInt64 = 2_000_000_000
+
+    /// Dev hook: launch argument `--autoload=<catalog name>` selects that
+    /// model and starts Generate immediately (drives load bisects from the
+    /// device log without taps). No-op when absent.
+    init() {
+        let args = ProcessInfo.processInfo.arguments
+        guard let arg = args.first(where: { $0.hasPrefix("--autoload=") }),
+            let m = ModelCatalog.all.first(where: {
+                $0.name == String(arg.dropFirst("--autoload=".count))
+            })
+        else { return }
+        selected = m
+        Task { @MainActor [weak self] in self?.generate() }
+    }
 
     /// SDK `LoadProgress` -> published UI state (hop back to the main actor).
     private func progressHandler() -> LoadProgressHandler {
@@ -80,9 +120,10 @@ final class BenchModel: ObservableObject {
                 var cfg = llm.generation_defaults
                 cfg.max_new_tokens = cap
                 cfg.enable_thinking = false
+                Self.applyDecoding(&cfg, model, self.speculative)
                 self.status = "generating…"
 
-                for await chunk in llm.infer_stream(
+                for await chunk in try llm.infer_stream(
                     prompt: promptText, config: cfg
                 ) {
                     if chunk.is_final {
@@ -98,6 +139,14 @@ final class BenchModel: ObservableObject {
                         )
                         self.status = "done"
                         self.running = false
+                        // Dev hook: `QLIP_GRAPH_PROFILE=1` in the environment
+                        // prints the SDK's per-stage breakdown to stdout
+                        // (readable via `devicectl ... launch --console`).
+                        if ProcessInfo.processInfo.environment["QLIP_GRAPH_PROFILE"] != nil,
+                            let report = llm.profile_report()
+                        {
+                            print("=== profile (\(model.displayName)) ===\n\(report)")
+                        }
                     } else {
                         self.output += chunk.text
                     }
@@ -114,6 +163,10 @@ final class BenchModel: ObservableObject {
     // Benchmark (non-streaming, clean)
     // ----------------------------------------------------------------------------------
     func benchmark() {
+        if dataset != nil {
+            datasetBenchmark()
+            return
+        }
         guard !running else { return }
         running = true
         output = ""
@@ -137,16 +190,19 @@ final class BenchModel: ObservableObject {
                 cfg.min_new_tokens = cap
                 cfg.temperature = 0
                 cfg.enable_thinking = false
+                let useSpec = Self.applyDecoding(&cfg, model, self.speculative)
+                let label = model.displayName
+                    + (useSpec.map { $0 ? " · spec" : " · plain" } ?? "")
 
                 for w in 0 ..< Self.warmupRuns {
                     self.status = "warmup \(w + 1)/\(Self.warmupRuns)…"
-                    _ = await Self.runInfer(llm, promptText, cfg)
+                    _ = try await Self.runInfer(llm, promptText, cfg)
                 }
 
                 var results: [LLMResult] = []
                 for k in 0 ..< runCount {
                     self.status = "run \(k + 1)/\(runCount)…"
-                    let r = await Self.runInfer(llm, promptText, cfg)
+                    let r = try await Self.runInfer(llm, promptText, cfg)
                     results.append(r)
                     if k < runCount - 1 {
                         try? await Task.sleep(
@@ -155,20 +211,25 @@ final class BenchModel: ObservableObject {
                     }
                 }
 
-                let row = Self.summarize(model: model, results: results)
-                self.rows.removeAll { $0.model == model.displayName }
+                let row = Self.summarize(label: label, results: results)
+                self.rows.removeAll { $0.model == label }
                 self.rows.append(row)
                 BenchSession.shared.add(.llm(
-                    model: model.displayName,
+                    model: label,
                     prompt: promptText,
                     runs: runCount,
                     maxNewTokens: cap,
                     row: row,
                     perRunTokS: results.map(\.tokens_per_second)
                 ))
+                let predicts = results.map(\.decode_predict_count)
+                let accepted = predicts.last.map { p -> String in
+                    p > 0 && (useSpec ?? false)
+                        ? String(format: " · %.2f tok/predict", Double(cap) / Double(p)) : ""
+                } ?? ""
                 self.statsLine = String(
-                    format: "%@ · best %.1f / median %.1f tok/s",
-                    model.displayName, row.bestTokS, row.medianTokS
+                    format: "%@ · best %.1f / median %.1f tok/s%@",
+                    label, row.bestTokS, row.medianTokS, accepted
                 )
                 self.status = "done"
                 self.running = false
@@ -181,22 +242,191 @@ final class BenchModel: ObservableObject {
     }
 
     // ----------------------------------------------------------------------------------
+    // Dataset benchmark (bundled prompt sets)
+    // ----------------------------------------------------------------------------------
+    /// One untimed warmup per mode, then every selected prompt runs through
+    /// `infer(prompt_ids:)` — natural EOS (no forced length), greedy on
+    /// speculative packs, in the ONE mode the speculative switch selects.
+    /// Decode tok/s is POOLED over the subset (sum(generated - 1) / sum(decode
+    /// seconds)) with the per-prompt median beside it, plus tokens per verify
+    /// cycle on the speculative run. Every row also lands in
+    /// Documents/dataset_bench_<timestamp>.jsonl for pulling off the device.
+    func datasetBenchmark() {
+        guard !running, let set = dataset else { return }
+        let rows = datasetRows
+        guard !rows.isEmpty else { return }
+        running = true
+        output = ""
+        statsLine = ""
+        status = "preparing…"
+        let model = selected
+        let cap = maxNew
+        let subset = "\(set.name)/\(datasetSource ?? "all") n=\(rows.count)"
+        let modes: [Bool?] = [model.supportsSpeculation ? speculative : nil]
+
+        Task {
+            do {
+                let llm = try await LLMHost.shared.llm(
+                    for: model, onProgress: progressHandler()
+                )
+                self.loadPhase = nil
+                func config(_ mode: Bool?) -> LLMGenerationConfig {
+                    var cfg = llm.generation_defaults
+                    cfg.max_new_tokens = cap
+                    cfg.min_new_tokens = 0
+                    cfg.enable_thinking = false
+                    if let mode { Self.applyDecoding(&cfg, model, mode) } else {
+                        cfg.temperature = 0
+                    }
+                    return cfg
+                }
+                for mode in modes {
+                    self.status = "warmup \(Self.modeName(mode))…"
+                    var warm = config(mode)
+                    warm.max_new_tokens = 16
+                    _ = try await Self.runInferIDs(llm, rows[0].prompt_ids, warm)
+                }
+                let stamp = ISO8601DateFormatter().string(from: Date())
+                    .replacingOccurrences(of: ":", with: "-")
+                let docs = FileManager.default.urls(
+                    for: .documentDirectory, in: .userDomainMask)[0]
+                let log = docs.appendingPathComponent("dataset_bench_\(stamp).jsonl")
+                FileManager.default.createFile(atPath: log.path, contents: nil)
+                let handle = try FileHandle(forWritingTo: log)
+                defer { try? handle.close() }
+
+                var results: [String: [(LLMResult, Double?)]] = [:]
+                for (i, row) in rows.enumerated() {
+                    var line: [String: Any] = [
+                        "src": row.src, "id": row.id, "prompt_tokens": row.prompt_ids.count,
+                    ]
+                    for mode in modes {
+                        self.status = "\(i + 1)/\(rows.count) \(Self.modeName(mode))…"
+                        let r = try await Self.runInferIDs(llm, row.prompt_ids, config(mode))
+                        let tpc = mode == true ? llm.spec_tokens_per_cycle : nil
+                        results[Self.modeName(mode), default: []].append((r, tpc))
+                        line[Self.modeName(mode)] = [
+                            "generated": r.generated_tokens, "tok_s": r.tokens_per_second,
+                            "decode_s": r.decode_seconds, "ttft_s": r.time_to_first_token,
+                            "stop": r.stop_reason, "tokens_per_cycle": tpc ?? 0,
+                        ] as [String: Any]
+                    }
+                    var data = try JSONSerialization.data(
+                        withJSONObject: line, options: [.sortedKeys])
+                    data.append(0x0A)
+                    handle.write(data)
+                }
+
+                var parts: [String] = []
+                for mode in modes {
+                    let name = Self.modeName(mode)
+                    let rs = results[name] ?? []
+                    let label = "\(model.displayName) · \(subset) · \(name)"
+                    let row = Self.summarizeDataset(label: label, results: rs.map(\.0))
+                    self.rows.removeAll { $0.model == label }
+                    self.rows.append(row)
+                    BenchSession.shared.add(.llm(
+                        model: label, prompt: "dataset \(set.id) \(datasetSource ?? "all")",
+                        runs: rs.count, maxNewTokens: cap, row: row,
+                        perRunTokS: rs.map(\.0.tokens_per_second)))
+                    var part = String(format: "%@ %.1f tok/s", name, row.meanTokS)
+                    let cycles = rs.compactMap(\.1)
+                    if !cycles.isEmpty {
+                        part += String(
+                            format: " (%.2f tok/cycle)",
+                            cycles.reduce(0, +) / Double(cycles.count))
+                    }
+                    parts.append(part)
+                }
+                let summary = "\(subset) · pooled " + parts.joined(separator: " · ")
+                self.statsLine = summary
+                self.output = summary + "\n\nper-prompt log: Documents/"
+                    + log.lastPathComponent
+                self.status = "done"
+                self.running = false
+            } catch {
+                self.loadPhase = nil
+                self.status = "error: \(error.localizedDescription)"
+                self.running = false
+            }
+        }
+    }
+
+    private static func modeName(_ mode: Bool?) -> String {
+        switch mode {
+        case .some(true): return "spec"
+        case .some(false): return "plain"
+        case .none: return "default"
+        }
+    }
+
+    private nonisolated static func runInferIDs(
+        _ llm: any BenchTextModel, _ ids: [Int], _ cfg: LLMGenerationConfig
+    ) async throws -> LLMResult {
+        try await Task.detached(priority: .userInitiated) {
+            try llm.infer(prompt_ids: ids, config: cfg)
+        }.value
+    }
+
+    /// Dataset row: `mean` = POOLED decode tok/s over the subset, `median` =
+    /// per-prompt median, `best` = per-prompt max; tokens = total generated.
+    private static func summarizeDataset(label: String, results: [LLMResult]) -> BenchRow {
+        let decode = results.reduce(0.0) { $0 + $1.decode_seconds }
+        let generated = results.reduce(0) { $0 + max(0, $1.generated_tokens - 1) }
+        let tps = results.map(\.tokens_per_second).sorted()
+        return BenchRow(
+            model: label,
+            bestTokS: tps.last ?? 0,
+            medianTokS: median(tps),
+            meanTokS: decode > 0 ? Double(generated) / decode : 0,
+            predictMsStep: mean(results.map(\.predict_ms_per_step)),
+            hostMsStep: mean(results.map(\.host_ms_per_step)),
+            ttftMs: mean(results.map(\.time_to_first_token)) * 1000,
+            tokens: results.reduce(0) { $0 + $1.generated_tokens }
+        )
+    }
+
+    // ----------------------------------------------------------------------------------
     // Helpers
     // ----------------------------------------------------------------------------------
+    /// `nil` = the pack's own policy (plain packs), an explicit switch on a
+    /// speculative pack: `true` requires the proposer, `false` runs plain.
+    private nonisolated static func decoding(_ model: BundledModel, _ on: Bool) -> Bool? {
+        model.supportsSpeculation ? on : nil
+    }
+
+    /// Speculative decoding is greedy-only: the verifier compares argmax, so
+    /// a pack's sampling defaults (temperature, repetition penalty) send the
+    /// request to plain decoding whatever the switch says. On a speculative
+    /// pack both switch positions therefore run the same greedy settings, so
+    /// the on/off comparison measures the proposer and nothing else.
+    @discardableResult
+    private nonisolated static func applyDecoding(
+        _ cfg: inout LLMGenerationConfig, _ model: BundledModel, _ on: Bool
+    ) -> Bool? {
+        let mode = decoding(model, on)
+        if mode != nil {
+            cfg.temperature = 0
+            cfg.repetition_penalty = 1
+        }
+        cfg.speculative_decoding = mode
+        return mode
+    }
+
     // Run the synchronous SDK infer off the main actor — no @Published writes
     // happen during the decode loop, so the measurement is UI-free.
     private nonisolated static func runInfer(
-        _ llm: TheStageLLM,
+        _ llm: any BenchTextModel,
         _ prompt: String,
         _ cfg: LLMGenerationConfig
-    ) async -> LLMResult {
-        await Task.detached(priority: .userInitiated) {
-            llm.infer(prompt: prompt, config: cfg)
+    ) async throws -> LLMResult {
+        try await Task.detached(priority: .userInitiated) {
+            try llm.infer(prompt: prompt, config: cfg)
         }.value
     }
 
     private static func summarize(
-        model: BundledModel,
+        label: String,
         results: [LLMResult]
     ) -> BenchRow {
         let tps = results.map(\.tokens_per_second).sorted()
@@ -204,7 +434,7 @@ final class BenchModel: ObservableObject {
         let host = results.map(\.host_ms_per_step)
         let ttft = results.map(\.time_to_first_token)
         return BenchRow(
-            model: model.displayName,
+            model: label,
             bestTokS: tps.last ?? 0,
             medianTokS: median(tps),
             meanTokS: mean(tps),
@@ -246,12 +476,24 @@ struct ContentView: View {
             }
             .padding(.horizontal)
 
-            Picker("Model", selection: $model.selected) {
-                ForEach(ModelCatalog.all) { m in
-                    Text(m.displayName).tag(m)
+            // A menu picker, not a segmented one: a segmented control
+            // divides the row between every option, so each label shrinks as
+            // models are added and long names are cut to their first few
+            // characters. The menu keeps the selected name readable at any
+            // catalog size and shows every entry in full when opened.
+            HStack(spacing: 12) {
+                Text("Model")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Picker("Model", selection: $model.selected) {
+                    ForEach(ModelCatalog.all) { m in
+                        Text(m.displayName).tag(m)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
             .disabled(model.running)
             .padding(.horizontal)
 
@@ -269,6 +511,18 @@ struct ContentView: View {
             .font(.system(.caption, design: .monospaced))
             .disabled(model.running)
             .padding(.horizontal)
+
+            Toggle("Speculative decoding", isOn: $model.speculative)
+                .font(.system(.caption, design: .monospaced))
+                .disabled(model.running || !model.selected.supportsSpeculation)
+                .padding(.horizontal)
+
+            if !model.datasets.isEmpty {
+                datasetControls
+                    .font(.system(.caption, design: .monospaced))
+                    .disabled(model.running)
+                    .padding(.horizontal)
+            }
 
             if let phase = model.loadPhase {
                 VStack(alignment: .leading, spacing: 2) {
@@ -348,6 +602,47 @@ struct ContentView: View {
             .background(model.running ? Color.gray : color)
             .foregroundColor(.white)
             .cornerRadius(10)
+    }
+
+    /// Benchmark data: the prompt field or a bundled prompt set (source
+    /// filter + first-N limit), run in the mode the speculative switch sets.
+    private var datasetControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("Benchmark data").foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Picker("Data", selection: $model.datasetID) {
+                    Text("Prompt field").tag(String?.none)
+                    ForEach(model.datasets) { set in
+                        Text("\(set.name) (\(set.rows.count))").tag(Optional(set.id))
+                    }
+                }
+                .pickerStyle(.menu)
+                .labelsHidden()
+            }
+            if let set = model.dataset {
+                HStack {
+                    Text("Source").foregroundStyle(.secondary)
+                    Spacer(minLength: 0)
+                    Picker("Source", selection: $model.datasetSource) {
+                        Text("all (\(set.rows.count))").tag(String?.none)
+                        ForEach(set.sources, id: \.self) { src in
+                            Text("\(src) (\(set.rows(source: src).count))").tag(Optional(src))
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .labelsHidden()
+                }
+                Stepper(
+                    "first \(model.datasetRows.count) prompts",
+                    value: $model.datasetLimit, in: 1 ... 400, step: 5)
+            }
+        }
+        .onChange(of: model.selected) { _, _ in
+            model.datasetID = nil
+            model.datasetSource = nil
+        }
+        .onChange(of: model.datasetID) { _, _ in model.datasetSource = nil }
     }
 
     private var resultsCard: some View {

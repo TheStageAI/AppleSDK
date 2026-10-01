@@ -38,6 +38,12 @@ Here we will cover the following topics:
 | Model | HF repo | Size | Device | Fleet pin |
 |---|---|---|---|---|
 | LFM2.5-VL-450M | `TheStageAI/LFM2.5-VL-450M` | 450M | NPU | v1.2 |
+| Gemma-4 E2B (text-only) | `TheStageAI/gemma-4-E2B-it` | 2B effective (5B) | NPU | v1.4 |
+
+> Gemma-4 E2B opens through `TSVLM` but currently ships without its vision and
+> audio encoders: use `infer(prompt:)` / `infer_stream(prompt:)` (no `images`);
+> passing images throws. The encoders attach in a later release without an API
+> change.
 
 | Feature | LFM2.5-VL-450M |
 |---|---|

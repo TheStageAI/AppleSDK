@@ -55,8 +55,8 @@ the calls are identical.
 | Batch `infer` | yes | yes | yes |
 | Live captions (`open_stream`) | yes, sentence-level commits | yes, prefix commits | yes, sentence-level commits |
 | Word timestamps | yes, measured | approximate | yes, measured (from the decoder) |
-| Language hint | `auto` / ISO code | `auto` / ISO code / English name | `auto` (25 European languages) |
-| Long audio | 10 s windows, stitched | 8 s windows, stitched | 10 s windows, stitched |
+| Language hint | `auto` / ISO code | `auto` / ISO code / English name; a fixed language starts the transcript immediately (no language header is generated) | `auto` (25 European languages) |
+| Long audio | 10 s windows, stitched | 30 s windows, stitched (8 s encoder chunks inside one prompt) | 10 s windows, stitched |
 | Voice Agent STT | yes | yes | yes |
 
 **Which one?**
@@ -352,6 +352,7 @@ for (final w in result.words ?? const <ASRWord>[]) {
 | `overlap` | `0.2` | Long audio is cut into windows (10 s TheWhisper and Parakeet, 8 s Qwen3-ASR). `0.2` reuses 20% of each window in the next, so a word on a cut is decoded by both windows and kept once. `0` decodes every sample once and loses words that straddle a cut. |
 | `max_new_tokens` | derived | Cap on decode per window. Leave unset — the default follows the real audio length. |
 | `return_tokens` | `false` | Include token IDs in the result. Debugging only. |
+| `speculative_decoding` | `nil` (pack policy) | Qwen3-ASR packs that ship a drafter transcribe faster with the same text. `false` forces plain decoding; `true` is the same as `nil` — a pack without a drafter decodes plain, never fails (`ASRResult.spec_steps` is 0 then). |
 
 ## Live captions
 

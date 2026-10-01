@@ -20,7 +20,11 @@ struct BundledASRModel: Identifiable, Hashable {
     let hfRepo: String
     /// Optional HF revision override. `nil` → ``ModelRevisionMap``.
     let revision: String?
+
     let family: ASRFamily
+    /// The pack ships a root-slot drafter (the switch runs it plain or speculative).
+    var speculative: Bool = false
+    var supportsSpeculation: Bool { speculative }
 
     var id: String { name }
 
@@ -53,12 +57,16 @@ enum ASRCatalog {
             revision: nil,
             family: .whisper
         ),
+        // Qwen3-ASR ships from the speculative revision only: the pack
+        // carries the DFlash2 drafter, and the switch runs it plain or
+        // speculative.
         BundledASRModel(
-            name: "qwen3-asr-0.6b",
+            name: "qwen3-asr-0.6b-dflash2",
             displayName: "Qwen3-ASR 0.6b",
             hfRepo: "TheStageAI/Qwen3-ASR-0.6B",
             revision: nil,
-            family: .qwen3
+            family: .qwen3,
+            speculative: true
         ),
         BundledASRModel(
             name: "parakeet-tdt-0.6b-v3",
@@ -75,25 +83,31 @@ enum ASRCatalog {
 // BenchASR — family-agnostic handle (Whisper + Qwen3)
 // --------------------------------------------------------------------------------------
 protocol BenchASR: AnyObject {
-    func bench_infer(audio: [Float]) -> ASRResult
+    func bench_infer(audio: [Float], speculative: Bool?) -> ASRResult
     func release()
 }
 
 extension WhisperPipeline: BenchASR {
-    func bench_infer(audio: [Float]) -> ASRResult {
-        (try? infer(audio: audio, config: ASRGenerationConfig(language: "en"))) ?? .empty
+    func bench_infer(audio: [Float], speculative: Bool?) -> ASRResult {
+        var config = ASRGenerationConfig(language: "en")
+        config.speculative_decoding = speculative
+        return (try? infer(audio: audio, config: config)) ?? .empty
     }
 }
 
 extension ParakeetASRPipeline: BenchASR {
-    func bench_infer(audio: [Float]) -> ASRResult {
-        (try? infer(audio: audio, config: ASRGenerationConfig(language: "en"))) ?? .empty
+    func bench_infer(audio: [Float], speculative: Bool?) -> ASRResult {
+        var config = ASRGenerationConfig(language: "en")
+        config.speculative_decoding = speculative
+        return (try? infer(audio: audio, config: config)) ?? .empty
     }
 }
 
 extension Qwen3ASRPipeline: BenchASR {
-    func bench_infer(audio: [Float]) -> ASRResult {
-        (try? infer(audio: audio, config: ASRGenerationConfig(language: "en"))) ?? .empty
+    func bench_infer(audio: [Float], speculative: Bool?) -> ASRResult {
+        var config = ASRGenerationConfig(language: "en")
+        config.speculative_decoding = speculative
+        return (try? infer(audio: audio, config: config)) ?? .empty
     }
 }
 
@@ -175,6 +189,8 @@ final class ASRBenchModel: ObservableObject {
     @Published var running = false
     @Published var recording = false
     @Published var runs = 3
+    /// Speculative decoding on packs that ship a proposer; ignored elsewhere.
+    @Published var speculative = true
     @Published var loadPhase: String?
     @Published var loadFraction = 0.0
 
@@ -262,13 +278,14 @@ final class ASRBenchModel: ObservableObject {
                 )
                 self.loadPhase = nil
                 self.status = "transcribing…"
-                let r = await Self.runInfer(asr, audio)
+                let useSpec = Self.decoding(model, self.speculative)
+                let r = await Self.runInfer(asr, audio, useSpec)
                 let m = r.metrics
                 self.transcript = r.text.isEmpty ? "(no speech)" : r.text
                 self.statsLine = String(
-                    format: "%.1fs audio · dec %.2fs · rtfx %.2f · %.1f tok/s",
+                    format: "%.1fs audio · dec %.2fs · rtfx %.2f · %.1f tok/s%@",
                     m.audio_seconds, m.decode_seconds, m.rtfx,
-                    m.tokens_per_second
+                    m.tokens_per_second, Self.specSuffix(m)
                 )
                 self.status = "done"
                 self.running = false
@@ -300,29 +317,34 @@ final class ASRBenchModel: ObservableObject {
                 )
                 self.loadPhase = nil
                 self.status = "warmup…"
-                _ = await Self.runInfer(asr, Array(audio.prefix(16000)))
+                let useSpec = Self.decoding(model, self.speculative)
+                let label = model.displayName
+                    + (useSpec.map { $0 ? " · spec" : " · plain" } ?? "")
+                _ = await Self.runInfer(asr, Array(audio.prefix(16000)), useSpec)
                 var rtfx: [Double] = []
                 var tps: [Double] = []
                 var enc: [Double] = []
+                var last = ASRMetrics.zero
                 for k in 0 ..< n {
                     self.status = "run \(k + 1)/\(n)…"
-                    let r = await Self.runInfer(asr, audio)
+                    let r = await Self.runInfer(asr, audio, useSpec)
                     rtfx.append(r.metrics.rtfx)
                     tps.append(r.metrics.tokens_per_second)
                     enc.append(r.metrics.encode_seconds)
+                    last = r.metrics
                     try? await Task.sleep(nanoseconds: 2_000_000_000)
                 }
                 let line = String(
                     format: "%@  rtfx best %.2f med %.2f · dec med %.1f tok/s"
-                        + " · enc med %.0f ms",
-                    model.displayName,
+                        + " · enc med %.0f ms%@",
+                    label,
                     rtfx.max() ?? 0, Self.median(rtfx), Self.median(tps),
-                    Self.median(enc) * 1000
+                    Self.median(enc) * 1000, Self.specSuffix(last)
                 )
-                self.rows.removeAll { $0.hasPrefix(model.displayName) }
+                self.rows.removeAll { $0.hasPrefix(label) }
                 self.rows.append(line)
                 BenchSession.shared.add(.asr(
-                    model: model.displayName,
+                    model: label,
                     runs: n,
                     perRunRtfx: rtfx,
                     perRunTokS: tps,
@@ -339,12 +361,22 @@ final class ASRBenchModel: ObservableObject {
         }
     }
 
+    /// `nil` = the pack's own policy, an explicit switch on a speculative pack.
+    private static func decoding(_ model: BundledASRModel, _ on: Bool) -> Bool? {
+        model.supportsSpeculation ? on : nil
+    }
+
+    private static func specSuffix(_ m: ASRMetrics) -> String {
+        guard let accept = m.spec_acceptance_length else { return "" }
+        return String(format: " · %.2f tok/cycle", accept)
+    }
+
     // Synchronous SDK infer off the main actor (no UI writes mid-measure).
     private nonisolated static func runInfer(
-        _ asr: any BenchASR, _ audio: [Float]
+        _ asr: any BenchASR, _ audio: [Float], _ speculative: Bool?
     ) async -> ASRResult {
         await Task.detached(priority: .userInitiated) {
-            asr.bench_infer(audio: audio)
+            asr.bench_infer(audio: audio, speculative: speculative)
         }.value
     }
 
@@ -394,16 +426,32 @@ struct ASRBenchView: View {
             }
             .padding(.horizontal)
 
-            Picker("Model", selection: $model.selected) {
-                ForEach(ASRCatalog.all) { m in
-                    Text(m.displayName).tag(m)
+            // A menu picker, not a segmented one: a segmented control
+            // divides the row between every option, so each label shrinks as
+            // models are added and long names are cut to their first few
+            // characters. The menu keeps the selected name readable at any
+            // catalog size and shows every entry in full when opened.
+            HStack(spacing: 12) {
+                Text("Model")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Picker("Model", selection: $model.selected) {
+                    ForEach(ASRCatalog.all) { m in
+                        Text(m.displayName).tag(m)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
             .disabled(model.running || model.recording)
             .padding(.horizontal)
 
             Stepper("runs \(model.runs)", value: $model.runs, in: 1 ... 10)
+            Toggle("Speculative decoding", isOn: $model.speculative)
+                .font(.system(.caption, design: .monospaced))
+                .disabled(model.running || !model.selected.supportsSpeculation)
+                .padding(.horizontal)
                 .font(.system(.caption, design: .monospaced))
                 .disabled(model.running || model.recording)
                 .padding(.horizontal)

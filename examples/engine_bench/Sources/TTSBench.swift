@@ -346,24 +346,46 @@ struct TTSBenchView: View {
             }
             .padding(.horizontal)
 
-            Picker("Model", selection: $model.selected) {
-                ForEach(TTSCatalog.all) { m in
-                    Text(m.displayName).tag(m)
+            // A menu picker, not a segmented one: a segmented control
+            // divides the row between every option, so each label shrinks as
+            // models are added and long names are cut to their first few
+            // characters. The menu keeps the selected name readable at any
+            // catalog size and shows every entry in full when opened.
+            HStack(spacing: 12) {
+                Text("Model")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Picker("Model", selection: $model.selected) {
+                    ForEach(TTSCatalog.all) { m in
+                        Text(m.displayName).tag(m)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
             .disabled(model.running)
             .padding(.horizontal)
             .onChange(of: model.selected) { _, m in
                 model.voice = m.voices[0]
             }
 
-            Picker("Voice", selection: $model.voice) {
-                ForEach(model.selected.voices, id: \.self) { v in
-                    Text(v).tag(v)
+            // Same reason as the model picker above: five voices named like
+            // `jensen_huang` are unreadable once a segmented control splits
+            // the row between them.
+            HStack(spacing: 12) {
+                Text("Voice")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Picker("Voice", selection: $model.voice) {
+                    ForEach(model.selected.voices, id: \.self) { v in
+                        Text(v).tag(v)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
             .disabled(model.running)
             .padding(.horizontal)
 

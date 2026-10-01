@@ -14,6 +14,7 @@
 ## Core symbols
 - TheStageAI (singleton): start_model, stop_model, infer, infer_stream, open_tts_streamer, prefetch_engines, logging helpers
 - TSLLM
+  (LLMGenerationConfig.speculative_decoding: nil = pack policy, false = plain, true = require a drafter; same field on ASRGenerationConfig)
 - TSChatSession (llm.chat_session) — multi-turn memory + Path A tools
 - TSVLM
 - WhisperPipeline, Qwen3ASRPipeline, ParakeetASRPipeline
@@ -29,7 +30,7 @@
 
 ## Pages
 - llm.md — TSLLM
-- vlm.md — TSVLM (LFM2.5-VL)
+- vlm.md — TSVLM (LFM2.5-VL; Gemma-4 E2B text-only)
 - asr.md — WhisperPipeline + Qwen3ASRPipeline + ParakeetASRPipeline
 - tts.md — NeuTTS + Qwen3-TTS
 - vad.md — SileroVAD

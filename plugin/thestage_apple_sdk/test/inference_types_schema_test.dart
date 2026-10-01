@@ -25,9 +25,15 @@ Map<String, dynamic> _load_schema() {
 void _assert_fields(String name, List<String> dart_fields, Map schema) {
   final types = schema['types'] as Map;
   final fields = (types[name] as Map)['fields'] as Map;
+  // `internal: true` fields exist on the Swift value only (bench and test
+  // plumbing); the Dart mirror carries the public surface.
+  final public_keys = fields.entries
+      .where((e) => (e.value as Map)['internal'] != true)
+      .map((e) => e.key)
+      .toSet();
   expect(
     dart_fields.toSet(),
-    equals(fields.keys.toSet()),
+    equals(public_keys),
     reason: '$name drifted from schema',
   );
 }

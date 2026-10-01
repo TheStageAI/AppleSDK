@@ -24,8 +24,12 @@
 	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>EngineBench captures photos to test vision-language models.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>EngineBench records audio to test speech recognition models.</string>
+	<string>EngineBench records short clips to benchmark speech recognition.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>EngineBench loads photos to test vision-language models.</string>
 	<key>TSAPIToken</key>
 	<string>$(TS_API_TOKEN)</string>
 	<key>UILaunchScreen</key>

@@ -426,6 +426,7 @@ await agent.start(config: {
 |---|---|---|---|
 | `system_prompt` | voice default | **yes** (`set_system_prompt`) | Persona, brand, scope. Keep it short — paid on every turn. |
 | `max_tokens` | 256 | no | Replies get cut off — raise. Spoken replies rarely need more. |
+| `speculative_decoding` | `nil` (pack card) | no | `true` for packs with a drafter (LFM2.5, Gemma 4): greedy, several tokens per step, same text as plain greedy; `temperature` and the sampling overlay are ignored. `false` forces plain decoding. |
 | `chat_memory` / `chat_memory_max_turns` | sliding window | no | Long sessions on small packs run out of context — lower. |
 | `tts_voice` / `tts_voice_dir` / `tts_language` | pack default | **yes** (`set_voice`) | See [TTS](./tts.md) for voices and packs. |
 | `silence_timeout_ms` | 608 | no | Cuts users off mid-thought — raise to 1 000–1 500. Feels slow — lower. |

@@ -17,6 +17,9 @@ let stack: [TSModelStartRequest] = [
 let statuses = try await TheStageAI.shared.load_models(stack) { progress in
     // progress.model is the handle; progress.phase is downloading / extracting /
     // loading / ready. The last event is (model: "sequence", phase: .ready).
+    // progress.fraction is the overall 0...1 (download ends at 0.70, extract at
+    // 0.85); progress.phase_fraction is the current phase's own 0...1, the value
+    // to put on a per-phase bar ("Downloading 100%", then "Compiling 0%").
 }
 ```
 

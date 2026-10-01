@@ -43,6 +43,16 @@ enum VLMCatalog {
             hfRepo: "TheStageAI/LFM2.5-VL-450M",
             revision: nil
         ),
+        // Gemma-4 E2B with its vision tower, from the speculative revision
+        // (the pack also carries the drafter; this tab decodes plain). The
+        // same bundle appears in the LLM catalog, where it opens
+        // decoder-only: one pack, two openers.
+        BundledVLMModel(
+            name: "gemma4-e2b-it",
+            displayName: "Gemma4 E2B (vision)",
+            hfRepo: "TheStageAI/gemma-4-E2B-it",
+            revision: nil
+        ),
     ]
     static var first: BundledVLMModel { all[0] }
 }
@@ -168,6 +178,9 @@ final class VLMBenchModel: ObservableObject {
                 var cfg = vlm.generation_defaults
                 cfg.max_new_tokens = cap
                 cfg.temperature = 0
+                // Speculative decoding is an LLM / ASR tab feature; a pack
+                // that ships a drafter still decodes plain here.
+                cfg.speculative_decoding = false
                 // encode + fuse run before the AsyncStream yields; then
                 // deltas match TheStageLLM.infer_stream (LLMStreamChunk).
                 self.status = "encoding…"
@@ -231,6 +244,9 @@ final class VLMBenchModel: ObservableObject {
                 var cfg = vlm.generation_defaults
                 cfg.max_new_tokens = cap
                 cfg.temperature = 0
+                // Speculative decoding is an LLM / ASR tab feature; a pack
+                // that ships a drafter still decodes plain here.
+                cfg.speculative_decoding = false
                 status = "warmup + \(n) quiet runs…"
 
                 let warm = Self.warmupRuns
@@ -350,16 +366,28 @@ struct VLMBenchView: View {
             }
             .padding(.horizontal)
 
-            Picker("Model", selection: $model.selected) {
-                ForEach(VLMCatalog.all) { m in
-                    Text(
-                        m.isBundled
-                            ? "\(m.displayName) (bundled)"
-                            : m.displayName
-                    ).tag(m)
+            // A menu picker, not a segmented one: a segmented control
+            // divides the row between every option, so each label shrinks as
+            // models are added and long names are cut to their first few
+            // characters. The menu keeps the selected name readable at any
+            // catalog size and shows every entry in full when opened.
+            HStack(spacing: 12) {
+                Text("Model")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 0)
+                Picker("Model", selection: $model.selected) {
+                    ForEach(VLMCatalog.all) { m in
+                        Text(
+                            m.isBundled
+                                ? "\(m.displayName) (bundled)"
+                                : m.displayName
+                        ).tag(m)
+                    }
                 }
+                .pickerStyle(.menu)
+                .labelsHidden()
             }
-            .pickerStyle(.segmented)
             .disabled(model.running)
             .padding(.horizontal)
 

@@ -45,7 +45,8 @@ Here we will cover the following topics:
 
 ## Supported models
 
-Four packs. They share one API; they differ in size, tool support and
+Four packs (plus Gemma-4 E2B, which ships under [`TSVLM`](./vlm.md) as a
+text-only multimodal pack). They share one API; they differ in size, tool support and
 whether they can reason before answering.
 
 | Model | HF repo | Size | Device | Fleet pin |
@@ -332,6 +333,7 @@ set keeps that value.
 | `enable_thinking` | true | **Set false for chat.** Qwen3 only; adds a reasoning prelude that eats the token budget and looks like a pause in the UI. |
 | `seed` | random | Set for reproducible tests, with `temperature = 0`. |
 | `stop_sequences` | `[]` | Stop early on a marker your prompt format defines. |
+| `speculative_decoding` | `nil` (pack policy) | Packs that ship a drafter decode several tokens per step at identical output — only with greedy sampling (`temperature` `0`, no suppressed tokens; a `repetition_penalty` is fine on LFM2.5 packs, whose drafter pair verifies under it, and forces plain decoding on the others); otherwise the call decodes plain. `false` forces plain decoding (A/B timing, memory). `true` is the same as `nil`: a pack without a drafter decodes plain, never fails. `LLMResult.tokens_per_second` and `last_spec_acceptance_length` (nil when plain) show which path ran. On devices where the system charges Neural Engine memory to the app (iOS 27), a plain call releases the pack's speculative-only engine views and the next speculative call reloads them, so switching between the two can take a few seconds once; stay on one setting for a conversation. |
 
 Chat template, end-of-sequence tokens and the context window are baked
 into the pack; there is nothing to set.

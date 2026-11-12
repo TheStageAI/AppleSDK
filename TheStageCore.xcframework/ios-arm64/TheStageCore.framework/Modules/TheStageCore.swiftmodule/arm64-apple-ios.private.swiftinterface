@@ -1,9 +1,10 @@
 // swift-interface-format-version: 1.0
-// swift-compiler-version: Apple Swift version 6.4 effective-5.10 (swiftlang-6.4.0.34.1 clang-2100.3.34.1)
+// swift-compiler-version: Apple Swift version 6.4.2 effective-5.10 (swiftlang-6.4.2.1.9 clang-2100.4.1.1)
 // swift-module-flags: -target arm64-apple-ios18.0 -enable-objc-interop -enable-library-evolution -language-mode 5 -O -module-name TheStageCore
-// swift-module-flags-ignorable: -no-verify-emitted-module-interface -formal-cxx-interoperability-mode=off -interface-compiler-version 6.4
+// swift-module-flags-ignorable: -no-verify-emitted-module-interface -formal-cxx-interoperability-mode=off -interface-compiler-version 6.4.2
 import AVFoundation
 import Accelerate
+import CoreAI
 import CoreAudio
 import CoreGraphics
 import CoreImage
@@ -19,11 +20,21 @@ import MachO
 import NaturalLanguage
 import Security
 import Swift
+import Synchronization
 import UIKit
 import _Concurrency
 import _StringProcessing
 import _SwiftConcurrencyShims
 import os
+public protocol AecSession : AnyObject, Swift::Sendable {
+  func push_render(_ samples: [Swift::Float])
+  func render_reset()
+  func process_capture(_ samples: [Swift::Float], played_frames: Swift::Int64) -> [Swift::Float]
+  func close()
+}
+extension TheStageCore::AecSession {
+  public func process_capture(_ samples: [Swift::Float]) -> [Swift::Float]
+}
 public struct AudioEngineConfig : Swift::Sendable {
   public var sample_rate_in: Swift::Double
   public var sample_rate_out: Swift::Double
@@ -143,15 +154,19 @@ final public class CoreAudioTapNode : TheStageCore::TSAgentNode, TheStageCore::A
 }
 public enum AECMethod : Swift::String, Swift::Sendable {
   case VPIO
+  case WEBRTC
   case NEURAL
   case NONE
+  public static var platform_default: TheStageCore::AECMethod {
+    get
+  }
   public init?(rawValue: Swift::String)
   public typealias RawValue = Swift::String
   public var rawValue: Swift::String {
     get
   }
 }
-@_hasMissingDesignatedInitializers final public class NeuralAecSession : @unchecked Swift::Sendable {
+@_hasMissingDesignatedInitializers final public class NeuralAecSession : TheStageCore::AecSession, @unchecked Swift::Sendable {
   public static let ENGINES_REPO: Swift::String
   public static let MODEL_TYPE: Swift::String
   public static let SAMPLE_RATE: Swift::Int
@@ -194,31 +209,18 @@ final public class PCMConverter : @unchecked Swift::Sendable {
   final public func finish() -> TheStageCore::PCM?
   public static func once(_ pcm: TheStageCore::PCM, format: TheStageCore::PCMFormat = .FLOAT_UNIT, sample_rate: Swift::Int) -> TheStageCore::PCM
 }
-public struct TTSSessionMetrics : Swift::Sendable {
-  public let time_to_first_audio: Swift::Double?
-  public let total_seconds: Swift::Double?
-  public let tokens_per_second: Swift::Double?
-  public let generated_tokens: Swift::Int
-  public let audio_duration: Swift::Double
-}
-final public class TTSSession : @unchecked Swift::Sendable {
-  final public var is_active: Swift::Bool {
-    get
-  }
-  final public var metrics: TheStageCore::TTSSessionMetrics? {
-    get
-  }
-  final public var player: TheStageCore::AudioStreamPlayer {
-    get
-  }
-  public init(pipeline: TheStageCore::TSTTSPipeline, voice: TheStageCore::TTSVoiceRef, player: TheStageCore::AudioStreamPlayer? = nil, stream_config: TheStageCore::TTSStreamConfig = TTSStreamConfig(), generation_config: TheStageCore::TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore::TTSTextSplitter = NLSentenceSplitter())
+final public class WebRtcAecSession : TheStageCore::AecSession, @unchecked Swift::Sendable {
+  final public let capture_sample_rate: Swift::Int
+  final public let render_sample_rate: Swift::Int
+  public init?(capture_sample_rate: Swift::Int, render_sample_rate: Swift::Int)
   @objc deinit
-  final public func start_stream()
-  final public func send(_ text: Swift::String)
-  final public func stop_stream()
-  final public func cancel()
-  final public func drain() async
-  final public func stop_player()
+  final public func push_render(_ samples: [Swift::Float])
+  final public func render_reset()
+  final public func process_capture(_ samples: [Swift::Float], played_frames: Swift::Int64) -> [Swift::Float]
+  final public var level: Swift::Float {
+    get
+  }
+  final public func close()
 }
 public struct ChatEngineCapabilities : Swift::Sendable {
   public var supports_tools: Swift::Bool
@@ -242,16 +244,17 @@ public protocol ChatEngine : Swift::Sendable {
 }
 final public class LLMChatEngine : TheStageCore::ChatEngine, @unchecked Swift::Sendable {
   final public let capabilities: TheStageCore::ChatEngineCapabilities
-  public init(llm: TheStageCore::TSLLM)
+  public init(llm: TheStageCore::TSLLM, thinking: Swift::Bool = false)
   @objc deinit
   final public func infer(messages: [TheStageCore::ChatMessage], system_prompt: Swift::String?, tools: [TheStageCore::Tool], config: TheStageCore::LLMGenerationConfig?) async throws -> TheStageCore::LLMResult
   final public func infer_stream(messages: [TheStageCore::ChatMessage], system_prompt: Swift::String?, tools: [TheStageCore::Tool], config: TheStageCore::LLMGenerationConfig?) throws -> _Concurrency::AsyncStream<TheStageCore::LLMStreamEvent>
+  public static let tool_round_reserve: Swift::Int
   final public func fit_messages(_ messages: [TheStageCore::ChatMessage], system_prompt: Swift::String?, tools: [TheStageCore::Tool], config: TheStageCore::LLMGenerationConfig?) -> [TheStageCore::ChatMessage]
 }
 extension TheStageCore::TSLLM {
   final public func chat_session(system_prompt: Swift::String? = nil, tools: [TheStageCore::Tool] = [], memory: TheStageCore::TSChatMemoryKind = .SLIDING(
             max_turns: TSSlidingWindowMemory.product_max_turns
-        )) -> TheStageCore::TSChatSession
+        ), thinking: Swift::Bool = false) -> TheStageCore::TSChatSession
 }
 public protocol TSChatMemory : Swift::Sendable {
   mutating func append(_ message: TheStageCore::ChatMessage)
@@ -370,6 +373,86 @@ final public class TSChatSession : @unchecked Swift::Sendable {
   final public func clear()
   final public func cancel_in_flight()
 }
+@available(*, deprecated, message: "Removed in the next release. Read ASRMetrics.")
+public protocol ASRTokenMetrics : TheStageCore::ASRTimingMetrics {
+  var generated_tokens: Swift::Int { get }
+  var tokens_per_second: Swift::Double { get }
+  var prefill_seconds: Swift::Double { get }
+}
+@available(*, deprecated, message: "Removed in the next release. Use InterruptMode.")
+public enum VADInterruptMode : Swift::Sendable {
+  case none
+  case speech_only
+  case wake_word
+  public static func == (a: TheStageCore::VADInterruptMode, b: TheStageCore::VADInterruptMode) -> Swift::Bool
+  public func hash(into hasher: inout Swift::Hasher)
+  public var hashValue: Swift::Int {
+    get
+  }
+}
+@available(*, deprecated)
+extension TheStageCore::InterruptMode {
+  @available(*, deprecated, message: "Removed in the next release. Use InterruptMode.")
+  public var interrupt_trigger: TheStageCore::InterruptTrigger {
+    get
+  }
+}
+extension TheStageCore::TSAgentConfig {
+  @available(*, deprecated, message: "Removed in the next release. Has no effect.")
+  public var asr_sentence_flush: Swift::Bool {
+    get
+    set
+  }
+  @available(*, deprecated, message: "Removed in the next release. Has no effect.")
+  public var asr_max_segment_seconds: Swift::Double {
+    get
+    set
+  }
+}
+extension TheStageCore::Seq2SeqDecoding {
+  @available(*, deprecated, message: "Removed in the next release. generate validates its config.")
+  public func validate_execution(_ config: TheStageCore::GenerateConfig) throws
+}
+extension TheStageCore::ToolCalling {
+  @available(*, deprecated, message: "Removed in the next release. Use resolve_spec.")
+  public static func resolve_capability(supports: Swift::Bool?, format_raw: Swift::String?, chat_template: TheStageCore::ChatTemplate) -> (supports: Swift::Bool, format: TheStageCore::ToolCallingFormat?)
+}
+extension TheStageCore::WhisperTimestamps {
+  @available(*, deprecated, message: "Removed in the next release.")
+  public static func is_timestamp(_ id: Swift::Int, no_timestamps_token_id: Swift::Int) -> Swift::Bool
+}
+extension TheStageCore::ChatTemplate {
+  @available(*, deprecated, message: "Removed in the next release. The pack declares its template.")
+  public static func `default`(forArchitecture architecture: Swift::String) -> TheStageCore::ChatTemplate?
+}
+@available(*, deprecated, message: "Removed in the next release. Use TSVoiceAgent, or TSTTSPipeline.infer_stream with an AudioStreamPlayer.")
+public struct TTSSessionMetrics : Swift::Sendable {
+  public let time_to_first_audio: Swift::Double?
+  public let total_seconds: Swift::Double?
+  public let tokens_per_second: Swift::Double?
+  public let generated_tokens: Swift::Int
+  public let audio_duration: Swift::Double
+}
+@available(*, deprecated, message: "Removed in the next release. Use TSVoiceAgent, or TSTTSPipeline.infer_stream with an AudioStreamPlayer.")
+final public class TTSSession : @unchecked Swift::Sendable {
+  final public var is_active: Swift::Bool {
+    get
+  }
+  final public var metrics: TheStageCore::TTSSessionMetrics? {
+    get
+  }
+  final public var player: TheStageCore::AudioStreamPlayer {
+    get
+  }
+  public init(pipeline: TheStageCore::TSTTSPipeline, voice: TheStageCore::TTSVoiceRef, player: TheStageCore::AudioStreamPlayer? = nil, stream_config: TheStageCore::TTSStreamConfig = TTSStreamConfig(), generation_config: TheStageCore::TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore::TTSTextSplitter = NLSentenceSplitter())
+  @objc deinit
+  final public func start_stream()
+  final public func send(_ text: Swift::String)
+  final public func stop_stream()
+  final public func cancel()
+  final public func drain() async
+  final public func stop_player()
+}
 @available(*, deprecated, renamed: "TSASRAgent")
 public typealias TheStageASRAgent = TheStageCore::TSASRAgent
 @available(*, deprecated, renamed: "TSAgentConfig")
@@ -448,6 +531,33 @@ public typealias TheStageVoiceAgent = TheStageCore::TSVoiceAgent
 public typealias TheStageVoiceChatMemory = TheStageCore::TSVoiceChatMemory
 @available(*, deprecated, renamed: "TSWakeWordAgent")
 public typealias TheStageWakeWordAgent = TheStageCore::TSWakeWordAgent
+@available(*, deprecated, message: "use InterruptMode")
+public enum InterruptTrigger : Swift::String, Swift::Sendable {
+  case none
+  case speech_only
+  case wake_word
+  public var interrupt_mode: TheStageCore::InterruptMode {
+    get
+  }
+  public init(_ mode: TheStageCore::InterruptMode)
+  public init?(rawValue: Swift::String)
+  @available(*, deprecated, message: "use InterruptMode")
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+extension TheStageCore::TSAgentConfig {
+  @available(*, deprecated, renamed: "interrupt_mode")
+  public var interrupt_trigger: TheStageCore::InterruptTrigger {
+    get
+    set
+  }
+}
+extension TheStageCore::TSVoiceAgent {
+  @available(*, deprecated, renamed: "update_interrupt_config(min_speech_ms:min_playback_ms:interrupt_mode:onset_ms:threshold:)")
+  final public func update_interrupt_config(min_speech_ms: Swift::Int? = nil, min_playback_ms: Swift::Int? = nil, mode: TheStageCore::InterruptTrigger?, onset_ms: Swift::Int? = nil, threshold: Swift::Double? = nil) async
+}
 @_hasMissingDesignatedInitializers final public class DebugLog : @unchecked Swift::Sendable {
   public struct LoadedModel : Swift::Sendable {
     public let model_name: Swift::String
@@ -517,6 +627,7 @@ public typealias TheStageWakeWordAgent = TheStageCore::TSWakeWordAgent
 }
 public enum LaunchVerdict : Swift::String, Swift::Sendable {
   case cleanExit
+  @available(*, deprecated, message: "Removed in the next release; nothing records a self abort.")
   case selfAbort
   case likelyMemoryKill
   case crash
@@ -546,6 +657,7 @@ public enum LaunchSentinel {
     get
   }
   public static func mark(handle: Swift::String, phase: TheStageCore::ModelLoadPhase)
+  @available(*, deprecated, message: "Removed in the next release.")
   public static func markSelfAbort(handle: Swift::String, phase: Swift::String)
   public static func clear()
 }
@@ -787,6 +899,49 @@ public enum AudioIO {
   public static func write_wav(samples: [Swift::Float], sample_rate: Swift::Int, url: Foundation::URL) throws
   public static func write_wav(samples: [Swift::Float], sample_rate: Swift::Int, path: Swift::String) throws
 }
+public protocol ASRCapabilities : Swift::Sendable {
+  var audio_stream: Swift::Bool { get }
+  var text_stream: Swift::Bool { get }
+  var sample_rate: Swift::Int { get }
+  var word_timestamps: Swift::Bool { get }
+  var segment_timestamps: Swift::Bool { get }
+  var text_context: Swift::Bool { get }
+  var language_detection: Swift::Bool { get }
+  var language_codes: [Swift::String] { get }
+  var max_window_s: Swift::Double { get }
+  var streaming_algorithm: TheStageCore::ASRStreamingAlgorithm { get }
+  var measured_word_times: Swift::Bool { get }
+}
+extension TheStageCore::ASRCapabilities {
+  @available(*, deprecated, message: "use audio_stream")
+  public var streaming: Swift::Bool {
+    get
+  }
+  public var measured_word_times: Swift::Bool {
+    get
+  }
+}
+public struct ASRCapabilitySet : TheStageCore::ASRCapabilities, Swift::Codable, Swift::Sendable {
+  public var audio_stream: Swift::Bool
+  public var text_stream: Swift::Bool
+  public var sample_rate: Swift::Int
+  public var word_timestamps: Swift::Bool
+  public var segment_timestamps: Swift::Bool
+  public var text_context: Swift::Bool
+  public var language_detection: Swift::Bool
+  public var language_codes: [Swift::String]
+  public var max_window_s: Swift::Double
+  public var streaming_algorithm: TheStageCore::ASRStreamingAlgorithm
+  public var measured_word_times: Swift::Bool
+  @available(*, deprecated, message: "use audio_stream")
+  public var streaming: Swift::Bool {
+    get
+    set
+  }
+  public init(word_timestamps: Swift::Bool, segment_timestamps: Swift::Bool, streaming: Swift::Bool, max_window_s: Swift::Double, text_context: Swift::Bool, measured_word_times: Swift::Bool = false, audio_stream: Swift::Bool? = nil, text_stream: Swift::Bool = true, sample_rate: Swift::Int = 16_000, language_detection: Swift::Bool = true, language_codes: [Swift::String] = [], streaming_algorithm: TheStageCore::ASRStreamingAlgorithm? = nil)
+  public func encode(to encoder: any Swift::Encoder) throws
+  public init(from decoder: any Swift::Decoder) throws
+}
 public enum ASRError : Swift::Error, Swift::Sendable, Swift::Equatable {
   case TIMESTAMPS_UNSUPPORTED(TheStageCore::ASRTimestampMode)
   case TEXT_CONTEXT_UNSUPPORTED
@@ -807,160 +962,6 @@ extension TheStageCore::ASRError : Foundation::LocalizedError {
   public var errorDescription: Swift::String? {
     get
   }
-}
-public struct ASRGlueChunk {
-  public var window_start_s: Swift::Double
-  public var duration_s: Swift::Double
-  public var overlap_left_s: Swift::Double
-  public var overlap_right_s: Swift::Double
-  public var segments: [(t0: Swift::Double, t1: Swift::Double, words: [TheStageCore::ASRWord])]
-  public init(window_start_s: Swift::Double, duration_s: Swift::Double = 0, overlap_left_s: Swift::Double, overlap_right_s: Swift::Double, segments: [(t0: Swift::Double, t1: Swift::Double, words: [TheStageCore::ASRWord])])
-  public static func from_windows(words: [[TheStageCore::ASRWord]], starts_s: [Swift::Double], durations_s: [Swift::Double]) -> [TheStageCore::ASRGlueChunk]
-}
-public protocol ASRTimestampGlue : Swift::Sendable {
-  func glue(_ chunks: [TheStageCore::ASRGlueChunk]) -> [TheStageCore::ASRWord]
-}
-public struct StrideGlue : TheStageCore::ASRTimestampGlue {
-  public init()
-  public func glue(_ chunks: [TheStageCore::ASRGlueChunk]) -> [TheStageCore::ASRWord]
-}
-public struct ClockGlue : TheStageCore::ASRTimestampGlue {
-  public init()
-  public func glue(_ chunks: [TheStageCore::ASRGlueChunk]) -> [TheStageCore::ASRWord]
-}
-public enum ASRGlue {
-  public static func transcript(from words: [TheStageCore::ASRWord]) -> Swift::String
-  public static func merge(words: [[TheStageCore::ASRWord]], starts_s: [Swift::Double], durations_s: [Swift::Double], glue: any TheStageCore::ASRTimestampGlue = ClockGlue()) -> (words: [TheStageCore::ASRWord], text: Swift::String)
-  public static func stitch_tokens(_ sequences: [[Swift::Int]], special_below: Swift::Int = Int.max) -> [Swift::Int]
-}
-@_hasMissingDesignatedInitializers open class ASRPipeline : TheStageCore::BasePipeline, @unchecked Swift::Sendable {
-  open var capabilities: TheStageCore::ASRCapabilitySet {
-    get
-  }
-  open var sample_rate: Swift::Int {
-    get
-  }
-  public var last_metrics: TheStageCore::ASRMetrics {
-    get
-  }
-  @objc deinit
-  final public func check(_ config: TheStageCore::ASRGenerationConfig) throws
-  final public func infer(audio: [Swift::Float], config: TheStageCore::ASRGenerationConfig = ASRGenerationConfig(), glue: any TheStageCore::ASRTimestampGlue = ClockGlue(), silence: [Swift::Range<Swift::Int>]? = nil) throws -> TheStageCore::ASRResult
-  open func release()
-}
-public typealias ASRWindowTranscribe = @Sendable ([Swift::Float], TheStageCore::ASRGenerationConfig) async -> TheStageCore::ASRResult?
-public struct ASRFormatContext : Swift::Sendable {
-  public let language: Swift::String?
-  public let committed: [TheStageCore::ASRWord]
-  public let hypothesis: [TheStageCore::ASRWord]
-  public let preserve_n: Swift::Int
-  public let is_turn_start: Swift::Bool
-  public init(language: Swift::String?, committed: [TheStageCore::ASRWord], hypothesis: [TheStageCore::ASRWord], preserve_n: Swift::Int, is_turn_start: Swift::Bool)
-}
-public protocol ASRTextFormatter : Swift::Sendable {
-  func format(_ words: [TheStageCore::ASRWord], context: TheStageCore::ASRFormatContext) -> [Swift::String]
-}
-public struct ASRPassthroughFormatter : TheStageCore::ASRTextFormatter {
-  public init()
-  public func format(_ words: [TheStageCore::ASRWord], context: TheStageCore::ASRFormatContext) -> [Swift::String]
-}
-public struct ASRSentenceFormatter : TheStageCore::ASRTextFormatter {
-  public init()
-  public func format(_ words: [TheStageCore::ASRWord], context: TheStageCore::ASRFormatContext) -> [Swift::String]
-}
-public protocol ASRTimingMetrics : Swift::Sendable {
-  var audio_seconds: Swift::Double { get }
-  var total_seconds: Swift::Double { get }
-  var preprocess_seconds: Swift::Double { get }
-  var encode_seconds: Swift::Double { get }
-  var decode_seconds: Swift::Double { get }
-  var chunk_count: Swift::Int { get }
-  var rtf: Swift::Double { get }
-}
-public protocol ASRTokenMetrics : TheStageCore::ASRTimingMetrics {
-  var generated_tokens: Swift::Int { get }
-  var tokens_per_second: Swift::Double { get }
-  var prefill_seconds: Swift::Double { get }
-}
-public struct ASRTokenStats : Swift::Sendable {
-  public let generated_tokens: Swift::Int
-  public let tokens_per_second: Swift::Double
-  public let prefill_seconds: Swift::Double
-  public init(generated_tokens: Swift::Int, tokens_per_second: Swift::Double, prefill_seconds: Swift::Double)
-}
-public struct ASRMetrics : TheStageCore::ASRTimingMetrics, TheStageCore::InferenceMetrics, Swift::Sendable {
-  public let preprocess_seconds: Swift::Double
-  public let encode_seconds: Swift::Double
-  public let decode_seconds: Swift::Double
-  public let total_seconds: Swift::Double
-  public let audio_seconds: Swift::Double
-  public let rtf: Swift::Double
-  public let chunk_count: Swift::Int
-  public var tokens: TheStageCore::ASRTokenStats?
-  public var spec_steps: Swift::Int
-  public var spec_accepted: Swift::Int
-  public var spec_drafter_seconds: Swift::Double
-  public var generation: TheStageCore::GenerationSummary?
-  public var spec_acceptance_length: Swift::Double? {
-    get
-  }
-  public var spec_drafter_cycle_ms: Swift::Double? {
-    get
-  }
-  public var generated_tokens: Swift::Int {
-    get
-  }
-  public var tokens_per_second: Swift::Double {
-    get
-  }
-  public var prefill_seconds: Swift::Double {
-    get
-  }
-  public var prompt_tokens: Swift::Int {
-    get
-  }
-  @available(*, deprecated, message: "Use tokens?.prefill_seconds")
-  public var last_prefill_seconds: Swift::Double {
-    get
-  }
-  @available(*, deprecated, message: "Use rtf")
-  public var rtfx: Swift::Double {
-    get
-  }
-  @available(*, deprecated, message: "Use generated_tokens")
-  public var token_count: Swift::Int {
-    get
-  }
-  public init(preprocess_seconds: Swift::Double = 0, encode_seconds: Swift::Double = 0, decode_seconds: Swift::Double = 0, audio_seconds: Swift::Double, chunk_count: Swift::Int = 1, tokens: TheStageCore::ASRTokenStats? = nil)
-  public init(preprocess_seconds: Swift::Double, encode_seconds: Swift::Double, decode_seconds: Swift::Double, last_prefill_seconds: Swift::Double, total_seconds: Swift::Double, audio_seconds: Swift::Double, rtf: Swift::Double, tokens_per_second: Swift::Double, chunk_count: Swift::Int, generated_tokens: Swift::Int)
-  public static let zero: TheStageCore::ASRMetrics
-}
-public struct ASRResult : TheStageCore::InferenceResult, Swift::Sendable {
-  public var text: Swift::String
-  public var words: [TheStageCore::ASRWord]?
-  public var timestamp_mode: TheStageCore::ASRTimestampMode
-  public var tokens: [Swift::Int]?
-  public var metrics: TheStageCore::ASRMetrics
-  public var language: Swift::String?
-  public var generated_tokens: Swift::Int
-  public var decode_seconds: Swift::Double
-  @available(*, deprecated, message: "Use generated_tokens")
-  public var token_count: Swift::Int {
-    get
-    set
-  }
-  public var audio_duration: Swift::Double {
-    get
-  }
-  public var transcript: Swift::String {
-    get
-  }
-  public var language_code: Swift::String? {
-    get
-  }
-  public init(text: Swift::String, tokens: [Swift::Int]?, token_count: Swift::Int, decode_seconds: Swift::Double, metrics: TheStageCore::ASRMetrics, words: [TheStageCore::ASRWord]? = nil, timestamp_mode: TheStageCore::ASRTimestampMode = .NONE, language: Swift::String? = nil)
-  public static let empty: TheStageCore::ASRResult
-  public typealias Metrics = TheStageCore::ASRMetrics
 }
 public struct ASRTokenConfig : Swift::Codable, Swift::Sendable {
   public let sot_token_id: Swift::Int
@@ -1016,6 +1017,187 @@ public enum ASREndpointCommit : Swift::String, Swift::Sendable, Swift::Codable, 
   public var rawValue: Swift::String {
     get
   }
+}
+public struct ASRGenerationConfig : Swift::Sendable {
+  public var language: Swift::String
+  public var timestamps: TheStageCore::ASRTimestampMode
+  public var max_new_tokens: Swift::Int?
+  public var return_tokens: Swift::Bool
+  public var text_context: TheStageCore::ASRTextContext
+  public var context_text: Swift::String
+  public var language_detection: Swift::Bool
+  public var overlap: Swift::Double
+  public var speculative_decoding: Swift::Bool?
+  public var language_code: Swift::String {
+    get
+    set
+  }
+  public init(language: Swift::String = "en", timestamps: TheStageCore::ASRTimestampMode = .WORD, max_new_tokens: Swift::Int? = nil, return_tokens: Swift::Bool = false, text_context: TheStageCore::ASRTextContext = .NONE, context_text: Swift::String = "", language_detection: Swift::Bool = false, overlap: Swift::Double = 0.2, speculative_decoding: Swift::Bool? = nil)
+}
+extension TheStageCore::ASRGenerationConfig : Swift::Decodable {
+  public init(from decoder: any Swift::Decoder) throws
+}
+public struct ASRGlueChunk {
+  public var window_start_s: Swift::Double
+  public var duration_s: Swift::Double
+  public var overlap_left_s: Swift::Double
+  public var overlap_right_s: Swift::Double
+  public var segments: [(t0: Swift::Double, t1: Swift::Double, words: [TheStageCore::ASRWord])]
+  public init(window_start_s: Swift::Double, duration_s: Swift::Double = 0, overlap_left_s: Swift::Double, overlap_right_s: Swift::Double, segments: [(t0: Swift::Double, t1: Swift::Double, words: [TheStageCore::ASRWord])])
+  public static func from_windows(words: [[TheStageCore::ASRWord]], starts_s: [Swift::Double], durations_s: [Swift::Double]) -> [TheStageCore::ASRGlueChunk]
+}
+public protocol ASRTimestampGlue : Swift::Sendable {
+  func glue(_ chunks: [TheStageCore::ASRGlueChunk]) -> [TheStageCore::ASRWord]
+}
+public struct StrideGlue : TheStageCore::ASRTimestampGlue {
+  public init()
+  public func glue(_ chunks: [TheStageCore::ASRGlueChunk]) -> [TheStageCore::ASRWord]
+}
+public struct ClockGlue : TheStageCore::ASRTimestampGlue {
+  public static let edge_s: Swift::Double
+  public init()
+  public func glue(_ chunks: [TheStageCore::ASRGlueChunk]) -> [TheStageCore::ASRWord]
+}
+public enum ASRGlue {
+  public static func transcript(from words: [TheStageCore::ASRWord]) -> Swift::String
+  public static func merge(words: [[TheStageCore::ASRWord]], starts_s: [Swift::Double], durations_s: [Swift::Double], glue: any TheStageCore::ASRTimestampGlue = ClockGlue()) -> (words: [TheStageCore::ASRWord], text: Swift::String)
+  public static func stable(words: [[TheStageCore::ASRWord]], starts_s: [Swift::Double], durations_s: [Swift::Double], next_start_s: Swift::Double, glue: any TheStageCore::ASRTimestampGlue = ClockGlue()) -> [TheStageCore::ASRWord]
+  public static func stitch_tokens(_ sequences: [[Swift::Int]], special_below: Swift::Int = Int.max) -> [Swift::Int]
+}
+public protocol ASRTimingMetrics : Swift::Sendable {
+  var audio_seconds: Swift::Double { get }
+  var total_seconds: Swift::Double { get }
+  var preprocess_seconds: Swift::Double { get }
+  var encode_seconds: Swift::Double { get }
+  var decode_seconds: Swift::Double { get }
+  var chunk_count: Swift::Int { get }
+  var rtf: Swift::Double { get }
+}
+public struct ASRTokenStats : Swift::Sendable {
+  public let generated_tokens: Swift::Int
+  public let tokens_per_second: Swift::Double
+  public let prefill_seconds: Swift::Double
+  public init(generated_tokens: Swift::Int, tokens_per_second: Swift::Double, prefill_seconds: Swift::Double)
+}
+public struct ASRMetrics : TheStageCore::ASRTimingMetrics, TheStageCore::InferenceMetrics, Swift::Sendable {
+  public let preprocess_seconds: Swift::Double
+  public let encode_seconds: Swift::Double
+  public let decode_seconds: Swift::Double
+  public let total_seconds: Swift::Double
+  public let audio_seconds: Swift::Double
+  public let rtf: Swift::Double
+  public let chunk_count: Swift::Int
+  public var tokens: TheStageCore::ASRTokenStats?
+  public var spec_steps: Swift::Int
+  public var spec_accepted: Swift::Int
+  public var spec_drafter_seconds: Swift::Double
+  public var generation: TheStageCore::GenerationSummary?
+  public var spec_acceptance_length: Swift::Double? {
+    get
+  }
+  public var spec_drafter_cycle_ms: Swift::Double? {
+    get
+  }
+  public var generated_tokens: Swift::Int {
+    get
+  }
+  public var tokens_per_second: Swift::Double {
+    get
+  }
+  public var prefill_seconds: Swift::Double {
+    get
+  }
+  public var prompt_tokens: Swift::Int {
+    get
+  }
+  @available(*, deprecated, message: "Use tokens?.prefill_seconds")
+  public var last_prefill_seconds: Swift::Double {
+    get
+  }
+  @available(*, deprecated, message: "Use rtf")
+  public var rtfx: Swift::Double {
+    get
+  }
+  @available(*, deprecated, message: "Use generated_tokens")
+  public var token_count: Swift::Int {
+    get
+  }
+  public init(preprocess_seconds: Swift::Double = 0, encode_seconds: Swift::Double = 0, decode_seconds: Swift::Double = 0, audio_seconds: Swift::Double, chunk_count: Swift::Int = 1, tokens: TheStageCore::ASRTokenStats? = nil)
+  public init(preprocess_seconds: Swift::Double, encode_seconds: Swift::Double, decode_seconds: Swift::Double, last_prefill_seconds: Swift::Double, total_seconds: Swift::Double, audio_seconds: Swift::Double, rtf: Swift::Double, tokens_per_second: Swift::Double, chunk_count: Swift::Int, generated_tokens: Swift::Int)
+  public static let zero: TheStageCore::ASRMetrics
+}
+@_hasMissingDesignatedInitializers open class ASRPipeline : TheStageCore::BasePipeline, @unchecked Swift::Sendable {
+  open var capabilities: TheStageCore::ASRCapabilitySet {
+    get
+  }
+  open var sample_rate: Swift::Int {
+    get
+  }
+  public var last_metrics: TheStageCore::ASRMetrics {
+    get
+  }
+  @objc deinit
+  final public func check(_ config: TheStageCore::ASRGenerationConfig) throws
+  final public func infer(audio: [Swift::Float], config: TheStageCore::ASRGenerationConfig = ASRGenerationConfig(), glue: any TheStageCore::ASRTimestampGlue = ClockGlue(), silence: [Swift::Range<Swift::Int>]? = nil, progress: ((TheStageCore::ASRResult) -> Swift::Void)? = nil) throws -> TheStageCore::ASRResult
+  open func release()
+}
+public typealias ASRWindowTranscribe = @Sendable ([Swift::Float], TheStageCore::ASRGenerationConfig) async -> TheStageCore::ASRResult?
+public struct ASRProcessingFailure : Swift::Error, Swift::Sendable, Swift::Equatable, Foundation::LocalizedError {
+  public let code: TheStageCore::ASRProcessingErrorCode
+  public let stage: Swift::String
+  public let message: Swift::String
+  public init(code: TheStageCore::ASRProcessingErrorCode, stage: Swift::String, message: Swift::String)
+  public var errorDescription: Swift::String? {
+    get
+  }
+  public static func == (a: TheStageCore::ASRProcessingFailure, b: TheStageCore::ASRProcessingFailure) -> Swift::Bool
+}
+public enum ASRProcessingErrorCode : Swift::String, Swift::Codable, Swift::Sendable {
+  case INVALID_CONFIG, INCOMPATIBLE_CONFIG, UNSUPPORTED_CAPABILITY
+  case MISSING_VAD, SAMPLE_RATE_MISMATCH, EMBEDDING_SPACE_MISMATCH
+  case INVALID_PROFILE, PIPELINE_BUSY, INPUT_OVERFLOW, INPUT_DISCONTINUITY
+  case INVALID_OPERATION, SESSION_CLOSED, MODEL_FAILED, CANCELLED
+  public init?(rawValue: Swift::String)
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum ASRCompletion : Swift::Sendable, Swift::Equatable {
+  case COMPLETE, CANCELLED
+  case FAILED(TheStageCore::ASRProcessingFailure)
+  public static func == (a: TheStageCore::ASRCompletion, b: TheStageCore::ASRCompletion) -> Swift::Bool
+}
+public struct ASRResult : TheStageCore::InferenceResult, Swift::Sendable {
+  public var speaker_turns: [TheStageCore::ASRSpeakerTurn]
+  public var speaker_segments: [TheStageCore::SpeakerSegment]
+  public var speakers: [TheStageCore::ASRSpeaker]
+  public var completion: TheStageCore::ASRCompletion
+  public var text: Swift::String
+  public var words: [TheStageCore::ASRWord]?
+  public var timestamp_mode: TheStageCore::ASRTimestampMode
+  public var tokens: [Swift::Int]?
+  public var metrics: TheStageCore::ASRMetrics
+  public var language: Swift::String?
+  public var generated_tokens: Swift::Int
+  public var decode_seconds: Swift::Double
+  @available(*, deprecated, message: "Use generated_tokens")
+  public var token_count: Swift::Int {
+    get
+    set
+  }
+  public var audio_duration: Swift::Double {
+    get
+  }
+  public var transcript: Swift::String {
+    get
+  }
+  public var language_code: Swift::String? {
+    get
+  }
+  public init(text: Swift::String, tokens: [Swift::Int]?, token_count: Swift::Int, decode_seconds: Swift::Double, metrics: TheStageCore::ASRMetrics, words: [TheStageCore::ASRWord]? = nil, timestamp_mode: TheStageCore::ASRTimestampMode = .NONE, language: Swift::String? = nil)
+  public static let empty: TheStageCore::ASRResult
+  public typealias Metrics = TheStageCore::ASRMetrics
 }
 public enum ASRStreamInput : Swift::Sendable {
   case PCM([Swift::Float])
@@ -1076,11 +1258,14 @@ public struct ASRTurn : Swift::Sendable, Swift::Equatable {
   public var turn_is_formatted: Swift::Bool
   public var language: Swift::String?
   public var end_of_turn_confidence: Swift::Double?
+  public var speaker_id: Swift::String?
+  public var speakers: [TheStageCore::ASRSpeaker]
+  public var speaker_revision: Swift::Int
   @_spi(ASRDebug) public var agreement_trace: TheStageCore::ASRAgreementTrace?
   public var language_code: Swift::String? {
     get
   }
-  public init(turn_order: Swift::Int, transcript: Swift::String, utterance: Swift::String = "", committed: Swift::String, hypothesis: Swift::String, words: [TheStageCore::ASRWord] = [], end_of_turn: Swift::Bool = false, turn_is_formatted: Swift::Bool = true, language: Swift::String? = nil, end_of_turn_confidence: Swift::Double? = nil)
+  public init(turn_order: Swift::Int, transcript: Swift::String, utterance: Swift::String = "", committed: Swift::String, hypothesis: Swift::String, words: [TheStageCore::ASRWord] = [], end_of_turn: Swift::Bool = false, turn_is_formatted: Swift::Bool = true, language: Swift::String? = nil, end_of_turn_confidence: Swift::Double? = nil, speaker_id: Swift::String? = nil, speakers: [TheStageCore::ASRSpeaker] = [], speaker_revision: Swift::Int = 0)
   public static func assemble(turn_order: Swift::Int, committed: Swift::String, hypothesis: Swift::String, committed_words: [TheStageCore::ASRWord], hypothesis_words: [TheStageCore::ASRWord], end_of_turn: Swift::Bool, language: Swift::String?, end_of_turn_confidence: Swift::Double? = nil, turn_is_formatted: Swift::Bool = true) -> TheStageCore::ASRTurn
   public static func == (a: TheStageCore::ASRTurn, b: TheStageCore::ASRTurn) -> Swift::Bool
 }
@@ -1089,67 +1274,21 @@ public enum ASRStreamEvent : Swift::Sendable {
   case TURN(TheStageCore::ASRTurn)
   case TERMINATION(audio_seconds: Swift::Double, metrics: (any TheStageCore::InferenceMetrics)?)
 }
-public protocol ASRCapabilities : Swift::Sendable {
-  var audio_stream: Swift::Bool { get }
-  var text_stream: Swift::Bool { get }
-  var sample_rate: Swift::Int { get }
-  var word_timestamps: Swift::Bool { get }
-  var segment_timestamps: Swift::Bool { get }
-  var text_context: Swift::Bool { get }
-  var language_detection: Swift::Bool { get }
-  var language_codes: [Swift::String] { get }
-  var max_window_s: Swift::Double { get }
-  var streaming_algorithm: TheStageCore::ASRStreamingAlgorithm { get }
-  var measured_word_times: Swift::Bool { get }
+public struct ASRSpeakerEvent : Swift::Sendable {
+  public let session_id: Foundation::UUID
+  public let sequence: Swift::Int
+  public let payload: TheStageCore::ASRSpeakerEventPayload
+  public init(session_id: Foundation::UUID, sequence: Swift::Int, payload: TheStageCore::ASRSpeakerEventPayload)
 }
-extension TheStageCore::ASRCapabilities {
-  @available(*, deprecated, message: "use audio_stream")
-  public var streaming: Swift::Bool {
-    get
-  }
-  public var measured_word_times: Swift::Bool {
-    get
-  }
-}
-public struct ASRCapabilitySet : TheStageCore::ASRCapabilities, Swift::Codable, Swift::Sendable {
-  public var audio_stream: Swift::Bool
-  public var text_stream: Swift::Bool
-  public var sample_rate: Swift::Int
-  public var word_timestamps: Swift::Bool
-  public var segment_timestamps: Swift::Bool
-  public var text_context: Swift::Bool
-  public var language_detection: Swift::Bool
-  public var language_codes: [Swift::String]
-  public var max_window_s: Swift::Double
-  public var streaming_algorithm: TheStageCore::ASRStreamingAlgorithm
-  public var measured_word_times: Swift::Bool
-  @available(*, deprecated, message: "use audio_stream")
-  public var streaming: Swift::Bool {
-    get
-    set
-  }
-  public init(word_timestamps: Swift::Bool, segment_timestamps: Swift::Bool, streaming: Swift::Bool, max_window_s: Swift::Double, text_context: Swift::Bool, measured_word_times: Swift::Bool = false, audio_stream: Swift::Bool? = nil, text_stream: Swift::Bool = true, sample_rate: Swift::Int = 16_000, language_detection: Swift::Bool = true, language_codes: [Swift::String] = [], streaming_algorithm: TheStageCore::ASRStreamingAlgorithm? = nil)
-  public func encode(to encoder: any Swift::Encoder) throws
-  public init(from decoder: any Swift::Decoder) throws
-}
-public struct ASRGenerationConfig : Swift::Sendable {
-  public var language: Swift::String
-  public var timestamps: TheStageCore::ASRTimestampMode
-  public var max_new_tokens: Swift::Int?
-  public var return_tokens: Swift::Bool
-  public var text_context: TheStageCore::ASRTextContext
-  public var context_text: Swift::String
-  public var language_detection: Swift::Bool
-  public var overlap: Swift::Double
-  public var speculative_decoding: Swift::Bool?
-  public var language_code: Swift::String {
-    get
-    set
-  }
-  public init(language: Swift::String = "en", timestamps: TheStageCore::ASRTimestampMode = .WORD, max_new_tokens: Swift::Int? = nil, return_tokens: Swift::Bool = false, text_context: TheStageCore::ASRTextContext = .NONE, context_text: Swift::String = "", language_detection: Swift::Bool = false, overlap: Swift::Double = 0.2, speculative_decoding: Swift::Bool? = nil)
-}
-extension TheStageCore::ASRGenerationConfig : Swift::Decodable {
-  public init(from decoder: any Swift::Decoder) throws
+public enum ASRSpeakerEventPayload : Swift::Sendable {
+  case DIARIZATION_UPDATED(TheStageCore::DiarizationUpdate)
+  case TURNS_UPDATED(TheStageCore::SpeakerTurnUpdate)
+  case SPEAKERS_UPDATED([TheStageCore::ASRSpeaker])
+  case SPEAKERS_MERGED([TheStageCore::SpeakerMerge])
+  case RESET(epoch: Swift::Int, at_s: Swift::Double)
+  case COMPLETED(TheStageCore::ASRResult)
+  case FAILED(TheStageCore::ASRProcessingFailure)
+  case CANCELLED
 }
 public struct ASRStreamingConfig : Swift::Sendable, Swift::Equatable {
   public var algorithm: TheStageCore::ASRStreamingAlgorithm?
@@ -1167,6 +1306,7 @@ public struct ASRStreamingConfig : Swift::Sendable, Swift::Equatable {
   public var silence_hang_s: Swift::Double?
   public var endpoint_silence_s: Swift::Double?
   public var endpoint_commit: TheStageCore::ASREndpointCommit?
+  public var session_language: TheStageCore::ASRSessionLanguageConfig?
   public var flush_silence_s: Swift::Double?
   public var pause_flush_s: Swift::Double?
   public var format_turns: Swift::Bool?
@@ -1177,7 +1317,14 @@ public struct ASRStreamingConfig : Swift::Sendable, Swift::Equatable {
   public var confirmation_scope: TheStageCore::ASRConfirmationScope?
   public var segment_stall_passes: Swift::Int?
   public var carry_cut_punctuation: Swift::Bool?
-  public init(algorithm: TheStageCore::ASRStreamingAlgorithm? = nil, min_audio_s: Swift::Double? = nil, partial_s: Swift::Double? = nil, n_confirmations: Swift::Int? = nil, agreement_mode: TheStageCore::ASRLocalAgreementMode? = nil, hold_n: Swift::Int? = nil, max_repeats: Swift::Int? = nil, stream_buffer_s: Swift::Double? = nil, commit_lag_s: Swift::Double? = nil, trim_overlap_s: Swift::Double? = nil, use_prefix: Swift::Bool? = nil, speech_onset_s: Swift::Double? = nil, silence_hang_s: Swift::Double? = nil, endpoint_silence_s: Swift::Double? = nil, endpoint_commit: TheStageCore::ASREndpointCommit? = nil, flush_silence_s: Swift::Double? = nil, pause_flush_s: Swift::Double? = nil, format_turns: Swift::Bool? = nil, min_turn_silence_ms: Swift::Int? = nil, max_turn_silence_ms: Swift::Int? = nil, cut_release_ratio: Swift::Double? = nil, soft_match_max_cer: Swift::Double? = nil, confirmation_scope: TheStageCore::ASRConfirmationScope? = nil, segment_stall_passes: Swift::Int? = nil, carry_cut_punctuation: Swift::Bool? = nil)
+  public var cut_search_s: Swift::Double?
+  public var cut_force_s: Swift::Double?
+  public var cut_age_s: Swift::Double?
+  public var cut_confirm_ratio: Swift::Double?
+  public var cut_veto_cer: Swift::Double?
+  public var cut_pick: Swift::String?
+  public var clock_release_s: Swift::Double?
+  public init(algorithm: TheStageCore::ASRStreamingAlgorithm? = nil, min_audio_s: Swift::Double? = nil, partial_s: Swift::Double? = nil, n_confirmations: Swift::Int? = nil, agreement_mode: TheStageCore::ASRLocalAgreementMode? = nil, hold_n: Swift::Int? = nil, max_repeats: Swift::Int? = nil, stream_buffer_s: Swift::Double? = nil, commit_lag_s: Swift::Double? = nil, trim_overlap_s: Swift::Double? = nil, use_prefix: Swift::Bool? = nil, speech_onset_s: Swift::Double? = nil, silence_hang_s: Swift::Double? = nil, endpoint_silence_s: Swift::Double? = nil, endpoint_commit: TheStageCore::ASREndpointCommit? = nil, flush_silence_s: Swift::Double? = nil, pause_flush_s: Swift::Double? = nil, format_turns: Swift::Bool? = nil, min_turn_silence_ms: Swift::Int? = nil, max_turn_silence_ms: Swift::Int? = nil, cut_release_ratio: Swift::Double? = nil, soft_match_max_cer: Swift::Double? = nil, confirmation_scope: TheStageCore::ASRConfirmationScope? = nil, segment_stall_passes: Swift::Int? = nil, carry_cut_punctuation: Swift::Bool? = nil, cut_search_s: Swift::Double? = nil, cut_force_s: Swift::Double? = nil, cut_age_s: Swift::Double? = nil, cut_confirm_ratio: Swift::Double? = nil, cut_veto_cer: Swift::Double? = nil, cut_pick: Swift::String? = nil, clock_release_s: Swift::Double? = nil)
   public static func for_pipeline(_ capabilities: TheStageCore::ASRCapabilitySet) -> TheStageCore::ASRStreamingConfig
   public func resolved(for capabilities: TheStageCore::ASRCapabilitySet) -> TheStageCore::ASRStreamingConfig
   public func buffer_seconds(max_window_s: Swift::Double, measured_word_times: Swift::Bool = true) -> Swift::Double
@@ -1185,6 +1332,29 @@ public struct ASRStreamingConfig : Swift::Sendable, Swift::Equatable {
 }
 extension TheStageCore::ASRStreamingConfig : Swift::Decodable {
   public init(from decoder: any Swift::Decoder) throws
+}
+public struct ASRFormatContext : Swift::Sendable {
+  public let language: Swift::String?
+  public let committed: [TheStageCore::ASRWord]
+  public let hypothesis: [TheStageCore::ASRWord]
+  public let preserve_n: Swift::Int
+  public let is_turn_start: Swift::Bool
+  public init(language: Swift::String?, committed: [TheStageCore::ASRWord], hypothesis: [TheStageCore::ASRWord], preserve_n: Swift::Int, is_turn_start: Swift::Bool)
+}
+public protocol ASRTextFormatter : Swift::Sendable {
+  func format(_ words: [TheStageCore::ASRWord], context: TheStageCore::ASRFormatContext) -> [Swift::String]
+}
+public struct ASRPassthroughFormatter : TheStageCore::ASRTextFormatter {
+  public init()
+  public func format(_ words: [TheStageCore::ASRWord], context: TheStageCore::ASRFormatContext) -> [Swift::String]
+}
+public struct ASRSentenceFormatter : TheStageCore::ASRTextFormatter {
+  public init()
+  public func format(_ words: [TheStageCore::ASRWord], context: TheStageCore::ASRFormatContext) -> [Swift::String]
+}
+public enum ASRText {
+  public static func join(_ words: [Swift::String], language_code: Swift::String?) -> Swift::String
+  public static func join(_ words: [TheStageCore::ASRWord], language_code: Swift::String?) -> Swift::String
 }
 public struct VADConfig : Swift::Sendable {
   public var threshold: Swift::Double
@@ -1197,7 +1367,9 @@ public struct VADConfig : Swift::Sendable {
   public var silence_confirm_s: Swift::Double
   public var zero_silence_hangover: Swift::Bool
   public var silence_raw_s: Swift::Double
-  public init(threshold: Swift::Double = 0.7, neg_threshold: Swift::Double? = 0.15, speech_pad_ms: Swift::Int = 50, min_silence_s: Swift::Double = 0.20, pre_roll_s: Swift::Double = 0.30, onset_window_s: Swift::Double = 0.256, onset_min_detections: Swift::Int = 2, silence_confirm_s: Swift::Double = 0.30, zero_silence_hangover: Swift::Bool = true, silence_raw_s: Swift::Double = 0.064)
+  public var energy_hold_db: Swift::Double?
+  public var energy_hold_floor_db: Swift::Double
+  public init(threshold: Swift::Double = 0.7, neg_threshold: Swift::Double? = 0.15, speech_pad_ms: Swift::Int = 50, min_silence_s: Swift::Double = 0.20, pre_roll_s: Swift::Double = 0.30, onset_window_s: Swift::Double = 0.256, onset_min_detections: Swift::Int = 2, silence_confirm_s: Swift::Double = 0.30, zero_silence_hangover: Swift::Bool = true, silence_raw_s: Swift::Double = 0.064, energy_hold_db: Swift::Double? = nil, energy_hold_floor_db: Swift::Double = 10)
   public var resolved_neg_threshold: Swift::Double {
     get
   }
@@ -1229,6 +1401,7 @@ public enum SentenceGate {
   override final public func release()
 }
 @_hasMissingDesignatedInitializers final public class Qwen3ASRPipeline : TheStageCore::ASRPipeline, @unchecked Swift::Sendable {
+  final public func generation_trace_json() throws -> Foundation::Data?
   public init(engines_path: Swift::String, device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, revision: Swift::String? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws
   override final public var capabilities: TheStageCore::ASRCapabilitySet {
     get
@@ -1236,13 +1409,28 @@ public enum SentenceGate {
   @objc deinit
   override final public func release()
 }
+public struct ASRSessionLanguageConfig : Swift::Sendable, Swift::Codable, Swift::Equatable {
+  public var enabled: Swift::Bool
+  public var detect_s: Swift::Double
+  public init(enabled: Swift::Bool = true, detect_s: Swift::Double = 10)
+  public static func == (a: TheStageCore::ASRSessionLanguageConfig, b: TheStageCore::ASRSessionLanguageConfig) -> Swift::Bool
+  public func encode(to encoder: any Swift::Encoder) throws
+  public init(from decoder: any Swift::Decoder) throws
+}
 @_hasMissingDesignatedInitializers final public class ASRStream : @unchecked Swift::Sendable {
+  final public let speaker_events: _Concurrency::AsyncStream<TheStageCore::ASRSpeakerEvent>
   final public let partials: _Concurrency::AsyncStream<Swift::String>
   final public let hypothesis: _Concurrency::AsyncStream<[TheStageCore::ASRWord]>
   final public let turns: _Concurrency::AsyncStream<TheStageCore::ASRTurn>
   final public let events: _Concurrency::AsyncStream<TheStageCore::ASRStreamEvent>
   @objc deinit
   final public func send(_ audio: [Swift::Float])
+  @available(*, deprecated, message: "Use send(_:)")
+  final public func append(_ audio: [Swift::Float]) async throws
+  @available(*, deprecated, message: "Use close(); it returns the final result")
+  final public func finish() async throws -> TheStageCore::ASRResult
+  final public func reset_speakers() async throws
+  final public func update_enrolled_speakers(_ profiles: [TheStageCore::SpeakerProfile]) async throws
   final public func send(_ input: TheStageCore::ASRStreamInput)
   final public func flush()
   final public func recv() async -> TheStageCore::ASRTurn?
@@ -1273,7 +1461,8 @@ public struct ASRStreamControl : Swift::Sendable, Swift::Equatable {
   public let session_id: Foundation::UUID
   public let sequence: Swift::Int
   public let after_sample: Swift::Int
-  public init(kind: TheStageCore::ASRStreamSignal, session_id: Foundation::UUID, sequence: Swift::Int, after_sample: Swift::Int)
+  public let submit: Swift::Bool
+  public init(kind: TheStageCore::ASRStreamSignal, session_id: Foundation::UUID, sequence: Swift::Int, after_sample: Swift::Int, submit: Swift::Bool = false)
   public static func == (a: TheStageCore::ASRStreamControl, b: TheStageCore::ASRStreamControl) -> Swift::Bool
 }
 public struct ASRStreamControlError : Swift::Error, Swift::CustomStringConvertible {
@@ -1285,6 +1474,8 @@ public struct ASRStreamControlError : Swift::Error, Swift::CustomStringConvertib
 public enum ASRStreamingAlgorithm : Swift::String, Swift::Sendable, Swift::Codable, Swift::CaseIterable {
   case NAIVE
   case THESTAGE_V5
+  case THESTAGE_V6
+  case THESTAGE_V5_5
   public static var live: [TheStageCore::ASRStreamingAlgorithm] {
     get
   }
@@ -1342,6 +1533,12 @@ public enum ASRTheStageV5Kind : TheStageCore::ASRStreamAlgorithmKind {
   }
   public static func unsupported_reason(_ capabilities: any TheStageCore::ASRCapabilities) -> Swift::String?
 }
+public enum ASRTheStageV6Kind : TheStageCore::ASRStreamAlgorithmKind {
+  public static var identifier: TheStageCore::ASRStreamingAlgorithm {
+    get
+  }
+  public static func unsupported_reason(_ capabilities: any TheStageCore::ASRCapabilities) -> Swift::String?
+}
 @_hasMissingDesignatedInitializers final public class WhisperPipeline : TheStageCore::ASRPipeline, @unchecked Swift::Sendable {
   final public var chunk_seconds: Swift::Int {
     get
@@ -1360,16 +1557,12 @@ public enum ASRTheStageV5Kind : TheStageCore::ASRStreamAlgorithmKind {
 }
 public enum WhisperTimestamps {
   public static func timestamp_begin(no_timestamps_token_id: Swift::Int) -> Swift::Int
-  public static func is_timestamp(_ id: Swift::Int, no_timestamps_token_id: Swift::Int) -> Swift::Bool
   public static func time(token_id: Swift::Int, no_timestamps_token_id: Swift::Int, precision: Swift::Double = 0.02) -> Swift::Double
   public static func segments(tokens: [Swift::Int], no_timestamps_token_id: Swift::Int, decode _: (Swift::Int) -> Swift::String?, time_offset: Swift::Double = 0) -> [(t0: Swift::Double, t1: Swift::Double, tokens: [Swift::Int])]
   public static func words(tokens: [Swift::Int], no_timestamps_token_id: Swift::Int, decode_text: ([Swift::Int]) -> Swift::String, time_offset: Swift::Double = 0, audio_end: Swift::Double? = nil) -> [TheStageCore::ASRWord]
   public static func dtw_query_count(_ generated: [Swift::Int], query_count: Swift::Int, special_below: Swift::Int = 50257, skip_prefill_lead: Swift::Bool = false) -> Swift::Int
   public static func dtw_query_indices(_ generated: [Swift::Int], query_count: Swift::Int, special_below: Swift::Int = 50257, skip_prefill_lead: Swift::Bool = false) -> [Swift::Int]
   public static func timestamp_range(no_timestamps_token_id: Swift::Int, count: Swift::Int = 1501) -> Swift::Range<Swift::Int>
-}
-@_hasMissingDesignatedInitializers public class QlipModel {
-  @objc deinit
 }
 @_hasMissingDesignatedInitializers open class BasePipeline : @unchecked Swift::Sendable {
   final public let engines_path: Swift::String
@@ -1427,6 +1620,9 @@ public struct InferenceStreamChunk : @unchecked Swift::Sendable {
   public var content: Swift::String?
   public var stop_reason: Swift::String?
   public var metrics: (any TheStageCore::InferenceMetrics)?
+}
+@_hasMissingDesignatedInitializers public class QlipModel {
+  @objc deinit
 }
 public typealias ModelComponentID = Swift::String
 public enum ModelComponentState : Swift::String, Swift::Codable, Swift::Sendable {
@@ -1496,6 +1692,103 @@ extension TheStageCore::ModelComponentControlling {
   @discardableResult
   public func offload_components() async throws -> [TheStageCore::ModelComponentStatus]
 }
+public struct DiarizationConfig : Swift::Sendable, Swift::Equatable {
+  public var threshold: Swift::Float?
+  public var min_duration_on_s: Swift::Double?
+  public var min_duration_off_s: Swift::Double?
+  public var pad_onset_s: Swift::Double?
+  public var pad_offset_s: Swift::Double?
+  public var mode: TheStageCore::DiarizationMode
+  public var latency: TheStageCore::DiarizationLatency?
+  public var commit_pause_s: Swift::Double?
+  public var max_pending_s: Swift::Double?
+  public var pre_roll_s: Swift::Double?
+  public var emit_partials: Swift::Bool
+  public var partial_interval_s: Swift::Double?
+  public var reset_after_silence_s: Swift::Double?
+  public init(threshold: Swift::Float? = nil, min_duration_on_s: Swift::Double? = nil, min_duration_off_s: Swift::Double? = nil, pad_onset_s: Swift::Double? = nil, pad_offset_s: Swift::Double? = nil, mode: TheStageCore::DiarizationMode = .ON_PAUSE, latency: TheStageCore::DiarizationLatency? = nil, commit_pause_s: Swift::Double? = nil, max_pending_s: Swift::Double? = nil, pre_roll_s: Swift::Double? = nil, emit_partials: Swift::Bool = false, partial_interval_s: Swift::Double? = nil, reset_after_silence_s: Swift::Double? = 600)
+  public static func == (a: TheStageCore::DiarizationConfig, b: TheStageCore::DiarizationConfig) -> Swift::Bool
+}
+public enum DiarizationMode : Swift::String, Swift::Codable, Swift::Sendable {
+  case ON_PAUSE, CONTINUOUS
+  public init?(rawValue: Swift::String)
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum DiarizationLatency : Swift::String, Swift::Codable, Swift::Sendable, Swift::CaseIterable {
+  case LOW, VERY_LOW, ULTRA_LOW
+  public init?(rawValue: Swift::String)
+  public typealias AllCases = [TheStageCore::DiarizationLatency]
+  public typealias RawValue = Swift::String
+  nonisolated public static var allCases: [TheStageCore::DiarizationLatency] {
+    get
+  }
+  public var rawValue: Swift::String {
+    get
+  }
+}
+@_hasMissingDesignatedInitializers public class DiarizationPipeline : TheStageCore::BasePipeline, @unchecked Swift::Sendable {
+  final public let capabilities: TheStageCore::DiarizationCapabilities
+  final public let sample_rate: Swift::Int
+  @objc deinit
+  final public func infer(audio: [Swift::Float], config: TheStageCore::DiarizationConfig = .init()) async throws -> TheStageCore::DiarizationResult
+  final public func open_stream(config: TheStageCore::DiarizationConfig = .init()) async throws -> TheStageCore::DiarizationStream
+}
+@_hasMissingDesignatedInitializers final public class DiarizationStream : @unchecked Swift::Sendable {
+  final public let updates: _Concurrency::AsyncThrowingStream<TheStageCore::DiarizationUpdate, any Swift::Error>
+  @objc deinit
+  final public func append(_ audio: [Swift::Float]) async throws
+  final public func flush(through_sample: Swift::Int64) async throws
+  final public func reset_speakers() async throws
+  final public func finish() async throws -> TheStageCore::DiarizationResult
+  final public func cancel()
+}
+public struct DiarizationCapabilities : Swift::Sendable, Swift::Equatable {
+  public let offline: Swift::Bool
+  public let streaming: Swift::Bool
+  public let pause_steps: Swift::Bool
+  public let previews: Swift::Bool
+  public let overlap: Swift::Bool
+  public let session_consistent_speakers: Swift::Bool
+  public let max_speaker_slots: Swift::Int
+  public let latencies: [TheStageCore::DiarizationLatency]
+  public init(offline: Swift::Bool, streaming: Swift::Bool, pause_steps: Swift::Bool, previews: Swift::Bool, overlap: Swift::Bool, session_consistent_speakers: Swift::Bool, max_speaker_slots: Swift::Int, latencies: [TheStageCore::DiarizationLatency])
+  public static func == (a: TheStageCore::DiarizationCapabilities, b: TheStageCore::DiarizationCapabilities) -> Swift::Bool
+}
+public struct SpeakerSegment : Swift::Sendable, Swift::Equatable {
+  public let start: Swift::Double
+  public let end: Swift::Double
+  public let speaker_id: Swift::String
+  public init(start: Swift::Double, end: Swift::Double, speaker_id: Swift::String)
+  public static func == (a: TheStageCore::SpeakerSegment, b: TheStageCore::SpeakerSegment) -> Swift::Bool
+}
+public struct DiarizationResult : Swift::Sendable, Swift::Equatable {
+  public let segments: [TheStageCore::SpeakerSegment]
+  public let audio_seconds: Swift::Double
+  public let sample_rate: Swift::Int
+  public let compute_seconds: Swift::Double
+  public init(segments: [TheStageCore::SpeakerSegment], audio_seconds: Swift::Double, sample_rate: Swift::Int, compute_seconds: Swift::Double)
+  public static func == (a: TheStageCore::DiarizationResult, b: TheStageCore::DiarizationResult) -> Swift::Bool
+}
+public struct DiarizationUpdate : Swift::Sendable, Swift::Equatable {
+  public let session_id: Foundation::UUID
+  public let sequence: Swift::Int
+  public let epoch: Swift::Int
+  public let reset_at_sample: Swift::Int64?
+  public let processed_through_sample: Swift::Int64
+  public let committed_through_sample: Swift::Int64
+  public let committed_segments: [TheStageCore::SpeakerSegment]
+  public let provisional_range: Swift::Range<Swift::Int64>?
+  public let provisional_segments: [TheStageCore::SpeakerSegment]
+  public init(session_id: Foundation::UUID, sequence: Swift::Int, epoch: Swift::Int, reset_at_sample: Swift::Int64? = nil, processed_through_sample: Swift::Int64, committed_through_sample: Swift::Int64, committed_segments: [TheStageCore::SpeakerSegment], provisional_range: Swift::Range<Swift::Int64>? = nil, provisional_segments: [TheStageCore::SpeakerSegment] = [])
+  public static func == (a: TheStageCore::DiarizationUpdate, b: TheStageCore::DiarizationUpdate) -> Swift::Bool
+}
+@_hasMissingDesignatedInitializers final public class NemotronDiarizationPipeline : TheStageCore::DiarizationPipeline, @unchecked Swift::Sendable {
+  public init(engines_path: Swift::String, devices: [Swift::String : Swift::String]? = nil, revision: Swift::String? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws
+  @objc deinit
+}
 public struct EmbeddingSpec {
   public static let kind: Swift::String
   public static let opener: Swift::String
@@ -1529,6 +1822,82 @@ public struct EmbeddingSpec {
   @objc deinit
   final public func infer(token_ids: [Swift::Int]) -> [Swift::Float]
 }
+@_hasMissingDesignatedInitializers final public class EmbeddingPipeline : TheStageCore::BasePipeline, @unchecked Swift::Sendable {
+  final public let matryoshka_dims: [Swift::Int]
+  final public let default_dimension: Swift::Int
+  final public let max_tokens: Swift::Int
+  final public let modalities: Swift::Set<TheStageCore::EmbeddingModality>
+  public init(engines_path: Swift::String, devices: [Swift::String : Swift::String]? = nil, revision: Swift::String? = nil, modalities: Swift::Set<TheStageCore::EmbeddingModality>? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws
+  @objc deinit
+  final public func infer(text: Swift::String, task: TheStageCore::EmbeddingTask? = nil, dimension: Swift::Int? = nil) async throws -> TheStageCore::EmbeddingResult
+  final public func infer(image: CoreGraphics::CGImage, task: TheStageCore::EmbeddingTask? = nil, dimension: Swift::Int? = nil) async throws -> TheStageCore::EmbeddingResult
+  final public func infer(audio: [Swift::Float], sample_rate: Swift::Int, task: TheStageCore::EmbeddingTask? = nil, dimension: Swift::Int? = nil) async throws -> TheStageCore::EmbeddingResult
+  final public func infer(video: Foundation::URL, max_frames: Swift::Int? = nil, task: TheStageCore::EmbeddingTask? = nil, dimension: Swift::Int? = nil) async throws -> TheStageCore::EmbeddingResult
+  final public func infer(inputs: [TheStageCore::EmbeddingInput], task: TheStageCore::EmbeddingTask? = nil, dimension: Swift::Int? = nil) async throws -> TheStageCore::EmbeddingResult
+  public static func similarity(_ a: TheStageCore::EmbeddingResult, _ b: TheStageCore::EmbeddingResult) throws -> Swift::Float
+}
+public enum EmbeddingError : Swift::Error, Swift::Equatable, Foundation::LocalizedError {
+  case EMPTY_INPUT
+  case TOO_LONG(tokens: Swift::Int, limit: Swift::Int)
+  case INVALID_MEDIA(Swift::String)
+  case MODEL_FAILED(Swift::String)
+  case UNSUPPORTED(Swift::String)
+  case INCOMPATIBLE(Swift::String)
+  public var errorDescription: Swift::String? {
+    get
+  }
+  public static func == (a: TheStageCore::EmbeddingError, b: TheStageCore::EmbeddingError) -> Swift::Bool
+}
+public enum EmbeddingModality : Swift::String, Swift::Sendable, Swift::CaseIterable {
+  case TEXT
+  case IMAGE
+  case VIDEO
+  case AUDIO
+  public init?(rawValue: Swift::String)
+  public typealias AllCases = [TheStageCore::EmbeddingModality]
+  public typealias RawValue = Swift::String
+  nonisolated public static var allCases: [TheStageCore::EmbeddingModality] {
+    get
+  }
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum EmbeddingTask : Swift::String, Swift::Sendable, Swift::CaseIterable {
+  case QUERY
+  case DOCUMENT
+  case CLASSIFICATION
+  case CLUSTERING
+  case CODE_RETRIEVAL
+  case SENTENCE_SIMILARITY
+  case QUESTION_ANSWERING
+  case FACT_CHECKING
+  public init?(rawValue: Swift::String)
+  public typealias AllCases = [TheStageCore::EmbeddingTask]
+  public typealias RawValue = Swift::String
+  nonisolated public static var allCases: [TheStageCore::EmbeddingTask] {
+    get
+  }
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum EmbeddingInput : @unchecked Swift::Sendable {
+  case text(Swift::String)
+  case image(CoreGraphics::CGImage)
+  case audio(samples: [Swift::Float], sample_rate: Swift::Int)
+  case video(url: Foundation::URL, max_frames: Swift::Int?)
+  case video_frames([CoreGraphics::CGImage])
+}
+public struct EmbeddingResult : Swift::Sendable, Swift::Equatable {
+  public let embedding: [Swift::Float]
+  public let dimension: Swift::Int
+  public let embedding_space_id: Swift::String
+  public let token_count: Swift::Int
+  public let truncated: Swift::Bool
+  public init(embedding: [Swift::Float], dimension: Swift::Int, embedding_space_id: Swift::String, token_count: Swift::Int, truncated: Swift::Bool)
+  public static func == (a: TheStageCore::EmbeddingResult, b: TheStageCore::EmbeddingResult) -> Swift::Bool
+}
 public enum ChatTemplate : Swift::String, Swift::Codable, Swift::Sendable, Swift::CaseIterable {
   case raw
   case qwen2
@@ -1546,7 +1915,6 @@ public enum ChatTemplate : Swift::String, Swift::Codable, Swift::Sendable, Swift
   public var default_system_prompt: Swift::String {
     get
   }
-  public static func `default`(forArchitecture architecture: Swift::String) -> TheStageCore::ChatTemplate?
   public init?(rawValue: Swift::String)
   public typealias AllCases = [TheStageCore::ChatTemplate]
   public typealias RawValue = Swift::String
@@ -1602,28 +1970,64 @@ public struct LLMHostConfig : Swift::Codable, Swift::Sendable {
   public func encode(to encoder: any Swift::Encoder) throws
   public init(from decoder: any Swift::Decoder) throws
 }
-@available(*, deprecated, renamed: "ToolCallStyle")
-public typealias LLMToolCallStyle = TheStageCore::ToolCallStyle
-@available(*, deprecated, renamed: "ToolCallingFormat")
-public typealias LLMToolCallingFormat = TheStageCore::ToolCallingFormat
-@available(*, deprecated, renamed: "ToolCallingTags")
-public typealias LLMToolCallingTags = TheStageCore::ToolCallingTags
-@available(*, deprecated, renamed: "ToolCallingSpec")
-public typealias LLMToolCallingSpec = TheStageCore::ToolCallingSpec
-@available(*, deprecated, renamed: "ToolDefinition")
-public typealias LLMToolDefinition = TheStageCore::ToolDefinition
-@available(*, deprecated, renamed: "ToolCall")
-public typealias LLMToolCall = TheStageCore::ToolCall
-@available(*, deprecated, renamed: "ParsedAssistantTurn")
-public typealias LLMParsedAssistantTurn = TheStageCore::ParsedAssistantTurn
-@available(*, deprecated, renamed: "ToolCallingError")
-public typealias LLMToolCallingError = TheStageCore::ToolCallingError
-@available(*, deprecated, renamed: "ToolCalling")
-public typealias LLMToolCalling = TheStageCore::ToolCalling
-@available(*, deprecated, renamed: "ToolExecutor")
-public typealias LLMToolExecutor = TheStageCore::ToolExecutor
-@available(*, deprecated, renamed: "MapToolExecutor")
-public typealias LLMMapToolExecutor = TheStageCore::MapToolExecutor
+public struct LLMResult : TheStageCore::InferenceResult, Swift::Sendable {
+  public let text: Swift::String
+  public let prompt_tokens: Swift::Int
+  public let generated_tokens: Swift::Int
+  public let prefill_seconds: Swift::Double
+  public let decode_seconds: Swift::Double
+  public let decode_step_count: Swift::Int
+  public let decode_forward_seconds: Swift::Double
+  public let decode_predict_count: Swift::Int
+  public let stop_reason: Swift::String
+  public let encode_seconds: Swift::Double?
+  public let tool_calls: [TheStageCore::ToolCall]
+  public let thinking: Swift::String?
+  public let final_text: Swift::String
+  public init(text: Swift::String, prompt_tokens: Swift::Int, generated_tokens: Swift::Int, prefill_seconds: Swift::Double, decode_seconds: Swift::Double, decode_step_count: Swift::Int = 0, decode_forward_seconds: Swift::Double = 0, decode_predict_count: Swift::Int = 0, stop_reason: Swift::String, tool_calls: [TheStageCore::ToolCall] = [], thinking: Swift::String? = nil, final_text: Swift::String? = nil, encode_seconds: Swift::Double? = nil)
+  public var tokens_per_second: Swift::Double {
+    get
+  }
+  public var predict_ms_per_step: Swift::Double {
+    get
+  }
+  public var predict_ms_per_call: Swift::Double {
+    get
+  }
+  public var host_ms_per_step: Swift::Double {
+    get
+  }
+  public var time_to_first_token: Swift::Double {
+    get
+  }
+  public var total_seconds: Swift::Double {
+    get
+  }
+  public var metrics: TheStageCore::LLMResult.TheStageCore::Metrics {
+    get
+  }
+  public struct Metrics : TheStageCore::InferenceMetrics, Swift::Sendable {
+    public let total_seconds: Swift::Double
+    public let prefill_seconds: Swift::Double
+    public let decode_seconds: Swift::Double
+    public let encode_seconds: Swift::Double
+    public let prompt_tokens: Swift::Int
+    public let generated_tokens: Swift::Int
+    public let tokens_per_second: Swift::Double
+    public init(total_seconds: Swift::Double = 0, prefill_seconds: Swift::Double = 0, decode_seconds: Swift::Double = 0, encode_seconds: Swift::Double = 0, prompt_tokens: Swift::Int = 0, generated_tokens: Swift::Int = 0, tokens_per_second: Swift::Double = 0)
+  }
+}
+public struct LLMStreamChunk : Swift::Sendable {
+  public let text: Swift::String
+  public let token_index: Swift::Int
+  public let is_final: Swift::Bool
+  public let time_to_first_token: Swift::Double
+  public let prompt_tokens: Swift::Int?
+  public let generated_tokens: Swift::Int?
+  public let tokens_per_second: Swift::Double?
+  public let total_seconds: Swift::Double?
+  public let stop_reason: Swift::String?
+}
 public enum DefaultTools {
   public static let voice_system_prompt: Swift::String
   public static var web: [TheStageCore::Tool] {
@@ -1677,9 +2081,10 @@ public enum DefaultTools {
   public static var get_battery: TheStageCore::Tool {
     get
   }
+  nonisolated(unsafe) public static var keenable_api_key: Swift::String?
+  nonisolated(unsafe) public static var keenable_app_title: Swift::String
+  nonisolated(unsafe) public static var keenable_mode: Swift::String
 }
-@available(*, deprecated, renamed: "DefaultTools")
-public typealias DemoTools = TheStageCore::DefaultTools
 extension TheStageCore::DefaultTools {
   public static var web_mock: [TheStageCore::Tool] {
     get
@@ -1750,17 +2155,17 @@ public enum ToolCalling {
   public static func render_system(tools: [TheStageCore::ToolDefinition], base_system: Swift::String = "You are a helpful assistant.", format: TheStageCore::ToolCallingFormat) -> Swift::String
   public static func parse(_ text: Swift::String, spec: TheStageCore::ToolCallingSpec, known_tool_names: Swift::Set<Swift::String>? = nil) -> TheStageCore::ParsedAssistantTurn
   public static func parse(_ text: Swift::String, format: TheStageCore::ToolCallingFormat, known_tool_names: Swift::Set<Swift::String>? = nil) -> TheStageCore::ParsedAssistantTurn
-  public static func render_tool_response(_ content: Swift::String, spec: TheStageCore::ToolCallingSpec) -> Swift::String
+  public static func render_tool_response(_ content: Swift::String, name: Swift::String? = nil, spec: TheStageCore::ToolCallingSpec) -> Swift::String
   public static func render_tool_response(_ content: Swift::String, format: TheStageCore::ToolCallingFormat) -> Swift::String
-  public static func tool_message(_ content: Swift::String, spec: TheStageCore::ToolCallingSpec) -> TheStageCore::ChatTemplate.TheStageCore::Message
+  public static func tool_message(_ content: Swift::String, name: Swift::String? = nil, spec: TheStageCore::ToolCallingSpec) -> TheStageCore::ChatTemplate.TheStageCore::Message
   public static func tool_message(_ content: Swift::String, format: TheStageCore::ToolCallingFormat) -> TheStageCore::ChatTemplate.TheStageCore::Message
-  public static func resolve_capability(supports: Swift::Bool?, format_raw: Swift::String?, chat_template: TheStageCore::ChatTemplate) -> (supports: Swift::Bool, format: TheStageCore::ToolCallingFormat?)
 }
 public enum ToolCallStyle : Swift::String, Swift::Codable, Swift::Sendable, Swift::CaseIterable {
   case qwen_xml
   case python
   case json
   case gemma_tool_code
+  case gemma4_native
   public init?(rawValue: Swift::String)
   public typealias AllCases = [TheStageCore::ToolCallStyle]
   public typealias RawValue = Swift::String
@@ -1775,6 +2180,7 @@ public enum ToolCallingFormat : Swift::String, Swift::Codable, Swift::Sendable, 
   case qwen3
   case lfm2
   case gemma3
+  case gemma4
   public init?(rawValue: Swift::String)
   public typealias AllCases = [TheStageCore::ToolCallingFormat]
   public typealias RawValue = Swift::String
@@ -1818,64 +2224,6 @@ public struct MapToolExecutor : TheStageCore::ToolExecutor, Swift::Sendable {
   public init(handlers: [Swift::String : TheStageCore::MapToolExecutor.TheStageCore::Handler], on_unknown: TheStageCore::MapToolExecutor.TheStageCore::Handler? = nil)
   public init(tools: [TheStageCore::Tool], on_unknown: TheStageCore::MapToolExecutor.TheStageCore::Handler? = nil)
   public func execute(_ call: TheStageCore::ToolCall) async throws -> Swift::String
-}
-public struct LLMResult : TheStageCore::InferenceResult, Swift::Sendable {
-  public let text: Swift::String
-  public let prompt_tokens: Swift::Int
-  public let generated_tokens: Swift::Int
-  public let prefill_seconds: Swift::Double
-  public let decode_seconds: Swift::Double
-  public let decode_step_count: Swift::Int
-  public let decode_forward_seconds: Swift::Double
-  public let decode_predict_count: Swift::Int
-  public let stop_reason: Swift::String
-  public let encode_seconds: Swift::Double?
-  public let tool_calls: [TheStageCore::ToolCall]
-  public let thinking: Swift::String?
-  public let final_text: Swift::String
-  public init(text: Swift::String, prompt_tokens: Swift::Int, generated_tokens: Swift::Int, prefill_seconds: Swift::Double, decode_seconds: Swift::Double, decode_step_count: Swift::Int = 0, decode_forward_seconds: Swift::Double = 0, decode_predict_count: Swift::Int = 0, stop_reason: Swift::String, tool_calls: [TheStageCore::ToolCall] = [], thinking: Swift::String? = nil, final_text: Swift::String? = nil, encode_seconds: Swift::Double? = nil)
-  public var tokens_per_second: Swift::Double {
-    get
-  }
-  public var predict_ms_per_step: Swift::Double {
-    get
-  }
-  public var predict_ms_per_call: Swift::Double {
-    get
-  }
-  public var host_ms_per_step: Swift::Double {
-    get
-  }
-  public var time_to_first_token: Swift::Double {
-    get
-  }
-  public var total_seconds: Swift::Double {
-    get
-  }
-  public var metrics: TheStageCore::LLMResult.TheStageCore::Metrics {
-    get
-  }
-  public struct Metrics : TheStageCore::InferenceMetrics, Swift::Sendable {
-    public let total_seconds: Swift::Double
-    public let prefill_seconds: Swift::Double
-    public let decode_seconds: Swift::Double
-    public let encode_seconds: Swift::Double
-    public let prompt_tokens: Swift::Int
-    public let generated_tokens: Swift::Int
-    public let tokens_per_second: Swift::Double
-    public init(total_seconds: Swift::Double = 0, prefill_seconds: Swift::Double = 0, decode_seconds: Swift::Double = 0, encode_seconds: Swift::Double = 0, prompt_tokens: Swift::Int = 0, generated_tokens: Swift::Int = 0, tokens_per_second: Swift::Double = 0)
-  }
-}
-public struct LLMStreamChunk : Swift::Sendable {
-  public let text: Swift::String
-  public let token_index: Swift::Int
-  public let is_final: Swift::Bool
-  public let time_to_first_token: Swift::Double
-  public let prompt_tokens: Swift::Int?
-  public let generated_tokens: Swift::Int?
-  public let tokens_per_second: Swift::Double?
-  public let total_seconds: Swift::Double?
-  public let stop_reason: Swift::String?
 }
 @_hasMissingDesignatedInitializers final public class TSLLM : TheStageCore::BasePipeline {
   final public let chat_template: TheStageCore::ChatTemplate
@@ -1949,110 +2297,6 @@ extension TheStageCore::TSLLM {
     get
   }
 }
-public enum DurabilityFlags {
-  public static var degradedStart: Swift::Bool {
-    get
-    set
-  }
-  public static var admissionEnforce: Swift::Bool {
-    get
-    set
-  }
-  public static var zipReclaim: Swift::Bool {
-    get
-    set
-  }
-  public static var verifyEnforce: Swift::Bool {
-    get
-    set
-  }
-  public static var aneTicketRestore: Swift::Bool {
-    get
-    set
-  }
-  public static var viewResidency: Swift::Bool {
-    get
-  }
-  public static var viewResidencyMinMB: Swift::Int {
-    get
-  }
-  public static var wiredSettle: Swift::Bool {
-    get
-  }
-  public static var wiredSettleSeconds: Swift::Double {
-    get
-  }
-  public static var milScrub: Swift::Bool {
-    get
-    set
-  }
-}
-public enum FieldCounters {
-  public enum Key : Swift::String, Swift::CaseIterable, Swift::Sendable {
-    case recompiles
-    case cacheDeletions
-    case selfAborts
-    case allocationDegrades
-    case degradedStarts
-    case repairEscalations
-    case admissionRefusals
-    case admissionReports
-    case aneStubsReaped
-    case residentPromoted
-    case residentReclaimed
-    case ticketSnapshotted
-    case ticketRestored
-    public init?(rawValue: Swift::String)
-    public typealias AllCases = [TheStageCore::FieldCounters.TheStageCore::Key]
-    public typealias RawValue = Swift::String
-    nonisolated public static var allCases: [TheStageCore::FieldCounters.TheStageCore::Key] {
-      get
-    }
-    public var rawValue: Swift::String {
-      get
-    }
-  }
-  public static func increment(_ key: TheStageCore::FieldCounters.TheStageCore::Key, by n: Swift::Int = 1)
-  public static func value(_ key: TheStageCore::FieldCounters.TheStageCore::Key) -> Swift::Int
-  public static func snapshot() -> [Swift::String : Swift::Int]
-  public static func resetForTests()
-}
-public enum FailureClassification : Swift::String, Swift::Sendable {
-  case transient
-  case recoverable
-  case durable
-  case unknown
-  public init?(rawValue: Swift::String)
-  public typealias RawValue = Swift::String
-  public var rawValue: Swift::String {
-    get
-  }
-}
-public enum ModelLoadPhase : Swift::String, Swift::Sendable {
-  case download
-  case extract
-  case decrypt
-  case compile
-  case specialize
-  case open
-  public init?(rawValue: Swift::String)
-  public typealias RawValue = Swift::String
-  public var rawValue: Swift::String {
-    get
-  }
-}
-public struct ModelLoadFailure : Swift::Error, Foundation::LocalizedError, Swift::Sendable {
-  public let handle: Swift::String
-  public let phase: TheStageCore::ModelLoadPhase
-  public let classification: TheStageCore::FailureClassification
-  public let redactedCause: Swift::String
-  public init(handle: Swift::String, phase: TheStageCore::ModelLoadPhase, classification: TheStageCore::FailureClassification, redactedCause: Swift::String)
-  public var errorDescription: Swift::String? {
-    get
-  }
-  public func flutterDetails() -> [Swift::String : Swift::String]
-  public static func flutterDetails(for error: any Swift::Error) -> [Swift::String : Swift::String]?
-}
 public enum RepairAction : Swift::String, Swift::Sendable {
   case report
   case retryOnce
@@ -2089,6 +2333,80 @@ public enum CacheRepair {
   public static func repair(key: Swift::String) -> Swift::Bool
   public static func repairAll()
 }
+public enum DurabilityFlags {
+  public static var degradedStart: Swift::Bool {
+    get
+    set
+  }
+  public static var admissionEnforce: Swift::Bool {
+    get
+    set
+  }
+  public static var zipReclaim: Swift::Bool {
+    get
+    set
+  }
+  public static var verifyEnforce: Swift::Bool {
+    get
+    set
+  }
+  public static var aneTicketRestore: Swift::Bool {
+    get
+    set
+  }
+  public static var viewResidency: Swift::Bool {
+    get
+  }
+  public static var viewResidencyMinMB: Swift::Int {
+    get
+  }
+  public static var ladderResidency: Swift::Bool {
+    get
+  }
+  public static var ladderWarmup: Swift::Bool {
+    get
+  }
+  public static var wiredSettle: Swift::Bool {
+    get
+  }
+  public static var wiredSettleSeconds: Swift::Double {
+    get
+  }
+  public static var milScrub: Swift::Bool {
+    get
+    set
+  }
+}
+public enum FieldCounters {
+  public enum Key : Swift::String, Swift::CaseIterable, Swift::Sendable {
+    case recompiles
+    case selfAborts
+    case cacheDeletions
+    case allocationDegrades
+    case degradedStarts
+    case repairEscalations
+    case admissionRefusals
+    case admissionReports
+    case aneStubsReaped
+    case residentPromoted
+    case residentReclaimed
+    case ticketSnapshotted
+    case ticketRestored
+    public init?(rawValue: Swift::String)
+    public typealias AllCases = [TheStageCore::FieldCounters.TheStageCore::Key]
+    public typealias RawValue = Swift::String
+    nonisolated public static var allCases: [TheStageCore::FieldCounters.TheStageCore::Key] {
+      get
+    }
+    public var rawValue: Swift::String {
+      get
+    }
+  }
+  public static func increment(_ key: TheStageCore::FieldCounters.TheStageCore::Key, by n: Swift::Int = 1)
+  public static func value(_ key: TheStageCore::FieldCounters.TheStageCore::Key) -> Swift::Int
+  public static func snapshot() -> [Swift::String : Swift::Int]
+  public static func resetForTests()
+}
 public struct LoadProgress : Swift::Sendable, Swift::Equatable {
   public enum Phase : Swift::String, Swift::Sendable, Swift::Equatable {
     case downloading
@@ -2113,6 +2431,42 @@ public struct LoadProgress : Swift::Sendable, Swift::Equatable {
   public static func == (a: TheStageCore::LoadProgress, b: TheStageCore::LoadProgress) -> Swift::Bool
 }
 public typealias LoadProgressHandler = @Sendable (TheStageCore::LoadProgress) -> Swift::Void
+public enum FailureClassification : Swift::String, Swift::Sendable {
+  case transient
+  case recoverable
+  case durable
+  case unknown
+  public init?(rawValue: Swift::String)
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum ModelLoadPhase : Swift::String, Swift::Sendable {
+  case download
+  case extract
+  case decrypt
+  case compile
+  case specialize
+  case open
+  public init?(rawValue: Swift::String)
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public struct ModelLoadFailure : Swift::Error, Foundation::LocalizedError, Swift::Sendable {
+  public let handle: Swift::String
+  public let phase: TheStageCore::ModelLoadPhase
+  public let classification: TheStageCore::FailureClassification
+  public let redactedCause: Swift::String
+  public init(handle: Swift::String, phase: TheStageCore::ModelLoadPhase, classification: TheStageCore::FailureClassification, redactedCause: Swift::String)
+  public var errorDescription: Swift::String? {
+    get
+  }
+  public func flutterDetails() -> [Swift::String : Swift::String]
+  public static func flutterDetails(for error: any Swift::Error) -> [Swift::String : Swift::String]?
+}
 public enum TSSpecializationHealth : Swift::Sendable, Swift::Equatable {
   case warm
   case purged(restored: Swift::Int)
@@ -2128,6 +2482,34 @@ extension TheStageCore::TheStageAI {
   @_Concurrency::MainActor final public func snapshot_specialization()
   @_Concurrency::MainActor final public func specialization_tickets() -> (saved: Swift::Int, live: Swift::Int)
   @_Concurrency::MainActor final public func respecialize_if_needed(_ requests: [TheStageCore::TSModelStartRequest]) async throws -> TheStageCore::TSSpecializationHealth
+}
+public struct ModelDeletion : Swift::Sendable, Swift::Equatable {
+  public let freed_bytes: Swift::Int64
+  public let revisions: [Swift::String]
+  public static func == (a: TheStageCore::ModelDeletion, b: TheStageCore::ModelDeletion) -> Swift::Bool
+}
+public struct ModelInUse : Swift::Error, Swift::Equatable, Swift::Sendable {
+  public let engines_path: Swift::String
+  public let model_names: [Swift::String]
+  public static func == (a: TheStageCore::ModelInUse, b: TheStageCore::ModelInUse) -> Swift::Bool
+}
+extension TheStageCore::ModelInUse : Foundation::LocalizedError {
+  public var errorDescription: Swift::String? {
+    get
+  }
+}
+public struct ModelBusy : Swift::Error, Swift::Equatable, Swift::Sendable {
+  public let engines_path: Swift::String
+  public static func == (a: TheStageCore::ModelBusy, b: TheStageCore::ModelBusy) -> Swift::Bool
+}
+extension TheStageCore::ModelBusy : Foundation::LocalizedError {
+  public var errorDescription: Swift::String? {
+    get
+  }
+}
+extension TheStageCore::TheStageAI {
+  @discardableResult
+  @_Concurrency::MainActor final public func delete_model(engines_path: Swift::String, revision: Swift::String? = nil) async throws -> TheStageCore::ModelDeletion
 }
 public enum ModelEvictionPriority : Swift::Int, Swift::Codable, Swift::Sendable, Swift::Comparable {
   case LOW
@@ -2166,8 +2548,8 @@ final public class ModelManager : @unchecked Swift::Sendable {
   @objc deinit
   final public func validateToken() async throws
   final public func prefetch_engines(repo_id: Swift::String, model_type: Swift::String? = nil, revision: Swift::String? = nil, config: [Swift::String : Any]? = nil, on_progress: (@Sendable (Swift::Double) -> Swift::Void)? = nil) async throws -> Swift::String
-  final public func start(model_type: Swift::String? = nil, model_name: Swift::String, engines_path: Swift::String, device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, config: [Swift::String : Any]? = nil, phonemizer: (any TheStageCore::Phonemizer)? = nil, normaliser: (any TheStageCore::TextNormaliser)? = nil, revision: Swift::String? = nil, eviction_priority: TheStageCore::ModelEvictionPriority = .NORMAL, on_progress: (@Sendable (Swift::Double) -> Swift::Void)? = nil) async throws -> TheStageCore::ModelStatus
-  final public func stop(model_name: Swift::String) throws -> TheStageCore::ModelStatus
+  final public func start(model_type: Swift::String? = nil, model_name: Swift::String, engines_path: Swift::String, device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, config: [Swift::String : Any]? = nil, phonemizer: (any TheStageCore::Phonemizer)? = nil, normaliser: (any TheStageCore::TextNormaliser)? = nil, revision: Swift::String? = nil, eviction_priority: TheStageCore::ModelEvictionPriority = .NORMAL, owner: Swift::String? = nil, on_progress: (@Sendable (Swift::Double) -> Swift::Void)? = nil) async throws -> TheStageCore::ModelStatus
+  final public func stop(model_name: Swift::String, force: Swift::Bool = false, owner: Swift::String? = nil) throws -> TheStageCore::ModelStatus
   final public func infer(model_name: Swift::String, input_json: [Swift::String : Any]) throws -> [[Swift::String : Any]]
   final public func infer_stream(model_name: Swift::String, input_json: [Swift::String : Any]) throws -> _Concurrency::AsyncStream<TheStageCore::InferenceStreamChunk>
   @available(*, deprecated, message: "Use the pipeline from start_typed(TSTTSPipeline.self, ...)")
@@ -2205,14 +2587,15 @@ extension TheStageCore::TSModelStartRequest : @unchecked Swift::Sendable {
   @_Concurrency::MainActor final public func initialize(api_token: Swift::String) async throws
   @objc deinit
   @_Concurrency::MainActor public static func handleBackgroundURLSession(completionHandler: @escaping () -> Swift::Void)
-  @_Concurrency::MainActor final public func start_model(model_name: Swift::String, engines_path: Swift::String, model_type: Swift::String? = nil, device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, config: [Swift::String : Any]? = nil, phonemizer: (any TheStageCore::Phonemizer)? = nil, normaliser: (any TheStageCore::TextNormaliser)? = nil, revision: Swift::String? = nil, eviction_priority: TheStageCore::ModelEvictionPriority = .NORMAL, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws -> TheStageCore::ModelStatus
-  @_Concurrency::MainActor final public func start_model<P>(_ type: P.Type, model_name: Swift::String, engines_path: Swift::String, device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, config: [Swift::String : Any]? = nil, revision: Swift::String? = nil, model_type: Swift::String? = nil, eviction_priority: TheStageCore::ModelEvictionPriority = .NORMAL, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws -> P
+  @_Concurrency::MainActor final public func start_model(model_name: Swift::String, engines_path: Swift::String, model_type: Swift::String? = nil, device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, config: [Swift::String : Any]? = nil, phonemizer: (any TheStageCore::Phonemizer)? = nil, normaliser: (any TheStageCore::TextNormaliser)? = nil, revision: Swift::String? = nil, eviction_priority: TheStageCore::ModelEvictionPriority = .NORMAL, owner: Swift::String? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws -> TheStageCore::ModelStatus
+  @_Concurrency::MainActor final public func start_model<P>(_ type: P.Type, model_name: Swift::String, engines_path: Swift::String, device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, config: [Swift::String : Any]? = nil, revision: Swift::String? = nil, model_type: Swift::String? = nil, eviction_priority: TheStageCore::ModelEvictionPriority = .NORMAL, owner: Swift::String? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws -> P
   @_Concurrency::MainActor final public func component_owner(model_name: Swift::String) throws -> any TheStageCore::ModelComponentControlling
   @_Concurrency::MainActor final public func adopt<P>(_ pipeline: P, model_name: Swift::String) throws -> P where P : TheStageCore::BasePipeline
   @_Concurrency::MainActor final public func residency_report() -> [TheStageCore::ModelResidencyEntry]
   @_Concurrency::MainActor final public func load_report() -> TheStageCore::LoadReport
   @_Concurrency::MainActor final public func prefetch_engines(repo_id: Swift::String, model_type: Swift::String? = nil, revision: Swift::String? = nil, config: [Swift::String : Any]? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws -> Swift::String
-  @_Concurrency::MainActor final public func stop_model(model_name: Swift::String) throws -> TheStageCore::ModelStatus
+  nonisolated public static func is_pack_resident(engines_path: Swift::String, revision: Swift::String? = nil) -> Swift::Bool
+  @_Concurrency::MainActor final public func stop_model(model_name: Swift::String, force: Swift::Bool = false, owner: Swift::String? = nil) throws -> TheStageCore::ModelStatus
   @available(*, deprecated, message: "Use component_owner(model_name:).components")
   @_Concurrency::MainActor final public func list_components(model_name: Swift::String) throws -> [TheStageCore::ModelComponentStatus]
   @available(*, deprecated, message: "Use component_owner(model_name:).load_components")
@@ -2350,10 +2733,6 @@ final public class CoreMLSampler : TheStageCore::Seq2SeqTokenSampler, @unchecked
   final public func sample(logits: TheStageCore::Seq2SeqLogits) -> Swift::Int
   @objc deinit
 }
-@available(*, deprecated, renamed: "CoreMLSampler")
-public typealias CoreMLTopKSampler = TheStageCore::CoreMLSampler
-@available(*, deprecated, renamed: "CoreMLSampler")
-public typealias WhisperTopKSampler = TheStageCore::CoreMLSampler
 public struct SamplingParams : Swift::Sendable, Swift::Equatable {
   public var temperature: Swift::Float
   public var top_k: Swift::Int
@@ -2495,9 +2874,6 @@ extension TheStageCore::Seq2SeqDecoding {
     get
   }
 }
-extension TheStageCore::Seq2SeqDecoding {
-  public func validate_execution(_ config: TheStageCore::GenerateConfig) throws
-}
 public enum Seq2SeqBackend : Swift::String, Swift::Codable, Swift::Sendable {
   case mlx
   case coreml
@@ -2511,6 +2887,7 @@ public enum Seq2SeqKVCacheKind : Swift::String, Swift::Codable, Swift::Sendable 
   case external
   case internalState
   case externalV2
+  case blockState
   public init(from decoder: any Swift::Decoder) throws
   public init?(rawValue: Swift::String)
   public typealias RawValue = Swift::String
@@ -2522,6 +2899,7 @@ public struct ExternalDecoderParams : Swift::Codable, Swift::Sendable {
   public var model_path: Swift::String
   public var max_cache_len: Swift::Int
   public var prefill_shapes: [Swift::Int]
+  public var context_ladder: [Swift::Int]?
   public var head_dim: Swift::Int
   public var hidden_size: Swift::Int
   public var max_position_embeddings: Swift::Int
@@ -2636,6 +3014,141 @@ public struct AdaptiveDraftOptions : Swift::Codable, Swift::Equatable, Swift::Se
   public static func == (a: TheStageCore::AdaptiveDraftOptions, b: TheStageCore::AdaptiveDraftOptions) -> Swift::Bool
   public func encode(to encoder: any Swift::Encoder) throws
   public init(from decoder: any Swift::Decoder) throws
+}
+public struct SpeakerIDConfig : Swift::Sendable, Swift::Equatable {
+  public var enrolled: [TheStageCore::SpeakerProfile]
+  public var identity_threshold: Swift::Double
+  public var identity_neg_threshold: Swift::Double
+  public var identity_margin: Swift::Double
+  public var min_identity_speech_s: Swift::Double
+  public var min_embedding_speech_s: Swift::Double
+  public var embedding_hop_s: Swift::Double
+  public var update_speech_s: Swift::Double
+  public var rejoin_threshold: Swift::Double
+  public var drift_threshold: Swift::Double
+  public var return_embeddings: Swift::Bool
+  public var voice_change: TheStageCore::SpeakerVoiceChangeConfig?
+  public var split_rejoin_s: Swift::Double?
+  public var label_reseed_s: Swift::Double?
+  public var turn_identity: Swift::Bool
+  public var long_turn_merge: TheStageCore::SpeakerLongTurnMergeConfig?
+  public var evidence: TheStageCore::SpeakerEvidenceConfig?
+  public init(enrolled: [TheStageCore::SpeakerProfile] = [], identity_threshold: Swift::Double = 0.55, identity_neg_threshold: Swift::Double = 0.35, identity_margin: Swift::Double = 0.10, min_identity_speech_s: Swift::Double = 2.0, min_embedding_speech_s: Swift::Double = 0.25, embedding_hop_s: Swift::Double = 1.0, update_speech_s: Swift::Double = 2.0, rejoin_threshold: Swift::Double = 0.45, drift_threshold: Swift::Double = 0.25, return_embeddings: Swift::Bool = true, voice_change: TheStageCore::SpeakerVoiceChangeConfig? = nil, split_rejoin_s: Swift::Double? = nil, label_reseed_s: Swift::Double? = nil, turn_identity: Swift::Bool = true, long_turn_merge: TheStageCore::SpeakerLongTurnMergeConfig? = nil, evidence: TheStageCore::SpeakerEvidenceConfig? = nil)
+  public static func == (a: TheStageCore::SpeakerIDConfig, b: TheStageCore::SpeakerIDConfig) -> Swift::Bool
+}
+@_hasMissingDesignatedInitializers final public class SpeakerIDPipeline : TheStageCore::BasePipeline, @unchecked Swift::Sendable {
+  final public let sample_rate: Swift::Int
+  final public let embedding_space_id: Swift::String
+  final public let embedding_dimension: Swift::Int
+  public init(engines_path: Swift::String, devices: [Swift::String : Swift::String]? = nil, revision: Swift::String? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws
+  @objc deinit
+  final public func infer(audio: [Swift::Float]) async throws -> TheStageCore::SpeakerEmbeddingResult
+  final public func enroll(audio: [Swift::Float], id: Swift::String, name: Swift::String) async throws -> TheStageCore::SpeakerProfile
+}
+public struct SpeakerEmbeddingVector : Swift::Codable, Swift::Sendable, Swift::Equatable {
+  public let values: [Swift::Float]
+  public let embedding_space_id: Swift::String
+  public let speech_seconds: Swift::Double?
+  public init(values: [Swift::Float], embedding_space_id: Swift::String, speech_seconds: Swift::Double? = nil)
+  public static func == (a: TheStageCore::SpeakerEmbeddingVector, b: TheStageCore::SpeakerEmbeddingVector) -> Swift::Bool
+  public func encode(to encoder: any Swift::Encoder) throws
+  public init(from decoder: any Swift::Decoder) throws
+}
+public struct SpeakerProfile : Swift::Codable, Swift::Sendable, Swift::Equatable {
+  public let id: Swift::String
+  public let name: Swift::String
+  public let embeddings: [TheStageCore::SpeakerEmbeddingVector]
+  public init(id: Swift::String, name: Swift::String, embeddings: [TheStageCore::SpeakerEmbeddingVector])
+  public static func == (a: TheStageCore::SpeakerProfile, b: TheStageCore::SpeakerProfile) -> Swift::Bool
+  public func encode(to encoder: any Swift::Encoder) throws
+  public init(from decoder: any Swift::Decoder) throws
+}
+public struct SpeakerEmbeddingResult : Swift::Sendable, Swift::Equatable {
+  public let embedding: TheStageCore::SpeakerEmbeddingVector
+  public let speech_seconds: Swift::Double
+  public init(embedding: TheStageCore::SpeakerEmbeddingVector, speech_seconds: Swift::Double)
+  public static func == (a: TheStageCore::SpeakerEmbeddingResult, b: TheStageCore::SpeakerEmbeddingResult) -> Swift::Bool
+}
+public struct ASRSpeaker : Swift::Sendable, Swift::Equatable {
+  public let id: Swift::String
+  public let identity_id: Swift::String?
+  public let name: Swift::String?
+  public let identity_score: Swift::Double?
+  public let identity_status: TheStageCore::SpeakerIdentityStatus
+  public let identity_updated_at_s: Swift::Double?
+  public let embedding: TheStageCore::SpeakerEmbeddingVector?
+  public let embedding_speech_seconds: Swift::Double
+  public let speech_seconds: Swift::Double
+  public let revision: Swift::Int
+  public init(id: Swift::String, identity_id: Swift::String?, name: Swift::String?, identity_score: Swift::Double?, identity_status: TheStageCore::SpeakerIdentityStatus, identity_updated_at_s: Swift::Double?, embedding: TheStageCore::SpeakerEmbeddingVector?, embedding_speech_seconds: Swift::Double, speech_seconds: Swift::Double, revision: Swift::Int)
+  public static func == (a: TheStageCore::ASRSpeaker, b: TheStageCore::ASRSpeaker) -> Swift::Bool
+}
+public struct ASRSpeakerTurn : Swift::Sendable, Swift::Equatable {
+  public let id: Swift::String
+  public let speaker_id: Swift::String
+  public let start: Swift::Double
+  public let end: Swift::Double
+  public let segments: [TheStageCore::SpeakerSegment]
+  public let text: Swift::String
+  public let words: [TheStageCore::ASRWord]?
+  public let timestamp_source: TheStageCore::SpeakerTimestampSource
+  public let transcribed: Swift::Bool
+  public let is_final: Swift::Bool
+  public let revision: Swift::Int
+  public init(id: Swift::String, speaker_id: Swift::String, start: Swift::Double, end: Swift::Double, segments: [TheStageCore::SpeakerSegment], text: Swift::String, words: [TheStageCore::ASRWord]?, timestamp_source: TheStageCore::SpeakerTimestampSource, transcribed: Swift::Bool, is_final: Swift::Bool, revision: Swift::Int)
+  public static func == (a: TheStageCore::ASRSpeakerTurn, b: TheStageCore::ASRSpeakerTurn) -> Swift::Bool
+}
+public struct SpeakerTurnUpdate : Swift::Sendable, Swift::Equatable {
+  public let window_id: Swift::String
+  public let revision: Swift::Int
+  public let start: Swift::Double
+  public let end: Swift::Double
+  public let is_final: Swift::Bool
+  public let turns: [TheStageCore::ASRSpeakerTurn]
+  public init(window_id: Swift::String, revision: Swift::Int, start: Swift::Double, end: Swift::Double, is_final: Swift::Bool, turns: [TheStageCore::ASRSpeakerTurn])
+  public static func == (a: TheStageCore::SpeakerTurnUpdate, b: TheStageCore::SpeakerTurnUpdate) -> Swift::Bool
+}
+public struct SpeakerMerge : Swift::Sendable, Swift::Equatable {
+  public let from_id: Swift::String
+  public let to_id: Swift::String
+  public init(from_id: Swift::String, to_id: Swift::String)
+  public static func == (a: TheStageCore::SpeakerMerge, b: TheStageCore::SpeakerMerge) -> Swift::Bool
+}
+public enum SpeakerIdentityStatus : Swift::String, Swift::Sendable, Swift::Codable {
+  case UNKNOWN, PROVISIONAL, MATCHED
+  public init?(rawValue: Swift::String)
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum SpeakerTimestampSource : Swift::String, Swift::Sendable, Swift::Codable {
+  case MEASURED, ESTIMATED, NONE
+  public init?(rawValue: Swift::String)
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+final public class SpeakerVoices : @unchecked Swift::Sendable {
+  final public let file: Foundation::URL
+  public static let max_samples: Swift::Int
+  final public var all: [TheStageCore::SpeakerProfile] {
+    get
+  }
+  final public var space: Swift::String? {
+    get
+  }
+  public init(file: Foundation::URL, speaker_model: Swift::String = "TheStageAI/speaker-id-v2") throws
+  @objc deinit
+  @discardableResult
+  final public func enroll(audio: [Swift::Float], id: Swift::String, name: Swift::String) async throws -> TheStageCore::SpeakerProfile
+  @discardableResult
+  final public func save(_ speaker: TheStageCore::ASRSpeaker, id: Swift::String, name: Swift::String) throws -> TheStageCore::SpeakerProfile
+  @discardableResult
+  final public func add(_ sample: TheStageCore::SpeakerEmbeddingVector, id: Swift::String, name: Swift::String) throws -> TheStageCore::SpeakerProfile
+  final public func rename(id: Swift::String, to name: Swift::String) throws
+  final public func remove(id: Swift::String) throws
 }
 public typealias Message = [Swift::String : any Swift::Sendable]
 public typealias ToolSpec = [Swift::String : any Swift::Sendable]
@@ -2830,6 +3343,17 @@ extension TheStageCore::TTSPreprocessor {
   public init(engines_path: Swift::String, voice_id: Swift::String = "dave", device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, decoder: (any TheStageCore::Seq2SeqDecoding)? = nil, phonemizer: (any TheStageCore::Phonemizer)? = nil, normaliser: (any TheStageCore::TextNormaliser)? = nil, revision: Swift::String? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws
   @objc deinit
 }
+@_hasMissingDesignatedInitializers final public class PhononTTSPipeline : TheStageCore::TSTTSPipeline, @unchecked Swift::Sendable {
+  public static var recommended_stream_config: TheStageCore::TTSStreamConfig {
+    get
+  }
+  final public var voice_id: Swift::String {
+    get
+  }
+  public init(engines_path: Swift::String, voice_id: Swift::String = "", voice_dir: Swift::String? = nil, language: Swift::String? = nil, device: Swift::String = "npu", devices: [Swift::String : Swift::String]? = nil, revision: Swift::String? = nil, normaliser: (any TheStageCore::TextNormaliser)? = nil, on_load_progress: TheStageCore::LoadProgressHandler? = nil) async throws
+  @objc deinit
+  override final public func set_voice(voice_dir: Swift::String? = nil, voice_id: Swift::String = "", language: Swift::String? = nil) throws
+}
 @_hasMissingDesignatedInitializers final public class Qwen3TTSPipeline : TheStageCore::TSTTSPipeline, @unchecked Swift::Sendable {
   public static var recommended_stream_config: TheStageCore::TTSStreamConfig {
     get
@@ -2938,6 +3462,7 @@ public typealias VLMResult = TheStageCore::LLMResult
 public struct SpeakerEmbeddingSpec {
   public static let kind: Swift::String
   public static let opener: Swift::String
+  public let embedding_space_id: Swift::String?
   public let embedding_dim: Swift::Int
   public let n_samples: Swift::Int
   public let n_mels: Swift::Int
@@ -3189,6 +3714,7 @@ public protocol AgentAudioNode : TheStageCore::AgentNode {
   var playback_level_out: TheStageCore::AgentChannel<Swift::Double>? { get }
   var playback_pcm_out: TheStageCore::AgentChannel<TheStageCore::PCM>? { get }
   func bind(orchestrator: TheStageCore::AgentOrchestrator)
+  func set_capture_muted(_ muted: Swift::Bool)
 }
 extension TheStageCore::AgentAudioNode {
   public var playback_level_out: TheStageCore::AgentChannel<Swift::Double>? {
@@ -3197,6 +3723,7 @@ extension TheStageCore::AgentAudioNode {
   public var playback_pcm_out: TheStageCore::AgentChannel<TheStageCore::PCM>? {
     get
   }
+  public func set_capture_muted(_ muted: Swift::Bool)
 }
 public typealias AgentAudioNodeFactory = @Sendable (TheStageCore::AudioEngineConfig) throws -> any TheStageCore::AgentAudioNode
 final public class ASREngine : @unchecked Swift::Sendable {
@@ -3219,19 +3746,26 @@ final public class ASREngine : @unchecked Swift::Sendable {
   final public var state: TheStageCore::TSAgentState {
     get
   }
+  final public let speaker_events: TheStageCore::AgentChannel<TheStageCore::ASRSpeakerEvent>
   final public let transcripts: TheStageCore::AgentChannel<Swift::String>
   final public let partial_transcripts: TheStageCore::AgentChannel<Swift::String>
   final public let turns: TheStageCore::AgentChannel<TheStageCore::ASRTurn>
   final public let vad_probabilities: TheStageCore::AgentChannel<Swift::Double>
   final public let ports: TheStageCore::AgentPortRegistry
   final public let events: _Concurrency::AsyncStream<TheStageCore::TSAgentEvent>
-  public init(pipeline: TheStageCore::ASRPipeline, vad: (any TheStageCore::VADAgent)? = nil, formatter: (any TheStageCore::ASRTextFormatter)? = nil, overlap_seconds: Swift::Double = 3.0)
+  public init(pipeline: TheStageCore::ASRPipeline, vad: (any TheStageCore::VADAgent)? = nil, formatter: (any TheStageCore::ASRTextFormatter)? = nil, overlap_seconds: Swift::Double = 3.0, speakers: TheStageCore::ASRSpeakerConfig? = nil)
   public init(config: TheStageCore::TSAgentConfig)
-  convenience public init(stt: Swift::String, vad: Swift::String? = nil, overlap_seconds: Swift::Double = 3.0) throws
+  convenience public init(stt: Swift::String, vad: Swift::String? = nil, overlap_seconds: Swift::Double = 3.0, speakers: TheStageCore::ASRSpeakerConfig? = nil) throws
   @objc deinit
   final public func start() async throws
-  final public func stop() async
+  @discardableResult
+  final public func stop() async -> TheStageCore::ASRResult?
+  @available(*, deprecated, message: "Use stop(); it returns the final result")
+  final public func finish() async throws -> TheStageCore::ASRResult
+  final public func update_enrolled_speakers(_ profiles: [TheStageCore::SpeakerProfile]) async throws
+  final public func reset_speakers() async throws
   final public func infer(audio: [Swift::Float], config: TheStageCore::ASRGenerationConfig = ASRGenerationConfig()) async throws -> TheStageCore::ASRResult
+  final public func infer_stream(audio: [Swift::Float], config: TheStageCore::ASRGenerationConfig = ASRGenerationConfig()) -> _Concurrency::AsyncThrowingStream<TheStageCore::ASRResult, any Swift::Error>
   final public func open_stream(_ generation: TheStageCore::ASRGenerationConfig = ASRGenerationConfig(), _ streaming: TheStageCore::ASRStreamingConfig = ASRStreamingConfig()) async throws -> TheStageCore::ASRStream
 }
 final public class PCMInputNode : TheStageCore::TSAgentNode, TheStageCore::AgentAudioNode, @unchecked Swift::Sendable {
@@ -3248,6 +3782,121 @@ final public class PCMInputNode : TheStageCore::TSAgentNode, TheStageCore::Agent
   final public func send(_ pcm: TheStageCore::PCM)
   override final public func on_stop() async
 }
+public struct ASRSpeakerConfig : Swift::Sendable {
+  public var diarization: TheStageCore::DiarizationPipeline
+  public var identification: TheStageCore::SpeakerIDPipeline?
+  public var diarization_config: TheStageCore::DiarizationConfig
+  public var transcription: TheStageCore::SpeakerTranscriptionConfig
+  public var identity: TheStageCore::SpeakerIDConfig
+  public var max_queued_audio_s: Swift::Double
+  public init(diarization: TheStageCore::DiarizationPipeline, identification: TheStageCore::SpeakerIDPipeline? = nil, diarization_config: TheStageCore::DiarizationConfig = .init(), transcription: TheStageCore::SpeakerTranscriptionConfig = .init(), identity: TheStageCore::SpeakerIDConfig = .init(), max_queued_audio_s: Swift::Double = 60)
+}
+extension TheStageCore::ASRSpeakerConfig {
+  public static func conversation(diarization: TheStageCore::DiarizationPipeline, identification: TheStageCore::SpeakerIDPipeline? = nil, enrolled: [TheStageCore::SpeakerProfile] = []) -> TheStageCore::ASRSpeakerConfig
+}
+public struct SpeakerEvidenceConfig : Swift::Sendable, Swift::Equatable {
+  public var turn_evidence: Swift::Bool
+  public var new_speaker_min_turn_s: Swift::Double
+  public var turn_born: Swift::Bool
+  public var skip_overlap: Swift::Bool
+  public init(turn_evidence: Swift::Bool = true, new_speaker_min_turn_s: Swift::Double = 6, turn_born: Swift::Bool = true, skip_overlap: Swift::Bool = true)
+  public static func == (a: TheStageCore::SpeakerEvidenceConfig, b: TheStageCore::SpeakerEvidenceConfig) -> Swift::Bool
+}
+public struct SpeakerSetup : Swift::Sendable {
+  public var voices: TheStageCore::SpeakerVoices?
+  public var final_pass: Swift::Bool
+  public var diarizer: Swift::String
+  public var speaker_model: Swift::String
+  public init(voices: TheStageCore::SpeakerVoices? = nil, final_pass: Swift::Bool = true, diarizer: Swift::String = "TheStageAI/Nemotron-3-Diarization", speaker_model: Swift::String = "TheStageAI/speaker-id-v2")
+  public static func conversation(voices: TheStageCore::SpeakerVoices? = nil, final_pass: Swift::Bool = true, diarizer: Swift::String = "TheStageAI/Nemotron-3-Diarization", speaker_model: Swift::String = "TheStageAI/speaker-id-v2") -> TheStageCore::SpeakerSetup
+}
+public enum SpeakerShortTurnPolicy : Swift::String, Swift::Codable, Swift::Sendable, Swift::CaseIterable {
+  case PRESERVE, LEGACY_SMOOTHING
+  public init?(rawValue: Swift::String)
+  public typealias AllCases = [TheStageCore::SpeakerShortTurnPolicy]
+  public typealias RawValue = Swift::String
+  nonisolated public static var allCases: [TheStageCore::SpeakerShortTurnPolicy] {
+    get
+  }
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum SpeakerASRWindowing : Swift::String, Swift::Codable, Swift::Sendable, Swift::CaseIterable {
+  case QUIET_WINDOWS, PIPELINE_DEFAULT
+  public init?(rawValue: Swift::String)
+  public typealias AllCases = [TheStageCore::SpeakerASRWindowing]
+  public typealias RawValue = Swift::String
+  nonisolated public static var allCases: [TheStageCore::SpeakerASRWindowing] {
+    get
+  }
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum SpeakerTextSource : Swift::String, Swift::Codable, Swift::Sendable, Swift::CaseIterable {
+  case STREAM
+  case WINDOW_DECODE
+  public init?(rawValue: Swift::String)
+  public typealias AllCases = [TheStageCore::SpeakerTextSource]
+  public typealias RawValue = Swift::String
+  nonisolated public static var allCases: [TheStageCore::SpeakerTextSource] {
+    get
+  }
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public struct SpeakerTranscriptionConfig : Swift::Sendable, Swift::Equatable {
+  public var text_source: TheStageCore::SpeakerTextSource
+  public var short_turn_policy: TheStageCore::SpeakerShortTurnPolicy
+  public var asr_windowing: TheStageCore::SpeakerASRWindowing
+  public var max_interruption_s: Swift::Double
+  public var max_turn_s: Swift::Double
+  public var min_speech_s: Swift::Double
+  public var transcribe_short: Swift::Bool
+  public var min_segment_s: Swift::Double
+  public var min_sandwich_s: Swift::Double
+  public var cut_pad_s: Swift::Double
+  public var cut_merge_gap_s: Swift::Double
+  public var join_silence_s: Swift::Double
+  public var seam_gap_s: Swift::Double
+  public var min_join_silence_s: Swift::Double
+  public var partial_interval_s: Swift::Double
+  public var partial_min_speech_s: Swift::Double
+  public var partial_active_window_s: Swift::Double
+  public var overlap: TheStageCore::SpeakerOverlapRouting?
+  public var warmup_relabel_at_s: [Swift::Double]
+  public var redecode_turn_max_s: Swift::Double?
+  public var final_pass: Swift::Bool
+  public init(text_source: TheStageCore::SpeakerTextSource = .STREAM, max_interruption_s: Swift::Double = 1.0, max_turn_s: Swift::Double = 28.0, min_speech_s: Swift::Double = 0.5, transcribe_short: Swift::Bool = false, min_segment_s: Swift::Double = 0.25, min_sandwich_s: Swift::Double = 1.0, cut_pad_s: Swift::Double = 0.2, cut_merge_gap_s: Swift::Double = 1.0, join_silence_s: Swift::Double = 0.5, seam_gap_s: Swift::Double = 1.5, min_join_silence_s: Swift::Double = 0.2, partial_interval_s: Swift::Double = 1.0, partial_min_speech_s: Swift::Double = 1.0, partial_active_window_s: Swift::Double = 0.5, short_turn_policy: TheStageCore::SpeakerShortTurnPolicy = .PRESERVE, asr_windowing: TheStageCore::SpeakerASRWindowing = .QUIET_WINDOWS, overlap: TheStageCore::SpeakerOverlapRouting? = nil, warmup_relabel_at_s: [Swift::Double] = [], redecode_turn_max_s: Swift::Double? = nil)
+  public static func == (a: TheStageCore::SpeakerTranscriptionConfig, b: TheStageCore::SpeakerTranscriptionConfig) -> Swift::Bool
+}
+public enum SpeakerOverlapRouting : Swift::String, Swift::Sendable, Swift::Equatable {
+  case CURRENT
+  case BOTH
+  case HANDOVER
+  public init?(rawValue: Swift::String)
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public struct SpeakerVoiceChangeConfig : Swift::Sendable, Swift::Equatable {
+  public var piece_s: Swift::Double
+  public var hop_s: Swift::Double
+  public var voice_delay_s: Swift::Double
+  public var threshold: Swift::Double
+  public var run_s: Swift::Double
+  public init(piece_s: Swift::Double = 2.0, hop_s: Swift::Double = 0.25, voice_delay_s: Swift::Double = 30, threshold: Swift::Double = 0.30, run_s: Swift::Double = 2.0)
+  public static func == (a: TheStageCore::SpeakerVoiceChangeConfig, b: TheStageCore::SpeakerVoiceChangeConfig) -> Swift::Bool
+}
+public struct SpeakerLongTurnMergeConfig : Swift::Sendable, Swift::Equatable {
+  public var min_turn_s: Swift::Double
+  public var threshold: Swift::Double
+  public init(min_turn_s: Swift::Double = 8, threshold: Swift::Double = 0.80)
+  public static func == (a: TheStageCore::SpeakerLongTurnMergeConfig, b: TheStageCore::SpeakerLongTurnMergeConfig) -> Swift::Bool
+}
 public struct ASRNodeConfig : Swift::Sendable {
   public var language: Swift::String
   public var streaming: Swift::Bool
@@ -3255,11 +3904,14 @@ public struct ASRNodeConfig : Swift::Sendable {
   public var speculative: Swift::Bool
   public var speculative_max_drift_samples: Swift::Int
   public var stream_per_turn: Swift::Bool
+  public var close_on_stop: Swift::Bool
+  public var fresh_stream_after_submit: Swift::Bool
   public init()
 }
 public struct CaptureGateConfig : Swift::Sendable {
   public var post_speak_grace_ms: Swift::Int
   public var rearm_after_request: Swift::Bool
+  public var mute_on_turn_end: Swift::Bool
   public init()
 }
 public struct DNNTurnConfig : Swift::Sendable {
@@ -3342,7 +3994,8 @@ public struct AgentRequest : Swift::Sendable {
 public struct AgentResponse : Swift::Sendable {
   public let text: Swift::String
   public let reason: TheStageCore::EndReason
-  public init(text: Swift::String, reason: TheStageCore::EndReason)
+  public let spoken_text: Swift::String?
+  public init(text: Swift::String, reason: TheStageCore::EndReason, spoken_text: Swift::String? = nil)
 }
 public struct AgentToolResult : Swift::Sendable {
   public let name: Swift::String
@@ -3359,7 +4012,8 @@ public struct AgentFailure : Swift::Sendable {
 public struct TurnEnd : Swift::Sendable {
   public let silence_ms: Swift::Int
   public let voice_position: Swift::Int
-  public init(silence_ms: Swift::Int, voice_position: Swift::Int)
+  public let submit: Swift::Bool
+  public init(silence_ms: Swift::Int, voice_position: Swift::Int, submit: Swift::Bool = false)
 }
 public struct AgentInterruption : Swift::Sendable {
   public let probability: Swift::Double
@@ -3556,6 +4210,14 @@ public enum ModelRevisionMap {
   public static let byRepo: [Swift::String : Swift::String]
   public static func canonicalRepoId(_ repoId: Swift::String) -> Swift::String
   public static func resolve(repoId: Swift::String, override: Swift::String? = nil) -> Swift::String
+  public struct PinnedPack : Swift::Sendable {
+    public let name: Swift::String
+    public let model_type: Swift::String
+    public var file: Swift::String {
+      get
+    }
+  }
+  public static let pinnedPacks: [Swift::String : TheStageCore::ModelRevisionMap.TheStageCore::PinnedPack]
 }
 public enum TSSDKError : Swift::Error, Foundation::LocalizedError, Swift::Sendable {
   case notInitialized
@@ -3572,13 +4234,177 @@ public enum TSSDKError : Swift::Error, Foundation::LocalizedError, Swift::Sendab
 public protocol TextNormaliser : AnyObject, Swift::Sendable {
   func normalise(_ text: Swift::String) -> Swift::String
 }
+public struct AgentCapabilities : Swift::Sendable {
+  public var listening: Swift::Bool
+  public var transcribing: Swift::Bool
+  public var responding: Swift::Bool
+  public var speaking: Swift::Bool
+  public var reasons: [Swift::String : Swift::String]
+  public static let empty: TheStageCore::AgentCapabilities
+}
+public struct TSAgentConfig : @unchecked Swift::Sendable {
+  public var speakers: TheStageCore::ASRSpeakerConfig?
+  public var speaker_setup: TheStageCore::SpeakerSetup?
+  public var vad: Swift::String
+  public var stt: Swift::String
+  public var tts: Swift::String?
+  public var wake_word: Swift::String?
+  public var llm: (any TheStageCore::TSLLMProvider)?
+  public var stt_revision: Swift::String?
+  public var stt_device: Swift::String
+  public var stt_devices: [Swift::String : Swift::String]?
+  public var tts_voice: Swift::String?
+  public var tts_voice_dir: Swift::String?
+  public var tts_language: Swift::String?
+  public var tts_revision: Swift::String?
+  public var tts_device: Swift::String
+  public var tts_devices: [Swift::String : Swift::String]?
+  public var vad_device: Swift::String
+  public var ww_device: Swift::String
+  public var system_prompt: Swift::String
+  public var max_tokens: Swift::Int
+  public var unspoken_tags: [Swift::String]
+  public var temperature: Swift::Double
+  public var top_k: Swift::Int?
+  public var top_p: Swift::Double?
+  public var min_p: Swift::Double?
+  public var repetition_penalty: Swift::Double?
+  public var speculative_decoding: Swift::Bool?
+  public var chat_memory: TheStageCore::AgentMessageSlidingWindowMemory
+  public var llm_tools: Swift::String
+  public var on_load_progress: TheStageCore::LoadProgressHandler?
+  public var vad_threshold: Swift::Double
+  public var vad_onset_ms: Swift::Int
+  public var silence_timeout_ms: Swift::Int
+  public var max_accumulation_ms: Swift::Int
+  public var pre_roll_ms: Swift::Int
+  public var turn_detector: Swift::String?
+  public var turn_detector_revision: Swift::String?
+  public var turn_detector_device: Swift::String
+  public var turn_detector_agent: (any TheStageCore::TurnDetectorAgent)?
+  public var turn_eot_threshold: Swift::Double?
+  public var turn_eot_confirm_count: Swift::Int
+  public var turn_eot_high_confidence: Swift::Double
+  public var turn_pause_trigger_ms: Swift::Int
+  public var turn_reeval_interval_ms: Swift::Int
+  public var turn_max_silence_ms: Swift::Int
+  public var turn_window_ms: Swift::Int
+  public var turn_min_speech_ms: Swift::Int
+  public var turn_asr_silence_hangover_ms: Swift::Int?
+  public var asr_streaming: Swift::Bool
+  public var asr_partial_interval_ms: Swift::Int {
+    get
+    set
+  }
+  public var asr_generation: TheStageCore::ASRGenerationConfig
+  public var asr_streaming_config: TheStageCore::ASRStreamingConfig
+  public var vad_config: TheStageCore::VADConfig?
+  public var stt_pipeline: TheStageCore::ASRPipeline?
+  public var turn_config: TheStageCore::TurnConfig?
+  public var debug_timeline: Swift::Bool
+  public var speculative_whisper: Swift::Bool
+  public var asr_stream_per_turn: Swift::Bool?
+  public var interrupt_min_speech_ms: Swift::Int
+  public var interrupt_onset_ms: Swift::Int
+  public var interrupt_threshold: Swift::Double
+  public var allow_interruptions: Swift::Bool {
+    get
+    set
+  }
+  public var ww_threshold: Swift::Double {
+    get
+    set
+  }
+  public var conversation_timeout_sec: Swift::Int
+  public var auto_listen: Swift::Bool
+  public var audio: TheStageCore::AudioEngineConfig
+  public var audio_node_factory: TheStageCore::AgentAudioNodeFactory?
+  public var sample_rate_in: Swift::Double {
+    get
+    set
+  }
+  public var sample_rate_out: Swift::Double {
+    get
+    set
+  }
+  public var tts_sample_rate: Swift::Double {
+    get
+    set
+  }
+  public var aec_method: TheStageCore::AECMethod {
+    get
+    set
+  }
+  public var aec_engines_path: Swift::String? {
+    get
+    set
+  }
+  public var aec_enabled: Swift::Bool {
+    get
+    set
+  }
+  public var aec_playback_gate_tail_ms: Swift::Int {
+    get
+    set
+  }
+  public var aec_warmup_ms: Swift::Int {
+    get
+    set
+  }
+  public var interrupt_min_playback_ms: Swift::Int
+  public var interrupt_initial_lockout_ms: Swift::Int
+  public var interrupt_thinking_lockout_ms: Swift::Int
+  public var stt_language: Swift::String {
+    get
+    set
+  }
+  public var audio_source: (any TheStageCore::AudioSource)?
+  public var audio_sink: (any TheStageCore::AudioSink)?
+  public var vad_agent: (any TheStageCore::VADAgent)?
+  public var asr_agent: (any TheStageCore::ASRAgent)?
+  public var tts_agent: (any TheStageCore::TTSAgent)?
+  public var tts_generation: TheStageCore::TTSGenerationConfig?
+  public var tts_stream_config: TheStageCore::TTSStreamConfig?
+  public var wake_word_agent: (any TheStageCore::WakeWordAgent)?
+  public var ww_threshold_score: Swift::Double
+  public var turn_start_mode: TheStageCore::TurnStartMode
+  public var turn_end_mode: TheStageCore::TurnEndMode
+  public var turn_detection_mode: TheStageCore::TurnEndMode {
+    get
+    set
+  }
+  public var interrupt_mode: TheStageCore::InterruptMode
+  public var speaker_id: Swift::String?
+  public var speaker_id_device: Swift::String
+  public var speaker_similarity_threshold: Swift::Double
+  public var enrolled_speaker_embedding: [Swift::Double]?
+  public var speaker_id_agent: (any TheStageCore::SpeakerIdAgent)?
+  public var extra_nodes: [any TheStageCore::AgentNode]
+  public var effective_turn_start_mode: TheStageCore::TurnStartMode {
+    get
+  }
+  public var needed_sensors: TheStageCore::AgentSignalSet {
+    get
+  }
+  public init(vad: Swift::String, stt: Swift::String, tts: Swift::String? = nil, llm: (any TheStageCore::TSLLMProvider)? = nil, wake_word: Swift::String? = nil, turn_detector: Swift::String? = nil, speakers: TheStageCore::SpeakerSetup? = nil)
+  public var responds: Swift::Bool {
+    get
+  }
+  public var speaks: Swift::Bool {
+    get
+  }
+  public var require_full_stack: Swift::Bool
+}
 extension TheStageCore::AgentMessage {
   public func to_chat_message() -> TheStageCore::ChatMessage
   public static func from_chat_message(_ message: TheStageCore::ChatMessage) -> TheStageCore::AgentMessage?
 }
 public struct AgentMessageSlidingWindowMemory : Swift::Sendable {
-  public var max_turns: Swift::Int
   public init(max_turns: Swift::Int = TSSlidingWindowMemory.product_max_turns)
+  public var max_turns: Swift::Int {
+    get
+    set
+  }
   public var count: Swift::Int {
     get
   }
@@ -3635,16 +4461,6 @@ public enum InterruptMode : Swift::String, Swift::Sendable {
   public init?(rawValue: Swift::String)
   public typealias RawValue = Swift::String
   public var rawValue: Swift::String {
-    get
-  }
-}
-extension TheStageCore::InterruptTrigger {
-  public var interrupt_mode: TheStageCore::InterruptMode {
-    get
-  }
-}
-extension TheStageCore::InterruptMode {
-  public var interrupt_trigger: TheStageCore::InterruptTrigger {
     get
   }
 }
@@ -3747,6 +4563,61 @@ final public class TSTTSAgent : TheStageCore::TTSAgent, @unchecked Swift::Sendab
   @_semantics("defaultActor") nonisolated final public var unownedExecutor: _Concurrency::UnownedSerialExecutor {
     get
   }
+}
+public enum TSAgentState : Swift::String, Swift::Sendable {
+  case idle
+  case loading
+  case sleeping
+  case listening
+  case thinking
+  case tool_calling
+  case speaking
+  public init?(rawValue: Swift::String)
+  public typealias RawValue = Swift::String
+  public var rawValue: Swift::String {
+    get
+  }
+}
+public enum TSAgentConfigError : Swift::Error, Swift::CustomStringConvertible {
+  case noneTurnWithLLM
+  case notStarted
+  case audioFactoryWithOverrides
+  case turnDetectorMissing
+  case audioCaptureUnsupported
+  case audioPlaybackUnsupported
+  public var description: Swift::String {
+    get
+  }
+  public static func == (a: TheStageCore::TSAgentConfigError, b: TheStageCore::TSAgentConfigError) -> Swift::Bool
+  public func hash(into hasher: inout Swift::Hasher)
+  public var hashValue: Swift::Int {
+    get
+  }
+}
+public struct TSAgentEvent : @unchecked Swift::Sendable {
+  public enum Kind : Swift::String, Swift::Sendable {
+    case state_changed
+    case user_request_partial
+    case user_request
+    case response_delta
+    case tool_started
+    case tool_ended
+    case response_done
+    case playback_started
+    case playback_ended
+    case wake_word
+    case turn_start_accepted
+    case error
+    case metrics
+    public init?(rawValue: Swift::String)
+    public typealias RawValue = Swift::String
+    public var rawValue: Swift::String {
+      get
+    }
+  }
+  public let kind: TheStageCore::TSAgentEvent.TheStageCore::Kind
+  public let data: [Swift::String : Any]
+  public init(kind: TheStageCore::TSAgentEvent.TheStageCore::Kind, data: [Swift::String : Any])
 }
 public protocol AudioSource : Swift::Sendable {
   var stream: _Concurrency::AsyncStream<[Swift::Float]> { get }
@@ -3856,11 +4727,13 @@ public struct LLMRequestConfig : Swift::Sendable {
 public protocol TSLLMProvider : Swift::Sendable {
   var chat_session: TheStageCore::TSChatSession? { get }
   func respond(messages: [TheStageCore::AgentMessage], config: TheStageCore::LLMRequestConfig) -> _Concurrency::AsyncStream<TheStageCore::LLMStreamEvent>
+  func respond_once(messages: [TheStageCore::AgentMessage], config: TheStageCore::LLMRequestConfig) -> _Concurrency::AsyncStream<TheStageCore::LLMStreamEvent>
 }
 extension TheStageCore::TSLLMProvider {
   public var chat_session: TheStageCore::TSChatSession? {
     get
   }
+  public func respond_once(messages: [TheStageCore::AgentMessage], config: TheStageCore::LLMRequestConfig) -> _Concurrency::AsyncStream<TheStageCore::LLMStreamEvent>
 }
 final public class TSLocalLLMProvider : TheStageCore::TSLLMProvider, @unchecked Swift::Sendable {
   final public var chat_session: TheStageCore::TSChatSession? {
@@ -3882,6 +4755,7 @@ final public class TSLocalLLMProvider : TheStageCore::TSLLMProvider, @unchecked 
             max_turns: TSSlidingWindowMemory.product_max_turns
         ))
   final public func respond(messages: [TheStageCore::AgentMessage], config: TheStageCore::LLMRequestConfig) -> _Concurrency::AsyncStream<TheStageCore::LLMStreamEvent>
+  final public func respond_once(messages: [TheStageCore::AgentMessage], config: TheStageCore::LLMRequestConfig) -> _Concurrency::AsyncStream<TheStageCore::LLMStreamEvent>
   @objc deinit
 }
 final public class TSOpenAICompatibleProvider : TheStageCore::TSLLMProvider, @unchecked Swift::Sendable {
@@ -3889,20 +4763,10 @@ final public class TSOpenAICompatibleProvider : TheStageCore::TSLLMProvider, @un
   final public func respond(messages: [TheStageCore::AgentMessage], config: TheStageCore::LLMRequestConfig) -> _Concurrency::AsyncStream<TheStageCore::LLMStreamEvent>
   @objc deinit
 }
-public enum VADInterruptMode : Swift::Sendable {
-  case none
-  case speech_only
-  case wake_word
-  public static func == (a: TheStageCore::VADInterruptMode, b: TheStageCore::VADInterruptMode) -> Swift::Bool
-  public func hash(into hasher: inout Swift::Hasher)
-  public var hashValue: Swift::Int {
-    get
-  }
-}
 public struct InterruptConfig : Swift::Sendable {
   public var threshold: Swift::Double
   public var onset_threshold: Swift::Double
-  public var interrupt_mode: TheStageCore::VADInterruptMode
+  public var interrupt_mode: TheStageCore::InterruptMode
   public var interrupt_min_playback_ms: Swift::Int
   public var interrupt_initial_lockout_ms: Swift::Int
   public var interrupt_thinking_lockout_ms: Swift::Int
@@ -3923,11 +4787,19 @@ public struct LLMNodeConfig : Swift::Sendable {
   public var min_p: Swift::Double?
   public var repetition_penalty: Swift::Double?
   public var speculative_decoding: Swift::Bool?
+  public var unspoken_tags: [Swift::String]
   public init()
 }
 public struct TTSNodeConfig : Swift::Sendable {
   public var sample_rate: Swift::Int
   public init(sample_rate: Swift::Int = 24_000)
+}
+public struct AgentUnspokenText : Swift::Sendable, Swift::Equatable {
+  public let tag: Swift::String
+  public let text: Swift::String
+  public let done: Swift::Bool
+  public init(tag: Swift::String, text: Swift::String, done: Swift::Bool)
+  public static func == (a: TheStageCore::AgentUnspokenText, b: TheStageCore::AgentUnspokenText) -> Swift::Bool
 }
 public struct WakeWordNodeConfig : Swift::Sendable {
   public var threshold: Swift::Double
@@ -3939,235 +4811,6 @@ public enum TimelineLog {
   nonisolated(unsafe) public static var enabled: Swift::Bool
   public static func mark(_ node: Swift::String, _ event: Swift::String, _ kv: Swift::String = "")
 }
-public enum TSAgentState : Swift::String, Swift::Sendable {
-  case idle
-  case loading
-  case sleeping
-  case listening
-  case thinking
-  case tool_calling
-  case speaking
-  public init?(rawValue: Swift::String)
-  public typealias RawValue = Swift::String
-  public var rawValue: Swift::String {
-    get
-  }
-}
-public enum InterruptTrigger : Swift::String, Swift::Sendable {
-  case none
-  case speech_only
-  case wake_word
-  public init?(rawValue: Swift::String)
-  public typealias RawValue = Swift::String
-  public var rawValue: Swift::String {
-    get
-  }
-}
-public enum TSAgentConfigError : Swift::Error, Swift::CustomStringConvertible {
-  case noneTurnWithLLM
-  case notStarted
-  case audioFactoryWithOverrides
-  case turnDetectorMissing
-  case audioCaptureUnsupported
-  case audioPlaybackUnsupported
-  public var description: Swift::String {
-    get
-  }
-  public static func == (a: TheStageCore::TSAgentConfigError, b: TheStageCore::TSAgentConfigError) -> Swift::Bool
-  public func hash(into hasher: inout Swift::Hasher)
-  public var hashValue: Swift::Int {
-    get
-  }
-}
-public struct TSAgentEvent : @unchecked Swift::Sendable {
-  public enum Kind : Swift::String, Swift::Sendable {
-    case state_changed
-    case user_request_partial
-    case user_request
-    case response_delta
-    case tool_started
-    case tool_ended
-    case response_done
-    case playback_started
-    case playback_ended
-    case wake_word
-    case turn_start_accepted
-    case error
-    case metrics
-    public init?(rawValue: Swift::String)
-    public typealias RawValue = Swift::String
-    public var rawValue: Swift::String {
-      get
-    }
-  }
-  public let kind: TheStageCore::TSAgentEvent.TheStageCore::Kind
-  public let data: [Swift::String : Any]
-  public init(kind: TheStageCore::TSAgentEvent.TheStageCore::Kind, data: [Swift::String : Any])
-}
-public struct TSAgentConfig : @unchecked Swift::Sendable {
-  public var vad: Swift::String
-  public var stt: Swift::String
-  public var tts: Swift::String?
-  public var wake_word: Swift::String?
-  public var llm: (any TheStageCore::TSLLMProvider)?
-  public var stt_revision: Swift::String?
-  public var stt_device: Swift::String
-  public var stt_devices: [Swift::String : Swift::String]?
-  public var tts_voice: Swift::String?
-  public var tts_voice_dir: Swift::String?
-  public var tts_language: Swift::String?
-  public var tts_revision: Swift::String?
-  public var tts_device: Swift::String
-  public var tts_devices: [Swift::String : Swift::String]?
-  public var vad_device: Swift::String
-  public var ww_device: Swift::String
-  public var system_prompt: Swift::String
-  public var max_tokens: Swift::Int
-  public var temperature: Swift::Double
-  public var top_k: Swift::Int?
-  public var top_p: Swift::Double?
-  public var min_p: Swift::Double?
-  public var repetition_penalty: Swift::Double?
-  public var speculative_decoding: Swift::Bool?
-  public var chat_memory: TheStageCore::AgentMessageSlidingWindowMemory
-  public var llm_tools: Swift::String
-  public var on_load_progress: TheStageCore::LoadProgressHandler?
-  public var vad_threshold: Swift::Double
-  public var vad_onset_ms: Swift::Int
-  public var silence_timeout_ms: Swift::Int
-  public var max_accumulation_ms: Swift::Int
-  public var pre_roll_ms: Swift::Int
-  public var turn_detector: Swift::String?
-  public var turn_detector_revision: Swift::String?
-  public var turn_detector_device: Swift::String
-  public var turn_detector_agent: (any TheStageCore::TurnDetectorAgent)?
-  public var turn_eot_threshold: Swift::Double
-  public var turn_eot_confirm_count: Swift::Int
-  public var turn_eot_high_confidence: Swift::Double
-  public var turn_pause_trigger_ms: Swift::Int
-  public var turn_reeval_interval_ms: Swift::Int
-  public var turn_max_silence_ms: Swift::Int
-  public var turn_window_ms: Swift::Int
-  public var turn_min_speech_ms: Swift::Int
-  public var turn_asr_silence_hangover_ms: Swift::Int?
-  public var asr_streaming: Swift::Bool
-  public var asr_partial_interval_ms: Swift::Int {
-    get
-    set
-  }
-  public var asr_generation: TheStageCore::ASRGenerationConfig
-  public var asr_streaming_config: TheStageCore::ASRStreamingConfig
-  public var vad_config: TheStageCore::VADConfig?
-  public var stt_pipeline: TheStageCore::ASRPipeline?
-  public var turn_config: TheStageCore::TurnConfig?
-  public var debug_timeline: Swift::Bool
-  public var asr_sentence_flush: Swift::Bool
-  public var asr_max_segment_seconds: Swift::Double
-  public var speculative_whisper: Swift::Bool
-  public var asr_stream_per_turn: Swift::Bool?
-  public var interrupt_min_speech_ms: Swift::Int
-  public var interrupt_onset_ms: Swift::Int
-  public var interrupt_threshold: Swift::Double
-  public var allow_interruptions: Swift::Bool {
-    get
-    set
-  }
-  public var ww_threshold: Swift::Double {
-    get
-    set
-  }
-  public var conversation_timeout_sec: Swift::Int
-  public var auto_listen: Swift::Bool
-  public var audio: TheStageCore::AudioEngineConfig
-  public var audio_node_factory: TheStageCore::AgentAudioNodeFactory?
-  public var sample_rate_in: Swift::Double {
-    get
-    set
-  }
-  public var sample_rate_out: Swift::Double {
-    get
-    set
-  }
-  public var tts_sample_rate: Swift::Double {
-    get
-    set
-  }
-  public var aec_method: TheStageCore::AECMethod {
-    get
-    set
-  }
-  public var aec_engines_path: Swift::String? {
-    get
-    set
-  }
-  public var aec_enabled: Swift::Bool {
-    get
-    set
-  }
-  public var aec_playback_gate_tail_ms: Swift::Int {
-    get
-    set
-  }
-  public var aec_warmup_ms: Swift::Int {
-    get
-    set
-  }
-  public var interrupt_min_playback_ms: Swift::Int
-  public var interrupt_initial_lockout_ms: Swift::Int
-  public var interrupt_thinking_lockout_ms: Swift::Int
-  public var stt_language: Swift::String {
-    get
-    set
-  }
-  public var audio_source: (any TheStageCore::AudioSource)?
-  public var audio_sink: (any TheStageCore::AudioSink)?
-  public var vad_agent: (any TheStageCore::VADAgent)?
-  public var asr_agent: (any TheStageCore::ASRAgent)?
-  public var tts_agent: (any TheStageCore::TTSAgent)?
-  public var tts_generation: TheStageCore::TTSGenerationConfig?
-  public var tts_stream_config: TheStageCore::TTSStreamConfig?
-  public var wake_word_agent: (any TheStageCore::WakeWordAgent)?
-  public var ww_threshold_score: Swift::Double
-  public var turn_start_mode: TheStageCore::TurnStartMode
-  public var turn_end_mode: TheStageCore::TurnEndMode
-  public var turn_detection_mode: TheStageCore::TurnEndMode {
-    get
-    set
-  }
-  public var interrupt_mode: TheStageCore::InterruptMode
-  public var interrupt_trigger: TheStageCore::InterruptTrigger {
-    get
-    set
-  }
-  public var speaker_id: Swift::String?
-  public var speaker_id_device: Swift::String
-  public var speaker_similarity_threshold: Swift::Double
-  public var enrolled_speaker_embedding: [Swift::Double]?
-  public var speaker_id_agent: (any TheStageCore::SpeakerIdAgent)?
-  public var extra_nodes: [any TheStageCore::AgentNode]
-  public var effective_turn_start_mode: TheStageCore::TurnStartMode {
-    get
-  }
-  public var needed_sensors: TheStageCore::AgentSignalSet {
-    get
-  }
-  public init(vad: Swift::String, stt: Swift::String, tts: Swift::String? = nil, llm: (any TheStageCore::TSLLMProvider)? = nil, wake_word: Swift::String? = nil)
-  public var responds: Swift::Bool {
-    get
-  }
-  public var speaks: Swift::Bool {
-    get
-  }
-  public var require_full_stack: Swift::Bool
-}
-public struct AgentCapabilities : Swift::Sendable {
-  public var listening: Swift::Bool
-  public var transcribing: Swift::Bool
-  public var responding: Swift::Bool
-  public var speaking: Swift::Bool
-  public var reasons: [Swift::String : Swift::String]
-  public static let empty: TheStageCore::AgentCapabilities
-}
 final public class TSVoiceAgent : @unchecked Swift::Sendable {
   final public var state: TheStageCore::TSAgentState {
     get
@@ -4177,6 +4820,7 @@ final public class TSVoiceAgent : @unchecked Swift::Sendable {
   }
   final public let events: _Concurrency::AsyncStream<TheStageCore::TSAgentEvent>
   final public let llm_deltas: TheStageCore::AgentChannel<Swift::String>
+  final public let llm_unspoken: TheStageCore::AgentChannel<TheStageCore::AgentUnspokenText>
   final public let transcripts: TheStageCore::AgentChannel<Swift::String>
   final public let partial_transcripts: TheStageCore::AgentChannel<Swift::String>
   final public let vad_probabilities: TheStageCore::AgentChannel<Swift::Double>
@@ -4187,6 +4831,8 @@ final public class TSVoiceAgent : @unchecked Swift::Sendable {
   @objc deinit
   @_Concurrency::MainActor final public func start() async throws
   @_Concurrency::MainActor final public func begin_listening() async throws
+  final public func set_microphone_muted(_ muted: Swift::Bool)
+  final public func set_push_to_talk(held: Swift::Bool) async
   @_Concurrency::MainActor final public func pause_listening() async
   @_Concurrency::MainActor final public func stop() async
   final public func interrupt()
@@ -4197,8 +4843,8 @@ final public class TSVoiceAgent : @unchecked Swift::Sendable {
   final public func history() async -> [TheStageCore::AgentMessage]
   final public func clear_history() async
   final public func set_system_prompt(_ prompt: Swift::String) async
+  final public func set_task(_ instructions: Swift::String?) async
   final public func enroll_speaker(_ embedding: [Swift::Double]?) async
-  final public func update_interrupt_config(min_speech_ms: Swift::Int? = nil, min_playback_ms: Swift::Int? = nil, mode: TheStageCore::InterruptTrigger? = nil, onset_ms: Swift::Int? = nil, threshold: Swift::Double? = nil) async
   final public func update_interrupt_config(min_speech_ms: Swift::Int? = nil, min_playback_ms: Swift::Int? = nil, interrupt_mode mode: TheStageCore::InterruptMode? = nil, onset_ms: Swift::Int? = nil, threshold: Swift::Double? = nil) async
   final public func update_turn_config(eot_threshold: Swift::Double? = nil, pause_trigger_ms: Swift::Int? = nil, reeval_interval_ms: Swift::Int? = nil, max_silence_ms: Swift::Int? = nil) async
 }
@@ -4210,6 +4856,22 @@ extension TheStageCore::PCMFormat : Swift::Hashable {}
 extension TheStageCore::ChatRole : Swift::Equatable {}
 extension TheStageCore::ChatRole : Swift::Hashable {}
 extension TheStageCore::ChatRole : Swift::RawRepresentable {}
+@available(*, deprecated, message: "Removed in the next release. Use InterruptMode.")
+extension TheStageCore::VADInterruptMode : Swift::Equatable {}
+@available(*, deprecated, message: "Removed in the next release. Use InterruptMode.")
+extension TheStageCore::VADInterruptMode : Swift::Hashable {}
+extension TheStageCore::InterruptMode : Swift::Equatable {}
+extension TheStageCore::InterruptMode : Swift::Hashable {}
+extension TheStageCore::InterruptMode : Swift::RawRepresentable {}
+extension TheStageCore::ChatTemplate : Swift::Equatable {}
+extension TheStageCore::ChatTemplate : Swift::Hashable {}
+extension TheStageCore::ChatTemplate : Swift::RawRepresentable {}
+@available(*, deprecated, message: "use InterruptMode")
+extension TheStageCore::InterruptTrigger : Swift::Equatable {}
+@available(*, deprecated, message: "use InterruptMode")
+extension TheStageCore::InterruptTrigger : Swift::Hashable {}
+@available(*, deprecated, message: "use InterruptMode")
+extension TheStageCore::InterruptTrigger : Swift::RawRepresentable {}
 extension TheStageCore::LaunchVerdict : Swift::Equatable {}
 extension TheStageCore::LaunchVerdict : Swift::Hashable {}
 extension TheStageCore::LaunchVerdict : Swift::RawRepresentable {}
@@ -4226,6 +4888,9 @@ extension TheStageCore::ASRTextContext : Swift::RawRepresentable {}
 extension TheStageCore::ASREndpointCommit : Swift::Equatable {}
 extension TheStageCore::ASREndpointCommit : Swift::Hashable {}
 extension TheStageCore::ASREndpointCommit : Swift::RawRepresentable {}
+extension TheStageCore::ASRProcessingErrorCode : Swift::Equatable {}
+extension TheStageCore::ASRProcessingErrorCode : Swift::Hashable {}
+extension TheStageCore::ASRProcessingErrorCode : Swift::RawRepresentable {}
 extension TheStageCore::ASRAgreementUnit : Swift::Equatable {}
 extension TheStageCore::ASRAgreementUnit : Swift::Hashable {}
 extension TheStageCore::ASRAgreementUnit : Swift::RawRepresentable {}
@@ -4248,32 +4913,41 @@ extension TheStageCore::ModelPlacement : Swift::RawRepresentable {}
 extension TheStageCore::ModelComponentStatus.TheStageCore::CodingKeys : Swift::Equatable {}
 extension TheStageCore::ModelComponentStatus.TheStageCore::CodingKeys : Swift::Hashable {}
 extension TheStageCore::ModelComponentStatus.TheStageCore::CodingKeys : Swift::RawRepresentable {}
+extension TheStageCore::DiarizationMode : Swift::Equatable {}
+extension TheStageCore::DiarizationMode : Swift::Hashable {}
+extension TheStageCore::DiarizationMode : Swift::RawRepresentable {}
+extension TheStageCore::DiarizationLatency : Swift::Equatable {}
+extension TheStageCore::DiarizationLatency : Swift::Hashable {}
+extension TheStageCore::DiarizationLatency : Swift::RawRepresentable {}
 extension TheStageCore::EmbeddingSpec : Swift::Sendable {}
 extension TheStageCore::EmbeddingSpec : Swift::Encodable {}
 extension TheStageCore::EmbeddingSpec : Swift::Decodable {}
-extension TheStageCore::ChatTemplate : Swift::Equatable {}
-extension TheStageCore::ChatTemplate : Swift::Hashable {}
-extension TheStageCore::ChatTemplate : Swift::RawRepresentable {}
+extension TheStageCore::EmbeddingModality : Swift::Equatable {}
+extension TheStageCore::EmbeddingModality : Swift::Hashable {}
+extension TheStageCore::EmbeddingModality : Swift::RawRepresentable {}
+extension TheStageCore::EmbeddingTask : Swift::Equatable {}
+extension TheStageCore::EmbeddingTask : Swift::Hashable {}
+extension TheStageCore::EmbeddingTask : Swift::RawRepresentable {}
 extension TheStageCore::ToolCallStyle : Swift::Equatable {}
 extension TheStageCore::ToolCallStyle : Swift::Hashable {}
 extension TheStageCore::ToolCallStyle : Swift::RawRepresentable {}
 extension TheStageCore::ToolCallingFormat : Swift::Equatable {}
 extension TheStageCore::ToolCallingFormat : Swift::Hashable {}
 extension TheStageCore::ToolCallingFormat : Swift::RawRepresentable {}
+extension TheStageCore::RepairAction : Swift::Equatable {}
+extension TheStageCore::RepairAction : Swift::Hashable {}
+extension TheStageCore::RepairAction : Swift::RawRepresentable {}
 extension TheStageCore::FieldCounters.TheStageCore::Key : Swift::Equatable {}
 extension TheStageCore::FieldCounters.TheStageCore::Key : Swift::Hashable {}
 extension TheStageCore::FieldCounters.TheStageCore::Key : Swift::RawRepresentable {}
+extension TheStageCore::LoadProgress.TheStageCore::Phase : Swift::Hashable {}
+extension TheStageCore::LoadProgress.TheStageCore::Phase : Swift::RawRepresentable {}
 extension TheStageCore::FailureClassification : Swift::Equatable {}
 extension TheStageCore::FailureClassification : Swift::Hashable {}
 extension TheStageCore::FailureClassification : Swift::RawRepresentable {}
 extension TheStageCore::ModelLoadPhase : Swift::Equatable {}
 extension TheStageCore::ModelLoadPhase : Swift::Hashable {}
 extension TheStageCore::ModelLoadPhase : Swift::RawRepresentable {}
-extension TheStageCore::RepairAction : Swift::Equatable {}
-extension TheStageCore::RepairAction : Swift::Hashable {}
-extension TheStageCore::RepairAction : Swift::RawRepresentable {}
-extension TheStageCore::LoadProgress.TheStageCore::Phase : Swift::Hashable {}
-extension TheStageCore::LoadProgress.TheStageCore::Phase : Swift::RawRepresentable {}
 extension TheStageCore::TheStageAI : Swift::Sendable {}
 extension TheStageCore::ModelEvictionPriority : Swift::Hashable {}
 extension TheStageCore::ModelEvictionPriority : Swift::RawRepresentable {}
@@ -4292,6 +4966,12 @@ extension TheStageCore::Seq2SeqKVCacheKind : Swift::RawRepresentable {}
 extension TheStageCore::Seq2SeqCrossKVStrategy : Swift::Equatable {}
 extension TheStageCore::Seq2SeqCrossKVStrategy : Swift::Hashable {}
 extension TheStageCore::Seq2SeqCrossKVStrategy : Swift::RawRepresentable {}
+extension TheStageCore::SpeakerIdentityStatus : Swift::Equatable {}
+extension TheStageCore::SpeakerIdentityStatus : Swift::Hashable {}
+extension TheStageCore::SpeakerIdentityStatus : Swift::RawRepresentable {}
+extension TheStageCore::SpeakerTimestampSource : Swift::Equatable {}
+extension TheStageCore::SpeakerTimestampSource : Swift::Hashable {}
+extension TheStageCore::SpeakerTimestampSource : Swift::RawRepresentable {}
 extension TheStageCore::SpeakerEmbeddingSpec : Swift::Sendable {}
 extension TheStageCore::SpeakerEmbeddingSpec : Swift::Encodable {}
 extension TheStageCore::SpeakerEmbeddingSpec : Swift::Decodable {}
@@ -4306,6 +4986,17 @@ extension TheStageCore::VADActivityState : Swift::Hashable {}
 extension TheStageCore::WakeWordSpec : Swift::Sendable {}
 extension TheStageCore::WakeWordSpec : Swift::Encodable {}
 extension TheStageCore::WakeWordSpec : Swift::Decodable {}
+extension TheStageCore::SpeakerShortTurnPolicy : Swift::Equatable {}
+extension TheStageCore::SpeakerShortTurnPolicy : Swift::Hashable {}
+extension TheStageCore::SpeakerShortTurnPolicy : Swift::RawRepresentable {}
+extension TheStageCore::SpeakerASRWindowing : Swift::Equatable {}
+extension TheStageCore::SpeakerASRWindowing : Swift::Hashable {}
+extension TheStageCore::SpeakerASRWindowing : Swift::RawRepresentable {}
+extension TheStageCore::SpeakerTextSource : Swift::Equatable {}
+extension TheStageCore::SpeakerTextSource : Swift::Hashable {}
+extension TheStageCore::SpeakerTextSource : Swift::RawRepresentable {}
+extension TheStageCore::SpeakerOverlapRouting : Swift::Hashable {}
+extension TheStageCore::SpeakerOverlapRouting : Swift::RawRepresentable {}
 extension TheStageCore::EndReason : Swift::Equatable {}
 extension TheStageCore::EndReason : Swift::Hashable {}
 extension TheStageCore::EndReason : Swift::RawRepresentable {}
@@ -4332,17 +5023,6 @@ extension TheStageCore::TurnStartMode : Swift::RawRepresentable {}
 extension TheStageCore::TurnEndMode : Swift::Equatable {}
 extension TheStageCore::TurnEndMode : Swift::Hashable {}
 extension TheStageCore::TurnEndMode : Swift::RawRepresentable {}
-extension TheStageCore::InterruptMode : Swift::Equatable {}
-extension TheStageCore::InterruptMode : Swift::Hashable {}
-extension TheStageCore::InterruptMode : Swift::RawRepresentable {}
-extension TheStageCore::InterruptTrigger : Swift::Equatable {}
-extension TheStageCore::InterruptTrigger : Swift::Hashable {}
-extension TheStageCore::InterruptTrigger : Swift::RawRepresentable {}
-extension TheStageCore::AgentMessage.TheStageCore::Role : Swift::Equatable {}
-extension TheStageCore::AgentMessage.TheStageCore::Role : Swift::Hashable {}
-extension TheStageCore::AgentMessage.TheStageCore::Role : Swift::RawRepresentable {}
-extension TheStageCore::VADInterruptMode : Swift::Equatable {}
-extension TheStageCore::VADInterruptMode : Swift::Hashable {}
 extension TheStageCore::TSAgentState : Swift::Equatable {}
 extension TheStageCore::TSAgentState : Swift::Hashable {}
 extension TheStageCore::TSAgentState : Swift::RawRepresentable {}
@@ -4351,3 +5031,6 @@ extension TheStageCore::TSAgentConfigError : Swift::Hashable {}
 extension TheStageCore::TSAgentEvent.TheStageCore::Kind : Swift::Equatable {}
 extension TheStageCore::TSAgentEvent.TheStageCore::Kind : Swift::Hashable {}
 extension TheStageCore::TSAgentEvent.TheStageCore::Kind : Swift::RawRepresentable {}
+extension TheStageCore::AgentMessage.TheStageCore::Role : Swift::Equatable {}
+extension TheStageCore::AgentMessage.TheStageCore::Role : Swift::Hashable {}
+extension TheStageCore::AgentMessage.TheStageCore::Role : Swift::RawRepresentable {}

@@ -242,13 +242,21 @@ for (final frame in frames()) {
 }
 ```
 
-**Sensitivity** — `VADConfig`:
+**Sensitivity** — `VADConfig` (every field; the defaults are what `VADConfig()` ships):
 
-| Field | Default | Change it when |
+| Field | Default | Meaning / change it when |
 |---|---|---|
-| `threshold` | 0.5 | Raise to `0.7` in a café or car; lower to `0.3` for distant or soft speakers, or push-to-talk where intent is known. |
-| `min_silence_s` | 0.20 | How much quiet ends speech. Raise for speakers who pause mid-sentence. |
-| `pre_roll_s` | 0.35 | Audio kept from *before* speech was confirmed, so the first syllable is not lost. Rarely changed. |
+| `threshold` | 0.7 | Probability that starts speech. Lower to `0.5` in a quiet room or `0.3`–`0.4` for distant or soft speakers; raise to `0.8` in a café or car. |
+| `neg_threshold` | 0.15 | Probability that ends speech: a stream stays in speech while the probability is at or above it (hysteresis). `nil` uses `threshold × 0.3`. |
+| `onset_window_s` | 0.256 | Rolling window in which the onset hits must fall. |
+| `onset_min_detections` | 2 | Frames at or above `threshold` inside `onset_window_s` before speech starts. Raise to ignore short clicks. |
+| `min_silence_s` | 0.20 | Consecutive no-speech that ends a speech region. Raise for speakers who pause mid-sentence. |
+| `silence_confirm_s` | 0.30 | After the last speech frame, audio keeps flowing this long before silence is confirmed. |
+| `pre_roll_s` | 0.30 | Audio kept from *before* speech was confirmed, so the first syllable is not lost. Rarely changed. |
+| `zero_silence_hangover` | `true` | Once silence is confirmed, the hangover tail is sent as zeros (quiet dips inside a word are never zeroed). |
+| `silence_raw_s` | 0.064 | The first part of that tail that stays real audio, so a word's decay is not clipped. |
+| `energy_hold_db` | `nil` | Inside speech, a frame the model scores low stays speech while its energy is within this many dB of the speech level (reverberant rooms). `nil` lets the streaming policy decide; `0` or less turns it off. It never starts speech. |
+| `energy_hold_floor_db` | 10 | The held frame must also be this many dB above the noise floor. |
 | `speech_pad_ms` | 50 | Padding around segments in batch mode. |
 
 > [!NOTE]
@@ -307,10 +315,14 @@ final rows = await TheStageFlutterSDK.infer(
 
 | JSON option | Meaning |
 |---|---|
-| `threshold` | Probability that starts a region. |
-| `neg_threshold` | Probability that ends one. Defaults to `threshold − 0.15` so a region does not flicker. |
-| `min_silence_duration_ms` | Quiet needed to split two regions. |
-| `speech_pad_ms` | Padding added to both ends of each region. |
+| `threshold` | Probability that starts a region. Default `0.5`. |
+| `neg_threshold` | Probability that ends one. When left out, `threshold − 0.15` (at least `0.01`), so a region does not flicker. |
+| `min_silence_duration_ms` | Quiet needed to split two regions. Default `100`. |
+| `speech_pad_ms` | Padding added to both ends of each region. Default `30`. |
+
+> [!NOTE]
+> The JSON options have their own defaults (`threshold` 0.5); they are
+> not the `VADConfig` defaults above (`threshold` 0.7).
 
 ## Result object
 
@@ -543,7 +555,7 @@ final trimmed = note.sublist(
 
 **Solution — what to use**
 
-- `VADConfig(threshold: 0.75)` — quiet room 0.5; café or car 0.7–0.8;
+- `VADConfig(threshold: 0.75)` (default 0.7) — quiet room 0.5; café or car 0.7–0.8;
   distant speakers 0.3–0.4.
 - `min_silence_s` and a minimum speech duration before acting.
 - Push-to-talk or a wake word when other voices must be excluded.
@@ -552,7 +564,7 @@ final trimmed = note.sublist(
 
 ```swift
 var session = VADActivitySession(config: VADConfig(
-    // default 0.5
+    // default 0.7
     threshold: 0.75,
     min_silence_s: 0.3
 ))

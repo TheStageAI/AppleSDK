@@ -28,6 +28,31 @@ void main() {
     );
   });
 
+  test('V6 cut settings reach native JSON without changing empty defaults', () {
+    expect(
+      const ASRStreamingConfig(
+        algorithm: ASRStreamingAlgorithm.THESTAGE_V6,
+        cut_search_s: 6,
+        cut_force_s: 9.5,
+        cut_age_s: 1,
+        cut_confirm_ratio: 0.8,
+        cut_veto_cer: 0.2,
+        cut_pick: 'last',
+        clock_release_s: 8,
+      ).to_json(),
+      {
+        'algorithm': 'THESTAGE_V6',
+        'cut_search_s': 6,
+        'cut_force_s': 9.5,
+        'cut_age_s': 1,
+        'cut_confirm_ratio': 0.8,
+        'cut_veto_cer': 0.2,
+        'cut_pick': 'last',
+        'clock_release_s': 8,
+      },
+    );
+  });
+
   test('consecutive local agreement is explicit on the wire', () {
     expect(
       const ASRStreamingConfig(

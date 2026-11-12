@@ -45,22 +45,23 @@ Here we will cover the following topics:
 
 ## Supported models
 
-Four packs (plus Gemma-4 E2B, which ships under [`TSVLM`](./vlm.md) as a
+Five packs (plus Gemma-4 E2B, which ships under [TSVLM](./vlm.md) as a
 text-only multimodal pack). They share one API; they differ in size, tool support and
 whether they can reason before answering.
 
 | Model | HF repo | Size | Device | Fleet pin |
 |---|---|---|---|---|
-| Qwen3-0.6B | `TheStageAI/Qwen3-0.6B` | 0.6B | NPU | v1.1 |
-| LFM2.5-230M | `TheStageAI/LFM2.5-230M` | 230M | NPU | v1.1 |
-| LFM2.5-350M | `TheStageAI/LFM2.5-350M` | 350M | NPU | v1.1 |
-| Gemma3-1B | `TheStageAI/gemma-3-1b-it` | 1B | NPU | v1.1 |
+| Qwen3-0.6B | `TheStageAI/Qwen3-0.6B` | 0.6B | NPU | v1.6 |
+| LFM2.5-230M | `TheStageAI/LFM2.5-230M` | 230M | NPU | v1.6 |
+| LFM2.5-350M | `TheStageAI/LFM2.5-350M` | 350M | NPU | v1.6 |
+| LFM2.5-1.2B | `TheStageAI/LFM2.5-1.2B` | 1.2B | NPU | v1.6 |
+| Gemma3-1B | `TheStageAI/gemma-3-1b-it` | 1B | NPU | v1.6 |
 
-| Feature | Qwen3-0.6B | LFM2.5-230M | LFM2.5-350M | Gemma3-1B |
-|---|---|---|---|---|
-| Chat + streaming | yes | yes | yes | yes |
-| Tool calling | yes | yes | yes | — |
-| Thinking mode | yes | — | — | — |
+| Feature | Qwen3-0.6B | LFM2.5-230M | LFM2.5-350M | LFM2.5-1.2B | Gemma3-1B |
+|---|---|---|---|---|---|
+| Chat + streaming | yes | yes | yes | yes | yes |
+| Tool calling | yes | yes | yes | yes | — |
+| Thinking mode | yes | — | — | — | — |
 
 **Which one?**
 
@@ -187,7 +188,7 @@ let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
 var config = llm.generation_defaults
 config.enable_thinking = false
 
-let session = LLMChatEngine(llm: llm).chat_session(
+let session = llm.chat_session(
     system_prompt: "You are a friendly assistant. Answer in one sentence.",
     memory: .SLIDING(max_turns: 10)
 )
@@ -245,7 +246,7 @@ history.add({'role': 'assistant', 'content': reply.toString()});
 | Load a model | `try await TSLLM(engines_path:)` | `start_model(model_name: 'llm', engines_path:)` |
 | One answer | `llm.infer(prompt:system_prompt:config:)` → `LLMResult` | `infer(model_name:input_json:)` → `rows[0]` |
 | Streamed reply | `llm.infer_stream(prompt:system_prompt:config:)` → `LLMStreamChunk` | `infer_stream(model_name:input_json:)` → `chunk['delta']` |
-| Conversation | `LLMChatEngine(llm:).chat_session(…)` → `TSChatSession` | `'messages'` in `input_json` on `infer_stream` |
+| Conversation | `llm.chat_session(…)` → `TSChatSession` | `'messages'` in `input_json` on `infer_stream` |
 | Tools | `infer_stream(prompt:tools: [Tool], …)` → `LLMStreamEvent` | `'tools'` in `input_json`; handle `tool_call` chunks |
 | Release | drop the object | `stop_model(model_name: 'llm')` |
 
@@ -375,7 +376,7 @@ let extracted = try await engine.infer(
 )
 
 // Conversation with memory
-let session = engine.chat_session(
+let session = llm.chat_session(
     system_prompt: "You are a helpful assistant.",
     tools: [],
     memory: .SLIDING(max_turns: 10)
@@ -417,7 +418,7 @@ final extracted = TheStageFlutterSDK.infer_stream(
 
 ### Important API
 
-`TSChatSession` — created by `LLMChatEngine(llm:).chat_session(…)`:
+`TSChatSession` — created by `llm.chat_session(…)`:
 
 | Member | Role |
 |---|---|
@@ -762,7 +763,7 @@ final fields = jsonDecode(out.toString());
 
 **Solution — what to use**
 
-- `LLMChatEngine.chat_session(system_prompt:memory:)` — owns the
+- `TSLLM.chat_session(system_prompt:memory:)` — owns the
   history so each turn is one call.
 - `infer_stream(user_request:config:)` — `text_delta` events go
   straight into the bubble.
@@ -779,7 +780,7 @@ final fields = jsonDecode(out.toString());
 ```swift
 let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
 
-let session = LLMChatEngine(llm: llm).chat_session(
+let session = llm.chat_session(
     system_prompt: "You are the support assistant for Acme. Be brief.",
     memory: .SLIDING(max_turns: 8)
 )
@@ -876,7 +877,7 @@ stopButton.onPressed = () => sub.cancel();
 let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
 let persona = "You are Sam, a warm hiking companion. Keep replies short."
 
-let session = LLMChatEngine(llm: llm).chat_session(
+let session = llm.chat_session(
     system_prompt: persona,
     // ~6 exchanges of context
     memory: .SLIDING(max_turns: 6)
@@ -959,7 +960,7 @@ let orderStatus = Tool(
     }
 )
 
-let session = LLMChatEngine(llm: llm).chat_session(
+let session = llm.chat_session(
     system_prompt: DefaultTools.voice_system_prompt + "\nYou help Acme customers.",
     tools: [orderStatus] + DefaultTools.phone,
     memory: .SLIDING(max_turns: 8)

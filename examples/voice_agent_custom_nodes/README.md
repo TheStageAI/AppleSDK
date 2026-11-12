@@ -1,7 +1,7 @@
 # voice_agent_custom_nodes
 
 Flutter demo for **custom voice-agent nodes** on TheStage Apple SDK
-**`1.5.0`**.
+**`1.6.0`**.
 
 Shows how to attach host-owned nodes (`extraNodes`), caption images with
 an ephemeral VLM, tune sample rates / AEC, and park resident models
@@ -9,8 +9,8 @@ around a quiet-state burst.
 
 | | |
 | --- | --- |
-| Example version | **`1.5.0`** (see [`VERSION`](./VERSION)) |
-| SDK pin | Flutter plugin `ref: 1.5.0` |
+| Example version | **`1.6.0`** (see [`VERSION`](./VERSION)) |
+| SDK pin | Flutter plugin `ref: 1.6.0` |
 | Platforms | Physical iPhone, **iOS 18+** |
 
 ## What it demonstrates
@@ -66,7 +66,7 @@ hardcode `vA.B` unless you intentionally override:
 | STT | `TheStageAI/thewhisper-large-v3-turbo` |
 | TTS | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` |
 | LLM | `TheStageAI/LFM2.5-350M` (or picker) |
-| VLM | `TheStageAI/LFM2.5-VL-450M` (SDK 1.2 → HF `v1.2`) |
+| VLM | `TheStageAI/LFM2.5-VL-450M` |
 | Neural AEC | `TheStageAI/dtln-aec` (when `aec_method: neural`) |
 
 First load downloads and compiles on-device; later launches reuse the cache.

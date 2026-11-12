@@ -57,6 +57,10 @@ void main() {
     );
   });
 
+  test('V6 streaming config fields match the schema', () {
+    _assert_fields('ASRStreamingConfig', ASRStreamingConfig.field_names, schema);
+  });
+
   test('enum cases match schema', () {
     final enums = schema['enums'] as Map;
     expect(
@@ -112,7 +116,7 @@ void main() {
     expect(empty.min_audio_s, isNull);
     expect(empty.algorithm, isNull);
     expect(empty.to_json(), isEmpty);
-    expect(ASRStreamingConfig.field_names.length, 25);
+    expect(ASRStreamingConfig.field_names.length, 32);
   });
 
   test('policy defaults live on Swift, not Dart', () {

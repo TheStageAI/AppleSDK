@@ -1,0 +1,41 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "thestage_sdk"
+version = "1.6.0"
+description = "TheStage on-device AI SDK for Python on Apple Silicon Macs: LLM chat, speech recognition, text to speech and the voice agent, running natively."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Proprietary" }
+dependencies = ["numpy>=1.24"]
+classifiers = [
+    "Operating System :: MacOS :: MacOS X",
+    "Programming Language :: Python :: 3",
+]
+
+[project.optional-dependencies]
+server = ["aiohttp>=3.9", "lameenc>=1.7"]
+test = ["pytest>=8", "pytest-asyncio>=0.23", "aiohttp>=3.9", "lameenc>=1.7", "openai>=1.40"]
+
+[project.scripts]
+thestage-sdk = "thestage_sdk.server.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/thestage_sdk"]
+# The signed host binary is built by scripts/build_wheel.sh, not tracked.
+artifacts = ["src/thestage_sdk/_bin/thestage-host"]
+
+[tool.ruff]
+line-length = 90
+
+[tool.ruff.lint]
+# 90-column limit, checked, not only formatted.
+extend-select = ["E501"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+# One host per process: tests share one event loop.
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"

@@ -120,6 +120,33 @@ extension TheStageFlutterPlugin {
         }
     }
 
+    func __handle_delete_model(
+        _ call: FlutterMethodCall,
+        result: @escaping FlutterResult
+    ) {
+        guard let args = call.arguments as? [String: Any],
+              let engines_path = args["engines_path"] as? String
+        else {
+            __fail(result, msg: "Missing engines_path.")
+            return
+        }
+        let revision = args["revision"] as? String
+        Task { @MainActor in
+            do {
+                let deletion = try await TheStageAI.shared.delete_model(
+                    engines_path: engines_path,
+                    revision: revision
+                )
+                result([
+                    "freed_bytes": NSNumber(value: deletion.freed_bytes),
+                    "revisions": deletion.revisions,
+                ])
+            } catch {
+                __fail(result, error: error)
+            }
+        }
+    }
+
     func __handle_prefetch_engines(
         _ call: FlutterMethodCall,
         result: @escaping FlutterResult

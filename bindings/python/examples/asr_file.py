@@ -35,4 +35,5 @@ async def main(path: str) -> None:
         print(f"{word.t0:7.2f}–{word.t1:6.2f}  {word.text}")
 
 
-asyncio.run(main(sys.argv[1]))
+if __name__ == "__main__":
+    asyncio.run(main(sys.argv[1]))

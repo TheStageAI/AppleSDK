@@ -102,7 +102,8 @@ leaves `sampling` unset so the voice's own defaults apply.
 |---|---|---|
 | LLM | `LLMGenerationConfig` — [LLM](./llm.md) | `LLMResult`; stream `LLMStreamChunk` / `LLMStreamEvent` |
 | VLM | `LLMGenerationConfig` — [VLM](./vlm.md) | `LLMResult` (+ `encode_seconds`) |
-| ASR | `ASRGenerationConfig`, `ASRStreamingConfig` — [ASR](./asr.md) | `ASRResult`; stream `ASRTurn` |
+| ASR | `ASRGenerationConfig`, `ASRStreamingConfig`, `ASRSessionLanguageConfig` — [ASR](./asr.md) | `ASRResult`; stream `ASRTurn` |
+| Diarization | `SpeakerSetup`, `ASRSpeakerConfig`, `DiarizationConfig` — [Diarization](./diarization.md) | `ASRResult.speaker_turns` / `speakers`; `DiarizationResult` |
 | TTS | `TTSGenerationConfig`, `TTSStreamConfig` — [TTS](./tts.md) | `TTSResult`; stream `InferenceStreamChunk` |
 | Voice Agent | `TSAgentConfig` — [Voice Agent](./voice_agent.md) | typed channels + `TSAgentEvent` |
 

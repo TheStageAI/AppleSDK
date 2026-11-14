@@ -202,6 +202,7 @@ await agent.start(config: {
 | Cut playback | `interrupt()` | `interrupt()` |
 | Voice | `set_voice(voice_id:voice_dir:language:)` | `set_voice(voice_id:, voice_dir:, language:)` |
 | Memory | `history()` / `clear_history()` / `set_system_prompt(_:)` | `clear_history()` / `set_system_prompt(prompt)` |
+| One task beside the chat | `set_task(_:)`: while set, each request is answered from these instructions alone, without the history, and is not remembered; `nil` returns to the chat | — |
 | Live re-tune | `update_interrupt_config(…)` / `update_turn_config(…)` | `update_interrupt_config(…)` |
 
 ## Follow the conversation

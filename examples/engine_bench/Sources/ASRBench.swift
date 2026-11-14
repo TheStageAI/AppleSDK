@@ -71,7 +71,7 @@ enum ASRCatalog {
         BundledASRModel(
             name: "parakeet-tdt-0.6b-v3",
             displayName: "Parakeet-TDT 0.6b v3",
-            hfRepo: "",                       // dev-bundle only for now
+            hfRepo: "TheStageAI/parakeet-tdt-0.6b-v3",
             revision: nil,
             family: .parakeet
         ),

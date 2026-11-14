@@ -37,6 +37,7 @@ enum MethodRoute {
     static let startModel = "start_model"
     static let stopModel = "stop_model"
     static let prefetchEngines = "prefetch_engines"
+    static let deleteModel = "delete_model"
 
     static let listComponents = "list_components"
     static let loadComponents = "load_components"

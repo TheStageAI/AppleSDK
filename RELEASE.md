@@ -1,13 +1,13 @@
 # TheStage Apple SDK 1.6.0
 
-Built 2026-11-13. Pin this tag; the examples use `exact: Version(1, 6, 0)`.
+Built 2026-11-14. Pin this tag; the examples use `exact: Version(1, 6, 0)`.
 
 ## Binary
 
 | slice | sha256 |
 |---|---|
-| `ios-arm64` | `85a5aeae6244af15a5908e7dc127fe22fbf213f0be40a687524e0c92ae5732c6` |
-| `macos-arm64` | `f925488171ed156c7ad31ea2059a6dd85a5494646b6160ada032c020b6e9f2f5` |
+| `ios-arm64` | `1ede091a28a522fbde4168e4039148f347ea122bf51faf1e346208e145af0c27` |
+| `macos-arm64` | `52d15d8f484023250ffb411ae2beed154ec0231ecfa7ee5a8341ee4f35b016c9` |
 
 ## Models
 

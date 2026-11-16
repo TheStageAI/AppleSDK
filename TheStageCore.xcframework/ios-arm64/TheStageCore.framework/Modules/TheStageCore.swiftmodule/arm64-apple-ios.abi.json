@@ -171711,6 +171711,20 @@
         "moduleName": "TheStageCore"
       },
       {
+        "kind": "Import",
+        "name": "CryptoKit",
+        "printedName": "CryptoKit",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
         "kind": "TypeDecl",
         "name": "TSSDKError",
         "printedName": "TSSDKError",
@@ -172026,6 +172040,13 @@
         "kind": "Import",
         "name": "Security",
         "printedName": "Security",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "CryptoKit",
+        "printedName": "CryptoKit",
         "declKind": "Import",
         "moduleName": "TheStageCore"
       },
@@ -210143,28 +210164,28 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 8651,
+      "offset": 8919,
       "length": 5,
       "value": "\"npu\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 10630,
+      "offset": 10898,
       "length": 5,
       "value": "\"npu\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 16567,
+      "offset": 16835,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 22967,
+      "offset": 23235,
       "length": 4,
       "value": "true"
     },

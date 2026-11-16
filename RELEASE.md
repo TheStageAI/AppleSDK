@@ -6,8 +6,8 @@ Built 2026-11-16. Pin this tag; the examples use `exact: Version(1, 6, 0)`.
 
 | slice | sha256 |
 |---|---|
-| `ios-arm64` | `0a576c46215fe94754e1ec23552e019de1341198934146471a99737249ec05da` |
-| `macos-arm64` | `ef5c6f7099f446a93f98689c7fe0fa3f08185c90d86cdaf6728caf087c41c66d` |
+| `ios-arm64` | `82c8bd823b235c257fa9902eea1c723c79fb46b12a869eda1a09d34f4fe17297` |
+| `macos-arm64` | `5c330bec467ee4fbbdfee96b0a3ea6fe8eda7ffe37c0e240f21fb06683614d4e` |
 
 ## Models
 

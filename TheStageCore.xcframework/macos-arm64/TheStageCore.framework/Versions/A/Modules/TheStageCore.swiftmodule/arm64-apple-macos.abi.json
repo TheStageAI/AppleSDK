@@ -171617,6 +171617,20 @@
         "moduleName": "TheStageCore"
       },
       {
+        "kind": "Import",
+        "name": "CryptoKit",
+        "printedName": "CryptoKit",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "Foundation",
+        "printedName": "Foundation",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
         "kind": "TypeDecl",
         "name": "TSSDKError",
         "printedName": "TSSDKError",
@@ -171932,6 +171946,13 @@
         "kind": "Import",
         "name": "Security",
         "printedName": "Security",
+        "declKind": "Import",
+        "moduleName": "TheStageCore"
+      },
+      {
+        "kind": "Import",
+        "name": "CryptoKit",
+        "printedName": "CryptoKit",
         "declKind": "Import",
         "moduleName": "TheStageCore"
       },
@@ -210056,28 +210077,28 @@
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 8651,
+      "offset": 8919,
       "length": 5,
       "value": "\"npu\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 10630,
+      "offset": 10898,
       "length": 5,
       "value": "\"npu\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 16567,
+      "offset": 16835,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 22967,
+      "offset": 23235,
       "length": 4,
       "value": "true"
     },
@@ -218319,6 +218340,27 @@
       "offset": 1454,
       "length": 2,
       "value": "32"
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 1575,
+      "length": 11,
+      "value": "\"key_store\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2030,
+      "length": 7,
+      "value": "\".lock\""
+    },
+    {
+      "filePath": "",
+      "kind": "StringLiteral",
+      "offset": 2077,
+      "length": 8,
+      "value": "\"device\""
     },
     {
       "filePath": "",

@@ -24,8 +24,9 @@ thestage-sdk = "thestage_sdk.server.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/thestage_sdk"]
-# The signed host binary is built by scripts/build_wheel.sh, not tracked.
-artifacts = ["src/thestage_sdk/_bin/thestage-host"]
+# The signed host binary and the SDK framework it loads are built by
+# scripts/build_wheel.sh, not tracked.
+artifacts = ["src/thestage_sdk/_bin/**"]
 
 [tool.ruff]
 line-length = 90

@@ -4,7 +4,6 @@
 // swift-module-flags-ignorable: -no-verify-emitted-module-interface -formal-cxx-interoperability-mode=off -interface-compiler-version 6.4.2
 import AVFoundation
 import Accelerate
-import CoreAI
 import CoreAudio
 import CoreGraphics
 import CoreImage

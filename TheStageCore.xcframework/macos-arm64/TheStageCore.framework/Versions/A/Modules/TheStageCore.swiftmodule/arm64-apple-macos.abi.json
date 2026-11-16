@@ -15136,7 +15136,10 @@
         "name": "CoreAI",
         "printedName": "CoreAI",
         "declKind": "Import",
-        "moduleName": "TheStageCore"
+        "moduleName": "TheStageCore",
+        "declAttributes": [
+          "AccessControl"
+        ]
       },
       {
         "kind": "Import",
@@ -63678,7 +63681,10 @@
         "name": "CoreAI",
         "printedName": "CoreAI",
         "declKind": "Import",
-        "moduleName": "TheStageCore"
+        "moduleName": "TheStageCore",
+        "declAttributes": [
+          "AccessControl"
+        ]
       },
       {
         "kind": "Import",
@@ -63706,7 +63712,10 @@
         "name": "CoreAI",
         "printedName": "CoreAI",
         "declKind": "Import",
-        "moduleName": "TheStageCore"
+        "moduleName": "TheStageCore",
+        "declAttributes": [
+          "AccessControl"
+        ]
       },
       {
         "kind": "Import",
@@ -63748,7 +63757,10 @@
         "name": "CoreAI",
         "printedName": "CoreAI",
         "declKind": "Import",
-        "moduleName": "TheStageCore"
+        "moduleName": "TheStageCore",
+        "declAttributes": [
+          "AccessControl"
+        ]
       },
       {
         "kind": "Import",
@@ -201798,35 +201810,35 @@
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 2454,
+      "offset": 2463,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 2782,
+      "offset": 2791,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 12279,
+      "offset": 12288,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 12299,
+      "offset": 12308,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 12330,
+      "offset": 12339,
       "length": 2,
       "value": "[]"
     },
@@ -204773,231 +204785,231 @@
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 1203,
+      "offset": 1212,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 1515,
+      "offset": 1524,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 431,
+      "offset": 440,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 650,
+      "offset": 659,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 939,
+      "offset": 948,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 1129,
+      "offset": 1138,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1287,
+      "offset": 1296,
       "length": 19,
       "value": "\"QLIP_COREAI_TRACE\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1311,
+      "offset": 1320,
       "length": 3,
       "value": "\"1\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1476,
+      "offset": 1485,
       "length": 21,
       "value": "\"QLIP_COREAI_UNBOUND\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 1502,
+      "offset": 1511,
       "length": 3,
       "value": "\"1\""
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 1538,
+      "offset": 1547,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 1580,
+      "offset": 1589,
       "length": 21,
       "value": "[0, 0, 0, 0, 0, 0, 0]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 1817,
+      "offset": 1826,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 2041,
+      "offset": 2050,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 7822,
+      "offset": 7831,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 19609,
+      "offset": 19618,
       "length": 38,
       "value": "[\"newValue\", \"newKey\", \"newConvState\"]"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 19739,
+      "offset": 19748,
       "length": 10,
       "value": "\"newValue\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 20551,
+      "offset": 20560,
       "length": 10,
       "value": "\"newValue\""
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 23551,
+      "offset": 23560,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 29587,
+      "offset": 29596,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 29904,
+      "offset": 29913,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 38258,
+      "offset": 38267,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 38300,
+      "offset": 38309,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 53419,
+      "offset": 53428,
       "length": 24,
       "value": "\"QLIP_COREAI_BLOCK_WAIT\""
     },
     {
       "filePath": "",
       "kind": "StringLiteral",
-      "offset": 53533,
+      "offset": 53542,
       "length": 26,
       "value": "\"QLIP_COREAI_PREDICT_WAIT\""
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 55081,
+      "offset": 55090,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Array",
-      "offset": 55174,
+      "offset": 55183,
       "length": 2,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "Dictionary",
-      "offset": 55257,
+      "offset": 55266,
       "length": 3,
       "value": "[]"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 55352,
+      "offset": 55361,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 55465,
+      "offset": 55474,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 55491,
+      "offset": 55500,
       "length": 1,
       "value": "0"
     },
     {
       "filePath": "",
       "kind": "BooleanLiteral",
-      "offset": 55525,
+      "offset": 55534,
       "length": 5,
       "value": "false"
     },
     {
       "filePath": "",
       "kind": "IntegerLiteral",
-      "offset": 55572,
+      "offset": 55581,
       "length": 1,
       "value": "0"
     },

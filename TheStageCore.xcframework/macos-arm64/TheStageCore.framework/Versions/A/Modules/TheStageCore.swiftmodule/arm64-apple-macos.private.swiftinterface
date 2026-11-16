@@ -5,7 +5,6 @@
 import AVFoundation
 import Accelerate
 import AppKit
-import CoreAI
 import CoreAudio
 import CoreGraphics
 import CoreImage

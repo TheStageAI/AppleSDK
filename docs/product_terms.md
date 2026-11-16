@@ -3,9 +3,8 @@
 Legal / commercial terms for the on-device Apple SDK (iOS & macOS).
 
 The full supplemental **TheStage Apple SDK Product Terms** live on the
-documentation site (Sphinx), parallel to the QLIP and Elastic Models product
-terms — page `apple-sdk-product-terms` on
-[docs.thestage.ai](https://docs.thestage.ai/).
+documentation site, next to the terms of TheStage's other products — page
+`apple-sdk-product-terms` on [docs.thestage.ai](https://docs.thestage.ai/).
 
 ## What integrators need to know
 

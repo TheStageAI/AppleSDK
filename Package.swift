@@ -8,18 +8,11 @@ let package = Package(
         .macOS(.v15),
     ],
     products: [
-        // The one product apps depend on: bundles the precompiled binary
-        // plus its ZipArchive link-time dep. `import TheStageSDK`
-        // re-exports everything (it does `@_exported import TheStageCore`).
+        // The one product apps depend on. `import TheStageSDK` re-exports
+        // everything (it does `@_exported import TheStageCore`).
         .library(
             name: "TheStageSDK",
             targets: ["TheStageSDK"]
-        ),
-    ],
-    dependencies: [
-        .package(
-            url: "https://github.com/ZipArchive/ZipArchive.git",
-            from: "2.5.0"
         ),
     ],
     targets: [
@@ -29,18 +22,10 @@ let package = Package(
         ),
         .target(
             name: "TheStageSDK",
-            dependencies: [
-                "TheStageCore",
-                // TheStageCore links SSZipArchive (engine-archive
-                // extraction); consumers must provide it when linking.
-                .product(name: "ZipArchive", package: "ZipArchive"),
-            ],
-            path: "Sources/TheStageSDK",
-            linkerSettings: [
-                // TheStageCore carries C++ kernels; a SwiftPM executable
-                // does not link libc++ on its own.
-                .linkedLibrary("c++"),
-            ]
+            // TheStageCore is a dynamic framework that links everything
+            // it needs; Xcode embeds it in the app.
+            dependencies: ["TheStageCore"],
+            path: "Sources/TheStageSDK"
         ),
     ]
 )

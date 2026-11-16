@@ -9,7 +9,7 @@ a live session and get captions while the user is still talking.
 
 > **Main features**
 >
-> - **One call for both families**: `infer(audio:config:)` on Swift,
+> - **One call for every family**: `infer(audio:config:)` on Swift,
 >   `infer(model_name: "stt", …)` on Flutter. Switch model by changing
 >   the engine path.
 > - **Live captions**: two kinds of text at once — *committed* words that
@@ -24,18 +24,23 @@ a live session and get captions while the user is still talking.
 > - **Word timestamps**: `timestamps: .WORD` returns every word with
 >   start and end, for seeking and highlighting.
 > - **Language detection**: `language: "auto"` when you do not know
->   what the user will speak.
+>   what the user will speak. A file and a live session each settle on
+>   one language.
+> - **Who said what**: add speakers to the same engine and every word
+>   carries its speaker; saved voices give speakers their names. See
+>   [Diarization](./diarization.md).
 
 ## In this page
 
 Here we will cover the following topics:
 
-- [Supported models](#supported-models): the two families, what each does better, and how to pick.
+- [Supported models](#supported-models): the three families, what each does better, and how to pick.
 - [Quick start](#quick-start): transcribe a file, live captions, or push your own PCM — Swift and Flutter side by side.
 - [Transcribe audio](#transcribe-audio): the batch call, the audio contract, and per-call options.
 - [Live captions](#live-captions): the two `ASREngine` modes, committed vs hypothesis text, and which knobs are worth touching.
-- [Result object](#result-object): `ASRResult` fields and their Flutter JSON keys.
-- [Usage Guides](#usage-guides): voice notes, meeting recordings, telephony audio, live subtitles, multilingual users, turn endings.
+- [Language](#language): a fixed language or `"auto"`, and how a file and a live session settle on one.
+- [Result object](#result-object): `ASRResult`, `ASRTurn` and `ASRWord` fields and their Flutter JSON keys.
+- [Usage Guides](#usage-guides): voice notes, meeting recordings, who said what, telephony audio, live subtitles, multilingual users, turn endings.
 - [Troubleshooting](#troubleshooting): symptom → cause → fix.
 - [Load Progress / Prefetch / Cleanup](#load-progress-prefetch-cleanup): first-run download, warming the cache, releasing models.
 
@@ -46,17 +51,18 @@ the calls are identical.
 
 | Model | HF repo | Base | Device | Fleet pin |
 |---|---|---|---|---|
-| TheWhisper Large V3 Turbo | `TheStageAI/thewhisper-large-v3-turbo` | Whisper-large-v3-turbo | NPU | v1.1 |
-| Qwen3-ASR 0.6B | `TheStageAI/Qwen3-ASR-0.6B` | 0.6B | NPU | v1.1 |
-| Parakeet-TDT 0.6B v3 | `TheStageAI/parakeet-tdt-0.6b-v3` | parakeet-tdt-0.6b-v3 | NPU | v1.4 |
+| TheWhisper Large V3 Turbo | `TheStageAI/thewhisper-large-v3-turbo` | Whisper-large-v3-turbo | NPU | v1.6 |
+| Qwen3-ASR 0.6B | `TheStageAI/Qwen3-ASR-0.6B` | 0.6B | NPU | v1.6 |
+| Parakeet-TDT 0.6B v3 | `TheStageAI/parakeet-tdt-0.6b-v3` | parakeet-tdt-0.6b-v3 | NPU | v1.6 |
 
 | Feature | TheWhisper turbo | Qwen3-ASR 0.6B | Parakeet-TDT 0.6B |
 |---|---|---|---|
 | Batch `infer` | yes | yes | yes |
 | Live captions (`open_stream`) | yes, sentence-level commits | yes, prefix commits | yes, sentence-level commits |
 | Word timestamps | yes, measured | approximate | yes, measured (from the decoder) |
-| Language hint | `auto` / ISO code | `auto` / ISO code / English name; a fixed language starts the transcript immediately (no language header is generated) | `auto` (25 European languages) |
+| Language hint | `auto` / one of 28 ISO codes (below) | `auto` / ISO code / English name; a fixed language starts the transcript immediately (no language header is generated) | `auto` (25 European languages) |
 | Long audio | 10 s windows, stitched | 30 s windows, stitched (8 s encoder chunks inside one prompt) | 10 s windows, stitched |
+| Speakers ([Diarization](./diarization.md)) | yes; live turns update while spoken | yes; a live turn is transcribed when it ends | yes; live turns update while spoken |
 | Voice Agent STT | yes | yes | yes |
 
 **Which one?**
@@ -69,6 +75,11 @@ the calls are identical.
 | Fastest transcription of European speech | **Parakeet-TDT** | A transducer with no autoregressive text decoder: about 13× real time on an M2 Max, word times measured per frame. |
 | Smallest footprint | **TheWhisper** | Smaller decoder, faster first result on Apple Silicon. |
 | Voice Agent | Either | The agent routes automatically from the pack. |
+
+**TheWhisper languages** — `auto` or one of these 28 ISO 639-1 codes:
+`en ar bg bn cs da de el es et fi fr hi hu id it lt lv nl pl pt ro ru sk sl sv uk vi`.
+A code the pack does not list is refused at the call
+(`ASRError.LANGUAGE_UNSUPPORTED`).
 
 ## Quick start
 
@@ -194,7 +205,11 @@ frames into ASR yourself.
 **Swift**
 
 ```swift
-let silero = try SileroVAD(engines_path: "TheStageAI/silero-vad")
+// SileroVAD takes a local bundle; fetch the pack by its repo id first.
+let vad_path = try await TheStageAI.shared.prefetch_engines(
+    repo_id: "TheStageAI/silero-vad", model_type: "thestage_vad"
+)
+let silero = try SileroVAD(engines_path: vad_path)
 let engine = ASREngine(pipeline: stt, vad: silero)
 let stream = try await engine.open_stream(
     ASRGenerationConfig(language: "en", timestamps: .WORD)
@@ -347,12 +362,20 @@ for (final w in result.words ?? const <ASRWord>[]) {
 
 | Field | Default | Meaning |
 |---|---|---|
-| `language` | `"en"` | ISO code, or `"auto"` to let the model detect it. Qwen3-ASR also accepts an English name (`"German"`). A wrong hint is worse than no hint — TheWhisper will decode foreign speech as English. |
+| `language` | `"en"` | ISO code, or `"auto"` to let the model detect it — see [Language](#language). Qwen3-ASR also accepts an English name (`"German"`). A wrong hint is worse than no hint — TheWhisper will decode foreign speech as English. |
 | `timestamps` | `.WORD` | `.NONE` is fastest; `.SEGMENT` gives phrase ranges; `.WORD` gives every word with `t0` / `t1`. |
-| `overlap` | `0.2` | Long audio is cut into windows (10 s TheWhisper and Parakeet, 8 s Qwen3-ASR). `0.2` reuses 20% of each window in the next, so a word on a cut is decoded by both windows and kept once. `0` decodes every sample once and loses words that straddle a cut. |
-| `max_new_tokens` | derived | Cap on decode per window. Leave unset — the default follows the real audio length. |
+| `overlap` | `0.2` | Long audio is cut into windows (10 s TheWhisper and Parakeet, 30 s Qwen3-ASR). `0.2` reuses 20% of each window in the next, so a word on a cut is decoded by both windows and kept once. `0` decodes every sample once and loses words that straddle a cut. |
+| `max_new_tokens` | `nil` (derived) | Cap on decode per window. Leave unset — the default follows the real audio length. |
 | `return_tokens` | `false` | Include token IDs in the result. Debugging only. |
-| `speculative_decoding` | `nil` (pack policy) | Qwen3-ASR packs that ship a drafter transcribe faster with the same text. `false` forces plain decoding; `true` is the same as `nil` — a pack without a drafter decodes plain, never fails (`ASRResult.spec_steps` is 0 then). |
+| `language_detection` | `false` | `true` decodes each window without a language and reports the one it hears, whatever `language` says. Prefer `language: "auto"`: only it gives a long file and a live session one language. |
+| `text_context` | `.NONE` | `.SUBMITTED` puts `context_text` in front of the decode, so names and terms you already accepted are spelled the same way. TheWhisper and Qwen3-ASR; Parakeet refuses it (`ASRError.TEXT_CONTEXT_UNSUPPORTED`). |
+| `context_text` | `""` | The text for `text_context: .SUBMITTED`. Only text that will not change — never a live hypothesis. |
+| `speculative_decoding` | `nil` (pack policy) | Qwen3-ASR packs that ship a drafter transcribe faster with the same text. `false` forces plain decoding; `true` is the same as `nil` — a pack without a drafter decodes plain, never fails (`metrics.spec_steps` is 0 then). |
+
+> [!NOTE]
+> On Flutter, `ASRGenerationConfig` has the same fields except
+> `speculative_decoding`. The Dart class sends `overlap: 0.2`; a raw
+> `TheStageFlutterSDK.infer` call that leaves `overlap` out uses `0`.
 
 ## Live captions
 
@@ -380,7 +403,8 @@ initializer you call:
 ### Rendering a caption
 
 The one pattern to get right. `ASRTurn` carries `committed`,
-`hypothesis`, `display` (the two joined) and `end_of_turn`.
+`hypothesis` and `end_of_turn`. For one label, Swift joins the two
+with `ASRStreamingBuffer`; Flutter's `TSASRTurn` has `display`.
 
 **Swift**
 
@@ -390,6 +414,7 @@ var config = TSAgentConfig(
     stt: "TheStageAI/thewhisper-large-v3-turbo"
 )
 let engine = ASREngine(config: config)
+var caption = ASRStreamingBuffer()
 
 for await turn in engine.turns.recv() {
     // ✅ two labels: solid text, then a dimmed guess
@@ -397,10 +422,11 @@ for await turn in engine.turns.recv() {
     hypothesisLabel.text = turn.end_of_turn ? "" : turn.hypothesis
 
     // ✅ one label, if you must
-    captionLabel.text = turn.display
+    caption.apply(turn)
+    captionLabel.text = caption.display
 
     // ❌ appending display doubles words when the guess firms up
-    // transcript += turn.display
+    // transcript += caption.display
 }
 ```
 
@@ -433,6 +459,7 @@ Channels on `ASREngine(config:)` and `TSASREngine`:
 | `transcripts` | One final string per completed utterance. |
 | `partial_transcripts` | Live text for a caption label. Latest value wins; intermediate values may be skipped if your UI is slow. |
 | `vad_probabilities` | Per-frame speech probability, for a mic meter. |
+| `speaker_events` | Speaker updates, with speakers on the engine — see [Diarization](./diarization.md). |
 | `events` | Lifecycle and error events. |
 
 Calls on `ASRStream` (Swift and Flutter):
@@ -440,6 +467,7 @@ Calls on `ASRStream` (Swift and Flutter):
 | Call | Use it to |
 |---|---|
 | `send(_:)` | Push 16 kHz mono frames. Any frame size. |
+| `turns` / `partials` | Read `ASRTurn` values / the live caption string. |
 | `flush()` | Force a commit at a pause you detected yourself. |
 | `close()` | End the session and get the authoritative `ASRResult`. |
 | `cancel()` | Abandon the session — barge-in, or the user left the screen. |
@@ -460,9 +488,10 @@ Changing any of it means `stop()` then `start()`.
 | Field | Controls |
 |---|---|
 | `asr_generation` | Language and timestamp mode — the same `ASRGenerationConfig`. |
-| `turn_config` | When an utterance is over: `silence_timeout_ms` (default 608), `asr_silence_hangover_ms`, `max_accumulation_ms` (30 000). |
-| `vad_config` | How sensitive capture is: `threshold` (0.5), `pre_roll_s` (0.35), onset window. |
-| `asr_streaming_config` | Commit policy — see below. |
+| `turn_config` | When an utterance is over: `silence_timeout_ms` (default 608), `asr_silence_hangover_ms` (`nil` = the model's policy), `max_accumulation_ms` (30 000). |
+| `vad_config` | How sensitive capture is. `nil` uses the loaded VAD's tuning: `threshold` 0.7 to start speech, `neg_threshold` 0.15 to stay in it, `pre_roll_s` 0.30, onset 2 hits inside `onset_window_s` 0.256. All fields: [VAD](./vad.md). |
+| `asr_streaming_config` | Commit policy and session language — see below and [Language](#language). |
+| `speakers` (init argument) | Who said what, by repo id: `.conversation(voices:)`. `nil` (default) = no speakers. See [Diarization](./diarization.md). |
 | `audio` / `audio_node_factory` | Microphone settings, or a complete replacement audio source. |
 
 > [!NOTE]
@@ -482,22 +511,36 @@ policy for the loaded model; most apps never set it.
 
 | Algorithm | Runs on | Behaviour |
 |---|---|---|
-| `THESTAGE_V5` | Models with word timing (TheWhisper — its default) | Commits a sentence at a time, so punctuation and casing are right and text stops flickering. |
+| `THESTAGE_V5` | Models with measured word timing (TheWhisper and Parakeet — their default) | Commits a sentence at a time, so punctuation and casing are right and text stops flickering. |
+| `THESTAGE_V5_5` | Models with measured word timing (opt-in) | `THESTAGE_V5` with faster commits: the first decode after 0.75 s of speech, three agreeing decodes, a word may lock 0.5 s behind live audio. On `ASREngine(config:)` it also ends turns with SmartTurn (set `TSAgentConfig.turn_detector`) and, with speakers, routes overlapping speech to both speakers. Every part yields to a field you set. |
+| `THESTAGE_V6` | Models with measured word timing (opt-in) | Rewrites the open region on every accepted decode and commits at a sentence, an agreement, a pause or a window cut. |
 | `NAIVE` | Any streaming model (Qwen3-ASR default) | Commits the longest prefix that repeated decodes agree on. Simple and portable; more rewriting on screen. |
 
 | Field | Default | Raise it / lower it when |
 |---|---|---|
-| `n_confirmations` | 2 | Raise for fewer rewrites on screen, at the cost of text appearing later. |
+| `algorithm` | `nil` (the model's default, above) | Pick another commit policy from the table above. |
+| `min_audio_s` | 2.0 s | Audio a session needs before its first decode. Lower for quicker first text on short commands. |
+| `partial_s` | 0.5 s TheWhisper · 1.0 s Qwen3-ASR | New audio between two decodes. Lower for livelier captions, at more compute. |
+| `n_confirmations` | 2 TheWhisper · 3 Qwen3-ASR | Raise for fewer rewrites on screen, at the cost of text appearing later. |
 | `commit_lag_s` | 1.0 s TheWhisper · 2.0 s Qwen3-ASR | How far behind live audio a word must be before it locks. Raise if endings get corrected; lower for snappier captions. |
-| `endpoint_silence_s` | 1.5 s TheWhisper · 3.5 s Qwen3-ASR | How much hush ends a turn. Raise for speakers who pause to think; lower for quick back-and-forth. |
+| `endpoint_silence_s` | 1.5 s TheWhisper · 1.0 s Qwen3-ASR | How much hush ends a turn. Raise for speakers who pause to think; lower for quick back-and-forth. |
+| `endpoint_commit` | `.AGREED_PREFIX` TheWhisper · `.FULL_HYPOTHESIS` Qwen3-ASR | What a turn end commits: only the agreed words, or the whole last hypothesis. `.NONE` never commits on hush. |
 | `max_repeats` | 3 | Raise if genuine repetition ("no no no", counting) is being eaten; lower if a stuck decoder reaches the transcript. |
 | `speech_onset_s` | 0.2 s | Raise if door clicks and keyboard noise start turns. |
+| `format_turns` | `true` | `false` keeps raw decoder words (see Sentence formatting below). |
+| `session_language` | `nil` (on, 10 s) | With `language: "auto"`: how a live session settles on one language. See [Language](#language). |
+
+Every field is an override: `nil` keeps the value the loaded model's
+tuned policy chose, and setting one field leaves the others tuned. The
+values above are those shipped defaults (Parakeet follows the TheWhisper
+column). The remaining fields of `ASRStreamingConfig` are expert
+overrides of that policy; leave them `nil`.
 
 > [!CAUTION]
-> `THESTAGE_V5` needs a model that reports word timings. Asking for it
-> on one that does not fails at `open_stream` with the missing
-> capability named — it does not silently downgrade. If in doubt, pass
-> nothing.
+> `THESTAGE_V5`, `THESTAGE_V5_5` and `THESTAGE_V6` need a model
+> that measures word timings. Asking for one on a model that does not
+> fails at `open_stream` with the missing capability named — it does
+> not silently downgrade. If in doubt, pass nothing.
 
 **Sentence formatting** — committed text is punctuated and capitalised
 for you, script-aware across the 28 shipped TheWhisper languages. Pass
@@ -505,10 +548,107 @@ for you, script-aware across the 28 shipped TheWhisper languages. Pass
 `ASRTextFormatter` to `ASREngine(pipeline:vad:formatter:)`, if your
 UI wants raw words.
 
+## Language
+
+Tell the model which language it hears, or let it find out. A fixed
+language is the fastest and most accurate choice, and the SDK never
+changes it. `"auto"` detects the language for you, and the SDK keeps a
+whole file, and a whole live session, in one language — so a short turn
+cannot come out in a different one.
+
+**Swift**
+
+```swift
+// A file: one language for the whole file
+let stt = try await WhisperPipeline(
+    engines_path: "TheStageAI/thewhisper-large-v3-turbo"
+)
+let result = try stt.infer(
+    audio: samples,
+    config: ASRGenerationConfig(language: "auto")
+)
+// "de", or nil for audio shorter than about 8 s
+print(result.language ?? "unknown")
+
+// A live session: detects once, then keeps that language
+var config = TSAgentConfig(
+    vad: "TheStageAI/silero-vad",
+    stt: "TheStageAI/thewhisper-large-v3-turbo"
+)
+config.asr_generation = ASRGenerationConfig(language: "auto")
+config.asr_streaming_config.session_language = ASRSessionLanguageConfig(
+    // false: every new turn detects its language again
+    enabled: true,
+    // seconds of speech the one detection runs over
+    detect_s: 10
+)
+let engine = ASREngine(config: config)
+let reader = Task {
+    for await turn in engine.turns.recv() {
+        // nil until the language is known
+        languageChip.text = turn.language ?? "…"
+    }
+}
+try await engine.start()
+```
+
+**Flutter**
+
+```dart
+// A file
+final result = await ASREngine(stt: 'stt').infer(
+  pcm16k,
+  config: const ASRGenerationConfig(language: 'auto'),
+);
+// 'de', or null for audio shorter than about 8 s
+print(result.language);
+
+// A live session: the session language runs with its defaults
+await TSASREngine().start(config: {
+  'vad': 'TheStageAI/silero-vad',
+  'stt': 'TheStageAI/thewhisper-large-v3-turbo',
+  'language': 'auto',
+});
+```
+
+**What** `"auto"` **does** — TheWhisper:
+
+| Where | What happens |
+|---|---|
+| Any call with a code (`"de"`) | Every window and every turn decodes in that language. The SDK never changes it, and `language` in the result is that code. |
+| `infer` on a file | The first windows with speech (up to three) each detect a language. The most frequent one (on a tie, the first heard) decodes every window and is `result.language`. A window needs about 8 s of audio to detect: audio shorter than that reports no language (`result.language == nil`) and decodes without one. |
+| Live session — `ASREngine(config:)` `start()`, and `open_stream` on such an engine with speakers | The session gathers `detect_s` (10 s) of speech, whoever speaks it, detects once and keeps that language for the rest of the session. Turns that start after it decode in it. With speakers, the turns that ended before it are decoded again in it and update once more; without speakers they keep the text they had. If the detection names no language, the next 10 s are tried. |
+| `ASREngine(pipeline:vad:)` `open_stream` | No session language: each decode with 8 s or more of audio reports what it hears on `ASRTurn.language`, and decodes without a language. Pass the code to your next stream to keep it. |
+| `infer` on a file with speakers | Each speaker turn decodes on its own: a turn of 8 s or more detects its language, a shorter one decodes without one. Pass the language when you know it. |
+
+Qwen3-ASR detects inside its own decode and reports the language per
+window; it is not pinned for a file or a session. Parakeet-TDT
+transcribes its 25 languages with `language: "auto"`.
+
+**Session language** — `ASRSessionLanguageConfig`, set on
+`ASRStreamingConfig.session_language` (`nil` = these defaults). It
+only acts when `language` is `"auto"`.
+
+| Field | Default | Meaning |
+|---|---|---|
+| `enabled` | `true` | `false`: every new turn detects its language again, as a separate decode. |
+| `detect_s` | `10` | Seconds of speech, from any speaker, the one detection runs over. Below 8 s detection is unreliable. |
+
+> [!TIP]
+> - A session that switches language keeps the first one. Set the
+>   language yourself for a session that changes language, or set
+>   `enabled: false`.
+> - A wrong code is worse than `"auto"`: TheWhisper told `"en"`
+>   writes German speech as English-sounding words.
+> - The live text before the language is known can still be in another
+>   language; with speakers those turns are corrected, so show the
+>   final result as the transcript to keep.
+
 ## Result object
 
 `ASRResult` is what `infer` and `close()` return. Swift gets a
-struct; Flutter gets the same fields as JSON, with one alias.
+struct; Flutter gets the same fields as JSON, with one alias. Live
+sessions deliver `ASRTurn` values; both carry `ASRWord` values.
 
 **Swift**
 
@@ -516,12 +656,11 @@ struct; Flutter gets the same fields as JSON, with one alias.
 let stt = try await WhisperPipeline(
     engines_path: "TheStageAI/thewhisper-large-v3-turbo"
 )
-var config = TSAgentConfig(
-    vad: "TheStageAI/silero-vad",
-    stt: "TheStageAI/thewhisper-large-v3-turbo"
-)
 
-let result = try stt.infer(audio: samples, config: config)
+let result = try stt.infer(
+    audio: samples,
+    config: ASRGenerationConfig(language: "auto", timestamps: .WORD)
+)
 
 // the transcript
 result.text
@@ -531,6 +670,8 @@ result.language
 result.words?.first?.t0
 // audio seconds per wall second
 result.metrics.rtf
+// with speakers on the engine (see Diarization)
+result.speaker_turns.first?.speaker_id
 ```
 
 **Flutter**
@@ -559,11 +700,38 @@ rows[0]['words'];
 | Swift | Flutter JSON | Meaning |
 |---|---|---|
 | `text` | `transcription` / `text` | The transcript. |
-| `words` | `words` | `[ASRWord]` — `text`, `t0`, `t1` in seconds. Only with `timestamps: .WORD` / `.SEGMENT`. |
-| `language` | `language` | ISO code the model detected. Set with `language: "auto"`. |
+| `words` | `words` | `[ASRWord]` (below). Only with `timestamps: .WORD` / `.SEGMENT`. |
+| `language` | `language` | The code the file decoded in: yours, or the detected one with `language: "auto"`. `nil` when `"auto"` had less than about 8 s of audio. |
 | `metrics.rtf` | `metrics.rtf` | Audio seconds per wall second. 20 means a minute of audio in 3 s. |
 | `decode_seconds` | `decode_seconds` | Decoder wall time. |
 | `tokens` | `tokens` | Token IDs, only with `return_tokens`. |
+| `speaker_turns` | — | With speakers: `[ASRSpeakerTurn]`, one row per speaker turn. Empty otherwise. See [Diarization](./diarization.md). |
+| `speakers` | — | With speakers: `[ASRSpeaker]`, the session's speakers and their names. |
+| `speaker_segments` | — | With speakers: `[SpeakerSegment]`, when each speaker was active. |
+| `completion` | — | `.COMPLETE`, `.CANCELLED` or `.FAILED(_)` — whether speaker processing finished. |
+
+`ASRWord` — one word:
+
+| Field | Meaning |
+|---|---|
+| `text` | The word as written, with its punctuation. |
+| `t0` / `t1` | Start and end in seconds from the start of the audio (`start_ms` / `end_ms` in milliseconds). |
+| `speaker_id` | The speaker, with speakers on the engine (`"speaker-0"`, …). `nil` without speakers, and on hypothesis words. |
+| `confidence` | Per-word score, `nil` when the model has none. |
+| `is_final` | `true` for committed words that will not change; `false` for live hypothesis words. |
+
+`ASRTurn` — one live update:
+
+| Field | Meaning |
+|---|---|
+| `committed` | Text locked so far. Never rewritten. |
+| `hypothesis` | The live guess after it. Rewritten on the next update. |
+| `transcript` / `utterance` | The submitted text of this turn / the utterance as one string. |
+| `words` | `[ASRWord]`: committed words (`is_final`) then hypothesis words. |
+| `end_of_turn` | `true` once the turn is over. |
+| `turn_order` | The turn's number in the session, from 0. |
+| `language` | The language this turn decoded in; `nil` until it is known. |
+| `speaker_id` / `speakers` / `speaker_revision` | With speakers: the turn's main speaker, the session's speakers, and a counter that grows each time the labels change. |
 
 ## Usage Guides
 
@@ -685,6 +853,11 @@ Future<void> onPressEnd() => asr.stop();
   in a pause; a cut inside a pause has nothing to lose and takes none.
 - `timestamps: .WORD` — `t0` / `t1` per word, which is your seek
   position.
+- Text from `ASREngine.infer` is formatted as the live path formats it
+  (sentence casing, hyphen and punctuation joins). For the raw decoder
+  words pass `ASRPassthroughFormatter()` to
+  `ASREngine(pipeline:vad:formatter:)`; `WhisperPipeline.infer` called
+  directly is always raw.
 
 ![A transcript with timestamps; one sentence highlighted; a player below](./assets/ui_asr_meeting.svg)
 
@@ -748,6 +921,100 @@ void seek(ASRWord word) =>
 >   decoded by both windows. `0` is faster and *will* lose those words.
 > - Build rows from `result.words` (each has `t0` / `t1`), not by
 >   splitting `result.text` — the text has no times.
+
+**Show the transcript while it is made** (Swift; Flutter has no
+equivalent yet). `ASREngine.infer_stream(audio:config:)` takes the same
+input as `infer` and yields the transcript so far before each window:
+only words no later window can change, so the text only grows. The last
+element is the same result `infer` returns. With speakers, or with
+`timestamps: .NONE`, only the last element arrives.
+
+```swift
+let engine = ASREngine(pipeline: stt, vad: silero)
+for try await result in engine.infer_stream(
+    audio: samples,
+    config: ASRGenerationConfig(language: "en", timestamps: .WORD, overlap: 0.2)
+) {
+    // grows window by window
+    transcript.text = result.text
+}
+```
+
+### Who said what — speakers and saved voices
+
+> **Problem**
+>
+> **Building** — a meeting or podcast recorder that shows who said each
+> sentence, and names the people the user has saved.
+>
+> **Users want** — "Alex: …", "Maria: …" rows, live while recording, and
+> a final transcript that is right after the meeting.
+>
+> **Hard part** — telling voices apart live, keeping names across
+> sessions, and fixing what the live labels got wrong without
+> transcribing again.
+
+**Solution — what to use**
+
+- `TSAgentConfig(vad:stt:speakers: .conversation(voices:))` — speakers
+  by repo id; the engine loads the diarizer and the speaker model itself.
+- The same engine serves a file (`infer`), the microphone
+  (`start` / `stop`) and audio you send (`open_stream` / `send` /
+  `close`).
+- `SpeakerVoices(file:)` — the saved voices, one JSON file you choose.
+  A speaker whose voice matches a saved person gets their name.
+- `stop()` and `close()` return the final transcript, with the whole
+  recording diarized again and the words relabelled.
+
+Every parameter, the live flow and the result fields:
+[Diarization](./diarization.md). Saving voices: [Speaker embedding](./speaker_embedding.md).
+
+**Swift**
+
+```swift
+let voices = try SpeakerVoices(
+    file: appSupport.appendingPathComponent("voices.json"),
+    speaker_model: "TheStageAI/speaker-id-v2"
+)
+let engine = ASREngine(config: TSAgentConfig(
+    vad: "TheStageAI/silero-vad",
+    stt: "TheStageAI/thewhisper-large-v3-turbo",
+    speakers: .conversation(
+        voices: voices,
+        final_pass: true,
+        diarizer: "TheStageAI/Nemotron-3-Diarization",
+        speaker_model: "TheStageAI/speaker-id-v2"
+    )
+))
+
+// Live: read before start(), keep what stop() returns
+let live = Task {
+    for await turn in engine.turns.recv() {
+        // word.speaker_id, word.text, word.t0
+        render(turn.words, turn.speakers)
+    }
+}
+try await engine.start()
+// ... the user taps Stop
+let transcript = await engine.stop()
+live.cancel()
+for row in transcript?.speaker_turns ?? [] {
+    let speaker = transcript?.speakers.first { $0.id == row.speaker_id }
+    print(speaker?.name ?? row.speaker_id, row.text)
+}
+```
+
+**Flutter**
+
+Speakers are not available on Flutter yet. `ASRWord.speaker_id`
+is `null` there.
+
+> [!TIP]
+> - Show the result of `stop()` / `close()` as the saved transcript:
+>   the live labels can change at the end.
+> - With `language: "auto"` on a file with speakers, each speaker turn
+>   detects its own language. Pass the language when you know it.
+> - Speakers run with TheWhisper, Qwen3-ASR and Parakeet-TDT.
 
 ### Audio arrives from somewhere else
 
@@ -843,7 +1110,11 @@ final floats = Float32List.fromList(
 let stt = try await WhisperPipeline(
     engines_path: "TheStageAI/thewhisper-large-v3-turbo"
 )
-let silero = try SileroVAD(engines_path: "TheStageAI/silero-vad")
+// SileroVAD takes a local bundle; fetch the pack by its repo id first.
+let vad_path = try await TheStageAI.shared.prefetch_engines(
+    repo_id: "TheStageAI/silero-vad", model_type: "thestage_vad"
+)
+let silero = try SileroVAD(engines_path: vad_path)
 let engine = ASREngine(pipeline: stt, vad: silero)
 let stream = try await engine.open_stream(
     ASRGenerationConfig(language: "en", timestamps: .WORD)
@@ -922,11 +1193,15 @@ await render.cancel();
 
 **Solution — what to use**
 
-- `language: "auto"` on the **first** utterance; read
-  `result.language` to learn what was spoken.
-- Pin that code for the rest of the session — a correct hint is
-  faster and more accurate than detection.
+- Live sessions: `language: "auto"` on `ASREngine(config:)`. The
+  session detects the language over its first 10 s of speech and keeps
+  it; `ASRTurn.language` tells you which one.
+- Separate clips (`infer`): `language: "auto"` on the **first** one;
+  read `result.language`, then pass that code for the rest — a correct
+  hint is faster and more accurate than detection. A clip shorter than
+  about 8 s reports no language.
 - Show the detected language so the user can correct it.
+- How each path settles on its language: [Language](#language).
 
 ![A chat with a 'Detected: German' chip](./assets/ui_asr_language.svg)
 
@@ -942,7 +1217,7 @@ var result = try stt.infer(
     audio: firstUtterance,
     config: ASRGenerationConfig(language: "auto")
 )
-// e.g. "de"
+// e.g. "de"; nil for a clip shorter than about 8 s
 let detected = result.language ?? "en"
 languageChip.text = "Detected: \(Locale.current.localizedString(forLanguageCode: detected) ?? detected)"
 
@@ -965,7 +1240,7 @@ final stt = ASREngine(stt: 'stt');
 // First utterance: detect
 var result = await stt.infer(
   firstUtterance, config: const ASRGenerationConfig(language: 'auto'));
-// e.g. 'de'
+// e.g. 'de'; null for a clip shorter than about 8 s
 final detected = result.language ?? 'en';
 
 // Later utterances: pin it
@@ -978,7 +1253,8 @@ result = await stt.infer(
 >   else.
 > - Qwen3-ASR also accepts English names — `"Japanese"` — handy when
 >   the value comes from a settings screen.
-> - Codes are ISO 639-1 (`en fr de es pt ru ja ko zh ar hi it` …).
+> - Codes are ISO 639-1. TheWhisper takes the 28 listed under
+>   [Supported models](#supported-models).
 
 ### The engine ends turns too early — or too late
 
@@ -1053,13 +1329,16 @@ await asr.start(config: {
 | Symptom | Cause | Fix |
 |---|---|---|
 | Empty or nonsense transcript | Audio is not 16 kHz mono float. | Check the rate first. Convert Int16 with `/ 32768`. See [Audio arrives from somewhere else](#audio-arrives-from-somewhere-else). |
-| Words drop mid-file | `overlap` was set to `0` and a word straddled a window cut. | Leave `overlap` at its default `0.2`, or raise it. |
+| Words drop mid-file | `overlap` is `0` and a word straddled a window cut. | `overlap: 0.2`. |
 | Foreign speech comes out as English | Wrong `language` hint. | `language: "auto"`, then pin the detected code. |
+| `result.language` is `nil` with `"auto"` | The audio is shorter than about 8 s; detection needs that much. | Pass the code, or detect on a longer clip first. |
+| A live session stays in the wrong language | `"auto"` keeps the language it detected first. | Set the language, or `session_language.enabled = false`. See [Language](#language). |
+| Short speaker turns of a file come out in other languages | `infer` with speakers detects per speaker turn. | Pass the language for the file. |
 | "Thank you." on silence | Decoder ran on hush without VAD. | Use `ASREngine(config:)` or pass `SileroVAD` into `open_stream`; gate `infer` on speech. |
 | Captions are empty | Subscribed after `start()` / first `send`. | Subscribe first. |
 | Text jumps around | Rendering `display` as if it were final. | Two labels: `committed` solid, `hypothesis` dimmed. |
 | Slow on long recordings | Windows decode sequentially. | Expected; show progress. Skip silence by streaming turns instead of one giant buffer. |
-| `open_stream` throws about a missing capability | `THESTAGE_V5` requested on a model without word timing. | Leave `algorithm` unset. |
+| `open_stream` throws about a missing capability | `THESTAGE_V5` / `_V5_5` / `_V6` requested on a model without measured word timing. | Leave `algorithm` unset. |
 | Model load fails | `initialize` not called, or cold download on the UI path. | `initialize(api_token:)` first; prefetch on a splash screen. |
 | Flutter type error on `audio` | `Float64List` on the platform channel. | `Float32List`. |
 

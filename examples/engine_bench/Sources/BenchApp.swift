@@ -672,6 +672,19 @@ struct ContentView: View {
 // --------------------------------------------------------------------------------------
 @main
 struct EngineBenchApp: App {
+    init() {
+        // SDK session log in Documents (pull with devicectl): one
+        // `llm.generation` line per request with plan / fallback / accept.
+        if let docs = FileManager.default.urls(
+            for: .documentDirectory, in: .userDomainMask
+        ).first {
+            try? TheStageAI.start_session_log(
+                to: docs.appendingPathComponent("enginebench_session.log"),
+                level: .info, tee_console: false
+            )
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             TabView {
@@ -683,7 +696,148 @@ struct EngineBenchApp: App {
                     .tabItem { Label("ASR", systemImage: "mic") }
                 VLMBenchView()
                     .tabItem { Label("VLM", systemImage: "camera") }
+                EmbedBenchView()
+                    .tabItem { Label("Embed", systemImage: "point.3.connected.trianglepath.dotted") }
             }
+        }
+    }
+}
+
+
+// --------------------------------------------------------------------------------------
+// Embed tab — EmbeddingGemma 2 (the embedding_gen_test cases on device)
+// --------------------------------------------------------------------------------------
+/// Opens `BundledModels/embeddinggemma-2` (else the Hub pack), runs every
+/// `embedding_gen_test` case (warm-up + 5 timed runs), shows median / norm /
+/// determinism, and writes the vectors to `Documents/embed_bench.json` so they
+/// can be compared with the Mac's Core ML and Core AI packs.
+@MainActor
+final class EmbedBenchModel: ObservableObject {
+    @Published var lines: [String] = []
+    @Published var running = false
+
+    private static let repo = "TheStageAI/embeddinggemma-2"
+
+    func run() {
+        guard !running else { return }
+        running = true
+        lines = ["opening…"]
+        Task {
+            do {
+                try await LLMHost.shared.ensureInitialized()
+                let bundled = Bundle.main.resourceURL?
+                    .appendingPathComponent("BundledModels/embeddinggemma-2", isDirectory: true)
+                let path = bundled.map { FileManager.default.fileExists(atPath: $0.path) } == true
+                    ? bundled!.path : Self.repo
+                let t0 = Date()
+                let pipeline = try await EmbeddingPipeline(engines_path: path)
+                lines = [String(format: "open %.1f s (%@)", Date().timeIntervalSince(t0),
+                                path == Self.repo ? "hub" : "bundled")]
+                let out = try await Task.detached { try await Self.__cases(pipeline) }.value
+                lines.append(contentsOf: out.lines)
+                if let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first {
+                    let data = try JSONSerialization.data(withJSONObject: out.dump, options: [.sortedKeys])
+                    try data.write(to: docs.appendingPathComponent("embed_bench.json"))
+                    lines.append("vectors -> Documents/embed_bench.json")
+                }
+            } catch {
+                lines.append("error: \(error.localizedDescription)")
+            }
+            running = false
+        }
+    }
+
+    private nonisolated static func __cases(
+        _ pipeline: EmbeddingPipeline
+    ) async throws -> (lines: [String], dump: [String: [Float]]) {
+        let cases: [(String, [EmbeddingInput], EmbeddingTask?)] = [
+            ("text_query", [.text("How do I reset my router?")], .QUERY),
+            ("text_document_512", [.text(__document(words: 360))], .DOCUMENT),
+            ("image_768", [.image(__gradient(side: 768))], nil),
+            ("audio_3s", [.audio(samples: __tone(seconds: 3), sample_rate: 16_000)], nil),
+            ("audio_30s", [.audio(samples: __tone(seconds: 30), sample_rate: 16_000)], nil),
+            ("video_4_frames", [.video_frames((0..<4).map { _ in __gradient(side: 528) })], nil),
+            ("image_and_caption", [.image(__gradient(side: 768)), .text("a colour gradient")], .QUERY),
+        ]
+        var lines: [String] = []
+        var dump: [String: [Float]] = [:]
+        for (name, inputs, task) in cases {
+            let first = try await pipeline.infer(inputs: inputs, task: task)
+            var times: [Double] = []
+            var identical = true
+            for _ in 0..<5 {
+                let t = Date()
+                let r = try await pipeline.infer(inputs: inputs, task: task)
+                times.append(Date().timeIntervalSince(t) * 1000)
+                identical = identical && r.embedding == first.embedding
+            }
+            dump[name] = first.embedding
+            let norm = first.embedding.reduce(Float(0)) { $0 + $1 * $1 }.squareRoot()
+            lines.append(String(format: "%@  %.1f ms  tok %d  norm %.4f  %@", name,
+                                times.sorted()[times.count / 2], first.token_count, norm,
+                                identical ? "repeat ok" : "DIFFERENT"))
+        }
+        return (lines, dump)
+    }
+
+    private nonisolated static func __tone(seconds: Double) -> [Float] {
+        (0..<Int(16_000 * seconds)).map {
+            let t = Double($0) / 16_000
+            return Float(0.1 * sin(2 * .pi * 440 * t) * (0.5 + 0.5 * sin(2 * .pi * 1.7 * t)))
+        }
+    }
+
+    private nonisolated static func __document(words: Int) -> String {
+        let pool = ["embedding", "models", "map", "text", "images", "audio", "and", "video",
+                    "into", "one", "shared", "vector", "space", "for", "retrieval", "search"]
+        return (0..<words).map { pool[$0 % pool.count] }.joined(separator: " ")
+    }
+
+    private nonisolated static func __gradient(side: Int) -> CGImage {
+        var px = [UInt8](repeating: 255, count: side * side * 4)
+        for y in 0..<side {
+            for x in 0..<side {
+                let i = (y * side + x) * 4
+                px[i] = UInt8(x * 255 / side)
+                px[i + 1] = UInt8(y * 255 / side)
+                px[i + 2] = UInt8((x + y) * 127 / side)
+            }
+        }
+        let ctx = CGContext(
+            data: &px, width: side, height: side, bitsPerComponent: 8, bytesPerRow: side * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        return ctx.makeImage()!
+    }
+}
+
+struct EmbedBenchView: View {
+    @StateObject private var model = EmbedBenchModel()
+    @State private var mode = 0
+
+    var body: some View {
+        NavigationStack {
+            VStack(spacing: 0) {
+                Picker("Mode", selection: $mode) {
+                    Text("Playground").tag(0)
+                    Text("Benchmark").tag(1)
+                }
+                .pickerStyle(.segmented)
+                .padding(.horizontal)
+                if mode == 0 {
+                    EmbedPlaygroundView()
+                } else {
+                    List {
+                        Button(model.running ? "Running…" : "Run EmbeddingGemma 2 bench") { model.run() }
+                            .disabled(model.running)
+                        ForEach(Array(model.lines.enumerated()), id: \.offset) { _, line in
+                            Text(line).font(.system(.footnote, design: .monospaced))
+                        }
+                    }
+                }
+            }
+            .navigationTitle("Embed")
         }
     }
 }

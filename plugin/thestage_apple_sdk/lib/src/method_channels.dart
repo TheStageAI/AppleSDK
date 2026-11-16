@@ -40,6 +40,7 @@ class MethodRoute {
   static const String startModel = 'start_model';
   static const String stopModel = 'stop_model';
   static const String prefetchEngines = 'prefetch_engines';
+  static const String deleteModel = 'delete_model';
 
   static const String listComponents = 'list_components';
   static const String loadComponents = 'load_components';

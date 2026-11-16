@@ -3,34 +3,28 @@
 ![On-Device Apple SDK](docs/assets/on-device-apple-sdk-banner.png)
 
 **On-device** speech, language, and audio inference for **iOS and macOS** on
-Apple Silicon. Engines ship as CoreML bundles from Hugging Face; the
-SDK picks ANE / GPU / CPU per device. After `initialize`, **inference never
+Apple Silicon. Engines ship as Core ML bundles from Hugging Face; the
+SDK picks ANE / GPU / CPU per device. On iPhones running iOS 27 the SDK
+downloads a Core AI pack built for the phone's chip when the model has one. After `initialize`, **inference never
 leaves the device** — there is no server in the hot path.
 
 | | |
 | --- | --- |
-| Version | **`1.5.0`** (pin this tag / SwiftPM `exact:`) |
+| Version | **`1.6.0`** (pin this tag / SwiftPM `exact:`) |
 | Checksums | [`RELEASE.md`](./RELEASE.md) — binary sha256 and the pinned model packs |
 | Platforms | iOS **18+**, macOS **15+**, Apple Silicon only |
-| Surfaces | Native Swift (`TheStageSDK`) · Flutter plugin (iOS) |
-| Engines | Hugging Face `TheStageAI/*` @ **`v1.5`** |
+| Surfaces | Native Swift (`TheStageSDK`) · Flutter plugin (iOS) · Python (`thestage_sdk`, macOS) |
+| Engines | Hugging Face `TheStageAI/*`; this SDK pins a revision per model ([`RELEASE.md`](./RELEASE.md)) |
 | Token | [app.thestage.ai](https://app.thestage.ai) — online `initialize` required |
 
 > **Not supported:** iOS Simulator, Intel Macs, Android, server-side inference.
 
-### Known issues (1.5.0)
+### Known issues (1.6.0)
 
 - **Voice tool-call streaming / parsing:** filler text and tool-call markup
   can appear interleaved on the same stream, so TTS may start speaking while
   a tool call is still being recognized or executed. Some edge cases in tool
   call parsing remain. **Planned fix in the next release.**
-- **iOS 27 memory accounting:** iOS 27 charges Neural Engine memory to the
-  app. Large multifunction packs (Gemma-4 E2B) run close to the per-process
-  limit on 12 GB phones in speculative mode; the SDK releases the
-  speculative-only engine views while decoding plain and reloads them for the
-  next speculative call. Switching plain → speculative on a loaded Gemma-4
-  can still exceed the limit on an iPhone 18 Pro. Stay on one setting per
-  session, or prefer the LFM2.5 packs on iOS 27 devices.
 
 ---
 
@@ -61,7 +55,7 @@ when something breaks.
 touch. Hard rules:
 
 1. Always `initialize` **before** any pipeline / `start_model`.
-2. Pin the SDK to tag **`1.5.0`** (do not float `from:`).
+2. Pin the SDK to tag **`1.6.0`** (do not float `from:`).
 3. Pass HF repo ids like `"TheStageAI/Qwen3-0.6B"` — omit `revision` unless
    you intentionally override (defaults track this SDK line).
 4. Audio is **mono `Float` / `Float32List` in `[-1.0, 1.0]`** — never
@@ -103,6 +97,7 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 | `TheStageCore.xcframework/` | Pre-built binary (`ios-arm64` + `macos-arm64`) |
 | `Package.swift` + `Sources/TheStageSDK/` | SwiftPM entry — `import TheStageSDK` |
 | `plugin/thestage_apple_sdk/` | Flutter plugin (iOS only); vendors the xcframework |
+| `bindings/` | Python binding for macOS (`thestage_sdk`) and the Swift bridge it drives — see [`bindings/README.md`](./bindings/README.md) |
 | `examples/` | Demos pinned to this SDK version — see [`examples/README.md`](./examples/README.md) |
 | `examples/macos_swift_tts/` | **Start here** — native Swift streaming TTS on Mac (no Xcode) |
 | `examples/engine_bench/` | iPhone LLM / TTS / ASR / VLM benches (Hugging Face engines) |
@@ -115,25 +110,30 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 
 ## Capabilities & model fleet
 
-Everything below is the **production `@v1.5`**
-fleet. Pass the HF id as `engines_path` (or construct the typed pipeline
-with the same string).
+Everything below is the production fleet of SDK
+**`1.6.0`**; the revision of each pack is pinned by the SDK
+and listed in [`RELEASE.md`](./RELEASE.md). Pass the HF id as `engines_path`
+(or construct the typed pipeline with the same string).
 
 | Task | HF engines | Swift entry | Notes |
 | --- | --- | --- | --- |
-| Chat LLM | `TheStageAI/Qwen3-0.6B` | `TheStageLLM` | Also `gemma-3-1b-it`, LFM2.5-230M / 350M |
+| Chat LLM | `TheStageAI/Qwen3-0.6B` | `TSLLM` | Also `gemma-3-1b-it`, LFM2.5-230M / 350M / 1.2B |
 | Chat LLM (multimodal root) | `TheStageAI/gemma-4-E2B-it` | `TSVLM` | Gemma-4 E2B, text-only for now (encoders attach later) |
-| ASR | `TheStageAI/thewhisper-large-v3-turbo` | `WhisperPipeline` | Also `Qwen3-ASR-0.6B` |
+| VLM | `TheStageAI/LFM2.5-VL-450M` | `TSVLM` | Image + prompt → text |
+| ASR | `TheStageAI/thewhisper-large-v3-turbo` | `WhisperPipeline` | Also `Qwen3-ASR-0.6B`, `parakeet-tdt-0.6b-v3` |
+| Speakers | `TheStageAI/Nemotron-3-Diarization`, `TheStageAI/speaker-id-v2` | `ASREngine` with `speakers` | Who said what, saved voices; see [diarization.md](./docs/diarization.md) |
 | TTS | `TheStageAI/neutts-nano-multilingual` | `NeuTTSMultilingualPipeline` | Prefer nano for voice agents |
 | TTS | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | `Qwen3TTSPipeline` | Auto-routed from bundle layout |
+| TTS | `TheStageAI/phonon-31m-en` | `PhononTTSPipeline` | Pocket TTS family: also `pocket-tts-18m-en` and the `pocket-tts-100m-<lang>` language packs |
+| Embeddings | `TheStageAI/embeddinggemma-2` | `EmbeddingPipeline` | Text, image, audio and video in one space; see [embedding.md](./docs/embedding.md) |
 | VAD | `TheStageAI/silero-vad` | `SileroVAD` | 512-sample chunks @ 16 kHz |
-| Turn detect | `TheStageAI/smart-turn-v3` | via `TheStageVoiceAgent` | DNN end-of-turn |
+| Turn detect | `TheStageAI/smart-turn-v3` | via `TSVoiceAgent` | DNN end-of-turn |
 | Speaker ID | `TheStageAI/redimnet2` | `SpeakerEmbedding` | 192-d embedding, 2 s window |
-| Full agent | compose above | `TheStageVoiceAgent` | See [voice_agent.md](./docs/voice_agent.md) |
+| Full agent | compose above | `TSVoiceAgent` | See [voice_agent.md](./docs/voice_agent.md) |
 
 **Out of this release (do not pin in new apps):** full
 `neutts-multilingual`, English espeak `neutts` / `NeuTTSNanoPipeline`,
-wake-word, VLM / YOLO.
+wake-word, YOLO.
 
 Model cards (contracts + acknowledgments):
 [huggingface.co/TheStageAI](https://huggingface.co/TheStageAI).
@@ -239,7 +239,7 @@ Xcode → **File → Add Package Dependencies…** → this repo URL → product
 ```swift
 .package(
     url: "https://github.com/TheStageAI/AppleSDK.git",
-    exact: Version(1, 5, 0)
+    exact: Version(1, 6, 0)
 )
 ```
 
@@ -278,7 +278,7 @@ dependencies:
     git:
       url: https://github.com/TheStageAI/AppleSDK.git
       path: plugin/thestage_apple_sdk
-      ref: 1.5.0
+      ref: 1.6.0
 ```
 
 ```bash
@@ -328,8 +328,8 @@ path to a working UI: copy an `examples/` app.
 ### Revisions
 
 Omit `revision:` in normal apps. This build resolves HF tags via an
-internal map aligned with SDK **`1.5.0`** → fleet
-**`v1.5`**. Override only when
+internal map aligned with SDK **`1.6.0`** → fleet
+**`v1.6`**. Override only when
 you intentionally pin an older engine tag.
 
 ### Init & seats (product)
@@ -394,14 +394,16 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | --- | --- |
 | [`docs/llms.txt`](./docs/llms.txt) | Agent-oriented symbol + page index |
 | [llm.md](./docs/llm.md) | Chat, streaming tokens, sampling, KV |
-| [asr.md](./docs/asr.md) | TheWhisper + Qwen3-ASR: clips, live captions, languages |
+| [asr.md](./docs/asr.md) | TheWhisper, Qwen3-ASR, Parakeet: clips, live captions, languages |
+| [diarization.md](./docs/diarization.md) | Speakers: who said what, live and from a file |
 | [vlm.md](./docs/vlm.md) | Image + prompt → text |
-| [tts.md](./docs/tts.md) | NeuTTS + Qwen3-TTS, voices, streaming |
+| [tts.md](./docs/tts.md) | NeuTTS, Qwen3-TTS, Pocket TTS: voices, streaming |
+| [embedding.md](./docs/embedding.md) | Embeddings for search over text, images, audio, video |
 | [vad.md](./docs/vad.md) | Silero chunk contract |
 | [audio_nodes.md](./docs/audio_nodes.md) | Default audio, custom PCM providers, node graph |
 | [streaming.md](./docs/streaming.md) | Back-pressure, sentence segmentation |
 | [voice_agent.md](./docs/voice_agent.md) | Full loop, barge-in, smart-turn knobs |
-| [loading.md](./docs/loading.md) | `load_models`, warm-up, staying specialized |
+| [loading.md](./docs/loading.md) | `load_models`, warm-up, staying specialized, `delete_model` |
 | [types.md](./docs/types.md) | Shared configs, results, `SamplingParams` |
 | [speaker_embedding.md](./docs/speaker_embedding.md) | Enroll / verify |
 | [licensing.md](./docs/licensing.md) | Token, seats, offline rules |
@@ -420,7 +422,7 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | First infer very slow | HF download | Wait for `ready`; later runs use cache |
 | Flutter audio glitches / NaNs | `Float64List` or wrong rate | Use `Float32List`; match table above |
 | TTS / ASR “wrong” model type | Bundle auto-route | Pass the correct HF repo; see tts.md |
-| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.5.0` |
+| SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.6.0` |
 | Voice agent never commits turn | Thresholds / mode | See smart-turn knobs in voice_agent.md |
 | Tool call + spoken filler overlap / odd parse | Known streaming gap this release | See Known issues above; fix planned next release |
 

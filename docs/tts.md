@@ -10,8 +10,9 @@ stream and hear the first words while the rest is still being made.
 
 > **Main features**
 >
-> - **Two families, one API**: `NeuTTSMultilingualPipeline` and
->   `Qwen3TTSPipeline` share `infer` / `open_stream` / `set_voice`.
+> - **Three families, one API**: `NeuTTSMultilingualPipeline`,
+>   `Qwen3TTSPipeline` and `PhononTTSPipeline` (Phonon / Pocket TTS)
+>   share `infer` / `open_stream` / `set_voice`.
 > - **Streaming**: push text in — whole sentences or LLM tokens — and
 >   drain audio as it is synthesised. First audio in tens of
 >   milliseconds.
@@ -42,21 +43,31 @@ Here we will cover the following topics:
 
 ## Supported models
 
-Two families. Both produce 24 kHz mono float and accept the same calls;
+Three families. All produce 24 kHz mono float and accept the same calls;
 they differ in size, languages and voice character.
 
 | Model | HF repo | Family | Device | Fleet pin |
 |---|---|---|---|---|
-| NeuTTS nano multilingual | `TheStageAI/neutts-nano-multilingual` | NeuTTS | NPU | v1.1 |
-| Qwen3-TTS 12 Hz 0.6B | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | Qwen3 | NPU | v1.1 |
+| NeuTTS nano multilingual | `TheStageAI/neutts-nano-multilingual` | NeuTTS | NPU | v1.6 |
+| Qwen3-TTS 12 Hz 0.6B | `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | Qwen3 | NPU | v1.6 |
+| Phonon 31M English | `TheStageAI/phonon-31m-en` | Pocket TTS (flow-matching) | NPU | v1.6 |
+| Pocket TTS 18M English | `TheStageAI/pocket-tts-18m-en` | Pocket TTS (flow-matching) | NPU | v1.6 |
+| Pocket TTS 100M, one language each | `TheStageAI/pocket-tts-100m-<code>` for `fr de it es pt nl ja zh ko hi pl tr el ru` | Pocket TTS (flow-matching) | NPU | v1.6 |
 
-| Feature | NeuTTS nano | Qwen3-TTS |
-|---|---|---|
-| Bundle voices | `paul`, `dave`, `jo` | `b_ref` |
-| Languages | english, french, german, spanish, portuguese, japanese, korean, chinese, urdu — one speaker across all | follows the voice pack |
-| Own voice from a clip | yes (3–10 s reference) | yes (2–4 s reference) |
-| Streaming | yes | yes |
-| Voice Agent TTS | yes | yes |
+| Feature | NeuTTS nano | Qwen3-TTS | Pocket TTS |
+|---|---|---|---|
+| Bundle voices | `paul`, `dave`, `jo` | `b_ref` | the six English references (`azelma`, `alba`, `charles`, `cosette`, `javert`, `marius`) in every pack, plus native voices where the authors ship them (e.g. `estelle` fr, `juergen` de, `shefowl` pl, `female_1`…`male_3` tr, `athina`… el) |
+| Languages | english, french, german, spanish, portuguese, japanese, korean, chinese, urdu — one speaker across all | follows the voice pack | one language per pack |
+| Own voice from a clip | yes (3–10 s reference) | yes (2–4 s reference) | not yet (voices are precomputed KV prefixes; `voice_dir` takes a prepared folder) |
+| Streaming | yes | yes | yes |
+| Voice Agent TTS | yes | yes | yes |
+
+Pocket TTS packs need SDK 1.6. Two of them carry an input contract: the Hindi
+pack expects plain Devanagari without punctuation, and the Russian pack expects
+stress marks (the combining acute accent U+0301 on the stressed vowel) or it
+speaks with a foreign accent. On Pocket TTS, `temperature` is the sampler's
+noise variance (bundle default 0.3; 0 is deterministic) and `seed` makes a
+generation reproducible; `top_k` / `top_p` do not apply.
 
 **Which one?**
 
@@ -66,6 +77,7 @@ they differ in size, languages and voice character.
 | The same speaker in several languages | **NeuTTS nano** | `set_voice(language:)` keeps the speaker and switches phonemes. |
 | Most natural prosody for long narration | **Qwen3-TTS** | Larger talker model; better on long sentences. |
 | A voice cloned from a very short clip | **Qwen3-TTS** | Clones from ~3 s of reference audio. |
+| The smallest pack for one specific language (Italian, Dutch, Japanese, Korean, Hindi, Polish, Turkish, Greek, Russian, …) | **Pocket TTS 100M** | 140–175 MB per language, 6-layer flow LM on the Neural Engine, Mimi decoder on the CPU. |
 
 ## Quick start
 

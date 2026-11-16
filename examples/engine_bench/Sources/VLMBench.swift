@@ -169,11 +169,16 @@ final class VLMBenchModel: ObservableObject {
         let cap = maxNew
         let image = cgImage
 
+        // Wall-clock breakdown of tap -> first word (the chunk's own "TTFT" is the decoder
+        // prefill only): pipeline load (first tap per model), image preprocess + vision
+        // encoder + prompt splice (inside infer_stream), prefill + first decode step.
+        let tTap = CFAbsoluteTimeGetCurrent()
         Task {
             do {
                 let vlm = try await VLMHost.shared.pipeline(
                     for: model, onProgress: progressHandler()
                 )
+                let tLoaded = CFAbsoluteTimeGetCurrent()
                 self.loadPhase = nil
                 var cfg = vlm.generation_defaults
                 cfg.max_new_tokens = cap
@@ -184,23 +189,33 @@ final class VLMBenchModel: ObservableObject {
                 // encode + fuse run before the AsyncStream yields; then
                 // deltas match TheStageLLM.infer_stream (LLMStreamChunk).
                 self.status = "encoding…"
+                let tStreamStart = CFAbsoluteTimeGetCurrent()
                 let stream = try vlm.infer_stream(
                     images: [image],
                     prompt: promptText,
                     config: cfg
                 )
+                let tEncoded = CFAbsoluteTimeGetCurrent()
                 self.status = "generating…"
+                var tFirst: CFAbsoluteTime? = nil
                 for await chunk in stream {
+                    if !chunk.is_final, tFirst == nil { tFirst = CFAbsoluteTimeGetCurrent() }
                     if chunk.is_final {
                         let tps = chunk.tokens_per_second ?? 0
+                        let first = tFirst ?? CFAbsoluteTimeGetCurrent()
+                        let ms = { (s: CFAbsoluteTime) in Int((s * 1000).rounded()) }
                         self.statsLine = String(
                             format:
-                                "%@ · %d tok · decode %.1f tok/s · TTFT %.0f ms · %@",
+                                "%@ · %d tok · decode %.1f tok/s · %@\n"
+                                + "tap→first word %d ms = load %d + image+vision %d + "
+                                + "prefill→first token %d (decoder prefill %d, %d prompt tok)",
                             model.displayName,
                             chunk.generated_tokens ?? 0,
                             tps,
-                            chunk.time_to_first_token * 1000,
-                            chunk.stop_reason ?? ""
+                            chunk.stop_reason ?? "",
+                            ms(first - tTap), ms(tLoaded - tTap),
+                            ms(tEncoded - tStreamStart), ms(first - tEncoded),
+                            ms(chunk.time_to_first_token), chunk.prompt_tokens ?? 0
                         )
                         self.status = "done"
                         self.running = false
@@ -235,11 +250,16 @@ final class VLMBenchModel: ObservableObject {
         let n = runs
         let image = cgImage
 
+        // Wall-clock breakdown of tap -> first word (the chunk's own "TTFT" is the decoder
+        // prefill only): pipeline load (first tap per model), image preprocess + vision
+        // encoder + prompt splice (inside infer_stream), prefill + first decode step.
+        let tTap = CFAbsoluteTimeGetCurrent()
         Task {
             do {
                 let vlm = try await VLMHost.shared.pipeline(
                     for: model, onProgress: progressHandler()
                 )
+                let tLoaded = CFAbsoluteTimeGetCurrent()
                 self.loadPhase = nil
                 var cfg = vlm.generation_defaults
                 cfg.max_new_tokens = cap

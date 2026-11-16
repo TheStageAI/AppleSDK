@@ -217,6 +217,8 @@ public final class TheStageFlutterPlugin: NSObject, FlutterPlugin,
             __handle_stop_model(call, result: result)
         case MethodRoute.prefetchEngines:
             __handle_prefetch_engines(call, result: result)
+        case MethodRoute.deleteModel:
+            __handle_delete_model(call, result: result)
 
         case MethodRoute.listComponents:
             __handle_list_components(call, result: result)

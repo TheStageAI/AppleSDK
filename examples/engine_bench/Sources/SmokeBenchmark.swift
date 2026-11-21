@@ -5,7 +5,7 @@ import UIKit
 #if canImport(TheStageSDK)
 import TheStageSDK
 #else
-import TheStageCore
+import TheStageSDK
 #endif
 
 enum BundleSpeculation {
@@ -143,7 +143,7 @@ struct SmokeMeasurement: Codable, Sendable {
     var tokS: Double { decodeSeconds > 0 ? Double(decodeTokens) / decodeSeconds : 0 }
     var tau: Double? { cycles > 0 ? Double(decodeTokens) / Double(cycles) : nil }
 
-    static func run(_ llm: TheStageLLM, prompt: SmokePrompt, config: LLMGenerationConfig,
+    static func run(_ llm: TSLLM, prompt: SmokePrompt, config: LLMGenerationConfig,
                     round: Int, speculative: Bool, useStoredTokens: Bool) async throws -> Self {
         try await Task.detached(priority: .userInitiated) {
             let start = ProcessInfo.processInfo.systemUptime

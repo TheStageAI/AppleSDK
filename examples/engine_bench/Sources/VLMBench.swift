@@ -187,7 +187,7 @@ final class VLMBenchModel: ObservableObject {
                 // that ships a drafter still decodes plain here.
                 cfg.speculative_decoding = false
                 // encode + fuse run before the AsyncStream yields; then
-                // deltas match TheStageLLM.infer_stream (LLMStreamChunk).
+                // deltas match TSLLM.infer_stream (LLMStreamChunk).
                 self.status = "encoding…"
                 let tStreamStart = CFAbsoluteTimeGetCurrent()
                 let stream = try vlm.infer_stream(

@@ -61,5 +61,5 @@ flutter run --release \
   returns to listening.
 - STT, LLM, and TTS all run on-device when using the default HF / local
   stack. HuggingFace downloads happen on first launch and are cached.
-- Model revisions come from the SDK `ModelRevisionMap` — do not pass
+- Model revisions are pinned by the SDK — do not pass
   `*_revision` keys unless you intentionally override.

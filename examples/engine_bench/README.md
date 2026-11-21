@@ -3,7 +3,7 @@
 iOS benchmark app for the **TheStage Apple SDK `1.6.0`**.
 Measure LLM decode tok/s + TTFT, streaming TTS, ASR, and VLM (camera /
 gallery) on a physical iPhone — all engines load from **Hugging Face**
-(`TheStageAI/*`) via ``ModelRevisionMap`` (no model weights are shipped
+(`TheStageAI/*`) at the revisions this SDK pins (no model weights are shipped
 in this example).
 
 | | |

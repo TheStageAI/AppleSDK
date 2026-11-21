@@ -66,7 +66,7 @@ let device = env["LLM_DEVICE"] ?? "npu"
 
 try await TheStageAI.shared.initialize(api_token: token)
 
-let llm = try await TheStageLLM(
+let llm = try await TSLLM(
     engines_path: engines,
     device: device,
     max_context_size: 2048,

@@ -1,13 +1,13 @@
 # TheStage Apple SDK 1.6.0
 
-Built 2026-11-16. Pin this tag; the examples use `exact: Version(1, 6, 0)`.
+Built 2026-11-21. Pin this tag; the examples use `exact: Version(1, 6, 0)`.
 
 ## Binary
 
 | slice | sha256 |
 |---|---|
-| `ios-arm64` | `82c8bd823b235c257fa9902eea1c723c79fb46b12a869eda1a09d34f4fe17297` |
-| `macos-arm64` | `5c330bec467ee4fbbdfee96b0a3ea6fe8eda7ffe37c0e240f21fb06683614d4e` |
+| `ios-arm64` | `f16558cced4a361c49908683a6abfb98156c04d3d2c929b9f91162336df54977` |
+| `macos-arm64` | `028921647b938a2f8ac1d72d2bc8d900cb3ce4fadaaecd291a9976eff3ad3159` |
 
 ## Models
 
@@ -21,6 +21,7 @@ sha256 is of the `.thestage` pack on Hugging Face.
 | `lfm2.5-230m-compact` | `TheStageAI/LFM2.5-230M` | `v1.6` | `ae8c8933952b33bdc8975c7553e14d9d829fa07a6d45b91952091bf96953a613` | 230.1 MB |
 | `lfm2.5-350m-compact` | `TheStageAI/LFM2.5-350M` | `v1.6` | `40e9b39e34aeb981a2010f5ee1a9c36e291afc7a94216b1271ebe5ff140e0ec9` | 293.1 MB |
 | `lfm2.5-1.2b-compact` | `TheStageAI/LFM2.5-1.2B` | `v1.6` | `09160e04801e159187e143243f6802441344ce81e41ac05ad91e995c5af60744` | 919.7 MB |
+| `lfm3-1.7b` | `TheStageAI/LFM3-1.7B` | `v1.6` | `0cad09810990c49656c654d94e14e5e6fce3b4780a1ba0c009df39b4ed1bb33e` | 1,238.3 MB |
 | `thewhisper-large-v3-turbo` | `TheStageAI/thewhisper-large-v3-turbo` | `v1.6` | `25122345c95566e1053d2a1d5e07d51543274bd2873fb955f03feb2c0f2df7ad` | 569.0 MB |
 | `qwen3-asr-0.6b-dflash2` | `TheStageAI/Qwen3-ASR-0.6B` | `v1.6` | `bd061f97c3be781fa5a50a7d7f93434875fc097629d9f1127a57e4d606a2a944` | 645.5 MB |
 | `parakeet-tdt-0.6b-v3` | `TheStageAI/parakeet-tdt-0.6b-v3` | `v1.6` | `2a1064b8b99eeab173847e40e757c00e6fcc1914f2ed56eea81397218cfb9d20` | 250.0 MB |
@@ -49,7 +50,7 @@ sha256 is of the `.thestage` pack on Hugging Face.
 | `redimnet2` | `TheStageAI/redimnet2` | `v1.4` | `1dde738b10643ce6fc6c8ca1921067a59f575134fd0259070482a39b047e17b5` | 3.7 MB |
 | `speaker-segmentation` | `TheStageAI/speaker-segmentation` | `v1.4` | `9149e420fe489220b65bf1c11e541e15b698b17c8f4939bb0ebce127a50c32f7` | 3.0 MB |
 | `lfm2.5-vl-450m` | `TheStageAI/LFM2.5-VL-450M` | `v1.6` | `49f7aadd733e8cf8101889ece77b11bfb9465dbb9a8c0a4e1e2dc1ed713920fe` | 273.2 MB |
-| `gemma4-e2b-it` | `TheStageAI/gemma-4-E2B-it` | `v1.6` | `6158db8b7b55901815e57721d346fe461a051c1debc7a4c7f5da7ae55ad11369` | 1,770.6 MB |
+| `gemma4-e2b-it` | `TheStageAI/gemma-4-E2B-it` | `v1.6` | `494cd1e240988773d71478b363117e8f302571c7b70b36cf003739baaa0d9f7c` | 1,768.6 MB |
 | `embeddinggemma-2` | `TheStageAI/embeddinggemma-2` | `v1.6` | `f9f5654edabd8f235b5f27fde25cba5cb320af7f7ca179e80d684de23a122be2` | 429.7 MB |
 
 ## Verify

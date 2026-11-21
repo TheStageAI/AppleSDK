@@ -146,7 +146,7 @@ enum TTSRoutes {
         /// made, `end` once `tts.close` has drained it.
         core.register("tts.open_stream") { call in
             let tts = try call.object("tts", as: TSTTSPipeline.self)
-            let speech = tts.open_stream(BridgeCodec.tts_config(call.dict("config")))
+            let speech = try tts.open_stream(BridgeCodec.tts_config(call.dict("config")))
             let core = call.core
             let stream = core.keep(speech, prefix: "tts_stream")
             return .init(

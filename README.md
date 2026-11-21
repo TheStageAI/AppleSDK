@@ -117,7 +117,7 @@ and listed in [`RELEASE.md`](./RELEASE.md). Pass the HF id as `engines_path`
 
 | Task | HF engines | Swift entry | Notes |
 | --- | --- | --- | --- |
-| Chat LLM | `TheStageAI/Qwen3-0.6B` | `TSLLM` | Also `gemma-3-1b-it`, LFM2.5-230M / 350M / 1.2B |
+| Chat LLM | `TheStageAI/Qwen3-0.6B` | `TSLLM` | Also `gemma-3-1b-it`, LFM2.5-230M / 350M / 1.2B, LFM3-1.7B |
 | Chat LLM (multimodal root) | `TheStageAI/gemma-4-E2B-it` | `TSVLM` | Gemma-4 E2B, text-only for now (encoders attach later) |
 | VLM | `TheStageAI/LFM2.5-VL-450M` | `TSVLM` | Image + prompt → text |
 | ASR | `TheStageAI/thewhisper-large-v3-turbo` | `WhisperPipeline` | Also `Qwen3-ASR-0.6B`, `parakeet-tdt-0.6b-v3` |
@@ -216,8 +216,8 @@ the cloud LLM provider).
 | --- | --- | --- |
 | macOS | 15.0 | Apple Silicon Mac |
 | iOS | 18.0 | Physical iPhone / iPad |
-| Xcode | 16.0 | For device signing / iOS apps |
-| Swift | 6.0 | SwiftPM |
+| Xcode | 26 | For device signing / iOS apps. The SDK binary is built with Xcode 27; older Xcode versions are not tested |
+| Swift | 6.2 | SwiftPM (the toolchain of Xcode 26) |
 | Flutter / Dart | 3.24 / 3.5 | Flutter examples + plugin only |
 | Network | once per process | Required for `initialize` and first engine download |
 

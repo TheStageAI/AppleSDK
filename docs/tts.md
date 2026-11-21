@@ -157,7 +157,7 @@ let tts = try await NeuTTSMultilingualPipeline(
 let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
 player.start()
 
-let speech = tts.open_stream()
+let speech = try tts.open_stream()
 // drain BEFORE you send
 let consumer = Task {
     for await chunk in speech.output {
@@ -308,7 +308,7 @@ player.start()
 var llmConfig = llm.generation_defaults
 llmConfig.enable_thinking = false
 
-let speech = tts.open_stream(
+let speech = try tts.open_stream(
     TTSGenerationConfig(),
     // faster first audio
     config: TTSStreamConfig(first_frames_per_chunk: 12)
@@ -454,7 +454,7 @@ let tts = try await NeuTTSMultilingualPipeline(
     voice_id: "dave",
     language: "english"
 )
-let speech = tts.open_stream()
+let speech = try tts.open_stream()
 var config = TTSGenerationConfig()
 
 let result = tts.infer(text: text, config: config)
@@ -650,7 +650,7 @@ llmConfig.enable_thinking = false
 // the user's question (typed, or an ASR transcript)
 let question = "How long does the battery last?"
 
-let speech = tts.open_stream()
+let speech = try tts.open_stream()
 let consumer = Task {
     for await chunk in speech.output {
         if let pcm = chunk.audio { player.enqueue(pcm) }
@@ -900,7 +900,7 @@ let player = AudioStreamPlayer(
 // let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 44_100))
 
 // Clicks at seams while streaming:
-let speech = tts.open_stream(config: TTSStreamConfig(overlap_frames: 3))
+let speech = try tts.open_stream(config: TTSStreamConfig(overlap_frames: 3))
 ```
 
 **Flutter**
@@ -962,7 +962,7 @@ let tts = try await NeuTTSMultilingualPipeline(
 )
 
 // 1. Stream, don't batch
-let speech = tts.open_stream(
+let speech = try tts.open_stream(
     // 2. A short first chunk — later chunks stay full size
     config: TTSStreamConfig(first_frames_per_chunk: 8)
 )

@@ -57,7 +57,7 @@ print("output sample rate: \(tts.sample_rate) Hz")
 let player = AudioStreamPlayer(sample_rate: Double(tts.sample_rate))
 player.start()
 
-let streamer = tts.open_streamer()
+let streamer = try tts.open_streamer()
 let consumer = Task {
     for await chunk in streamer.output {
         // The stream tags each chunk with its rate. If it ever disagreed

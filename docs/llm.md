@@ -45,7 +45,7 @@ Here we will cover the following topics:
 
 ## Supported models
 
-Five packs (plus Gemma-4 E2B, which ships under [TSVLM](./vlm.md) as a
+Six packs (plus Gemma-4 E2B, which ships under [TSVLM](./vlm.md) as a
 text-only multimodal pack). They share one API; they differ in size, tool support and
 whether they can reason before answering.
 
@@ -55,13 +55,14 @@ whether they can reason before answering.
 | LFM2.5-230M | `TheStageAI/LFM2.5-230M` | 230M | NPU | v1.6 |
 | LFM2.5-350M | `TheStageAI/LFM2.5-350M` | 350M | NPU | v1.6 |
 | LFM2.5-1.2B | `TheStageAI/LFM2.5-1.2B` | 1.2B | NPU | v1.6 |
+| LFM3-1.7B | `TheStageAI/LFM3-1.7B` | 1.7B | NPU | v1.6 |
 | Gemma3-1B | `TheStageAI/gemma-3-1b-it` | 1B | NPU | v1.6 |
 
-| Feature | Qwen3-0.6B | LFM2.5-230M | LFM2.5-350M | LFM2.5-1.2B | Gemma3-1B |
-|---|---|---|---|---|---|
-| Chat + streaming | yes | yes | yes | yes | yes |
-| Tool calling | yes | yes | yes | yes | — |
-| Thinking mode | yes | — | — | — | — |
+| Feature | Qwen3-0.6B | LFM2.5-230M | LFM2.5-350M | LFM2.5-1.2B | LFM3-1.7B | Gemma3-1B |
+|---|---|---|---|---|---|---|
+| Chat + streaming | yes | yes | yes | yes | yes | yes |
+| Tool calling | yes | yes | yes | yes | yes | — |
+| Thinking mode | yes | — | — | — | yes (on by default) | — |
 
 **Which one?**
 
@@ -592,7 +593,7 @@ let result = llm.infer(prompt: prompt, config: config)
 result.text
 // the reply with thinking and tool markup removed
 result.final_text
-// "eos" | "max_new_tokens" | "stop_sequence"
+// "eos" | "max_new_tokens" | "stop_sequence" | "engine_error"
 result.stop_reason
 result.tokens_per_second
 // seconds
@@ -617,7 +618,7 @@ final r = rows[0];
 r['text'];
 // with thinking and tool markup removed
 r['final_text'];
-// 'eos' | 'max_new_tokens' | 'stop_sequence'
+// 'eos' | 'max_new_tokens' | 'stop_sequence' | 'engine_error'
 r['stop_reason'];
 r['tokens_per_second'];
 r['time_to_first_token'];
@@ -629,7 +630,7 @@ r['time_to_first_token'];
 | `final_text` | `final_text` | Reply with `<think>` and tool markup stripped. Show this. |
 | `thinking` | `thinking` | The reasoning prelude, when thinking was on. |
 | `tool_calls` | `tool_calls` | `[ToolCall]` — `name`, `arguments`. Batch only. |
-| `stop_reason` | `stop_reason` | `eos` = finished naturally; `max_new_tokens` = cut off; `stop_sequence` = hit a stop string. |
+| `stop_reason` | `stop_reason` | `eos` = finished naturally; `max_new_tokens` = cut off; `stop_sequence` = hit a stop string; `engine_error` = the model could not run on this device (for example a long-context part failed to load); the text holds what was generated before. |
 | `prompt_tokens` / `generated_tokens` | same | Sizes, for budgeting the context window. |
 | `time_to_first_token` / `tokens_per_second` | same | Latency and speed. |
 

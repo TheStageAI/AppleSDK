@@ -1896,6 +1896,8 @@ public enum ChatTemplate : Swift.String, Swift.Codable, Swift.Sendable, Swift.Ca
   case gemma3
   case gemma4
   case lfm2
+  case lfm3
+  case qwen3_5
   public struct Message : Swift.Sendable, Swift.Equatable {
     public var role: Swift.String
     public var content: Swift.String
@@ -1904,6 +1906,7 @@ public enum ChatTemplate : Swift.String, Swift.Codable, Swift.Sendable, Swift.Ca
   }
   public func render(prompt: Swift.String, system: Swift.String?, enable_thinking: Swift.Bool = true) -> Swift.String
   public func render(messages: [TheStageCore.ChatTemplate.Message], system: Swift.String?, enable_thinking: Swift.Bool = true) -> Swift.String
+  public func generation_prefix(enable_thinking: Swift.Bool) -> Swift.String
   public var default_system_prompt: Swift.String {
     get
   }
@@ -2158,6 +2161,7 @@ public enum ToolCallStyle : Swift.String, Swift.Codable, Swift.Sendable, Swift.C
   case json
   case gemma_tool_code
   case gemma4_native
+  case xml_function
   public init?(rawValue: Swift.String)
   public typealias AllCases = [TheStageCore.ToolCallStyle]
   public typealias RawValue = Swift.String
@@ -2173,6 +2177,8 @@ public enum ToolCallingFormat : Swift.String, Swift.Codable, Swift.Sendable, Swi
   case lfm2
   case gemma3
   case gemma4
+  case lfm3
+  case qwen3_5
   public init?(rawValue: Swift.String)
   public typealias AllCases = [TheStageCore.ToolCallingFormat]
   public typealias RawValue = Swift.String
@@ -2743,7 +2749,7 @@ public enum DrafterContextPolicy : Swift.Codable, Swift.Equatable, Swift.Sendabl
   public init(from decoder: any Swift.Decoder) throws
 }
 public enum GenerationSchedule : Swift.String, Swift.Codable, Swift.Sendable {
-  case SERIAL, SUBMIT_AHEAD
+  case AUTO, SERIAL, SUBMIT_AHEAD
   public init?(rawValue: Swift.String)
   public typealias RawValue = Swift.String
   public var rawValue: Swift.String {
@@ -2781,7 +2787,7 @@ public struct GenerationExecutionOptions : Swift.Codable, Swift.Equatable, Swift
   public var context: TheStageCore.DrafterContextPolicy
   public var schedule: TheStageCore.GenerationSchedule
   public var asynchronous_target_commit: Swift.Bool?
-  public init(context: TheStageCore.DrafterContextPolicy = .EXACT, schedule: TheStageCore.GenerationSchedule = .SERIAL, asynchronous_target_commit: Swift.Bool? = nil)
+  public init(context: TheStageCore.DrafterContextPolicy = .EXACT, schedule: TheStageCore.GenerationSchedule = .AUTO, asynchronous_target_commit: Swift.Bool? = nil)
   public init(from decoder: any Swift.Decoder) throws
   public static func == (a: TheStageCore.GenerationExecutionOptions, b: TheStageCore.GenerationExecutionOptions) -> Swift.Bool
   public func encode(to encoder: any Swift.Encoder) throws
@@ -3257,9 +3263,9 @@ public struct TTSTokenConfig : Swift.Sendable {
   public func infer(text: Swift.String, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig()) -> TheStageCore.TTSResult
   public func infer(text: Swift.String, voice: TheStageCore.TTSVoiceRef, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig()) throws -> TheStageCore.TTSResult
   public func infer_stream(text: Swift.String, config: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), stream_config: TheStageCore.TTSStreamConfig? = nil) -> _Concurrency.AsyncStream<TheStageCore.InferenceStreamChunk>
-  public func open_stream(_ generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig? = nil) -> TheStageCore.TTSStream
+  public func open_stream(_ generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig? = nil) throws -> TheStageCore.TTSStream
   @available(*, deprecated, message: "use open_stream(_:splitter:config:)")
-  public func open_streamer(generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig? = nil) -> TheStageCore.TTSStreamer
+  public func open_streamer(generation: TheStageCore.TTSGenerationConfig = TTSGenerationConfig(), splitter: any TheStageCore.TTSTextSplitter = NLSentenceSplitter(), config: TheStageCore.TTSStreamConfig? = nil) throws -> TheStageCore.TTSStreamer
 }
 extension TheStageCore.TTSStreamConfig : Swift.Encodable {
   public func encode(to encoder: any Swift.Encoder) throws

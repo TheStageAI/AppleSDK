@@ -10,19 +10,15 @@
 		</data>
 		<key>Modules/TheStageCore.swiftmodule/arm64-apple-ios.abi.json</key>
 		<data>
-		L76sAC6KKKUTxFrutaMb8Vc38vI=
-		</data>
-		<key>Modules/TheStageCore.swiftmodule/arm64-apple-ios.private.swiftinterface</key>
-		<data>
-		ANWnlHNCQxFBe02+LTM2HviMgHg=
+		KY8uqN+maNpkT/5quU18aQez6kk=
 		</data>
 		<key>Modules/TheStageCore.swiftmodule/arm64-apple-ios.swiftdoc</key>
 		<data>
-		olQr38ri/0/HINWqYk8mYz67khs=
+		Hd/MfEBsfozAUQl460fibqPmRrk=
 		</data>
 		<key>Modules/TheStageCore.swiftmodule/arm64-apple-ios.swiftinterface</key>
 		<data>
-		XG9pnqvGDhy92avbj++mNGt9Bfo=
+		mzLpu1WcYlCWSCxqTkOHIlo4poo=
 		</data>
 	</dict>
 	<key>files2</key>
@@ -31,28 +27,21 @@
 		<dict>
 			<key>hash2</key>
 			<data>
-			zY08t4CbxyGo4aI4gSjTF6J4dHUK1y6O9tYr8iWLdnw=
-			</data>
-		</dict>
-		<key>Modules/TheStageCore.swiftmodule/arm64-apple-ios.private.swiftinterface</key>
-		<dict>
-			<key>hash2</key>
-			<data>
-			2UfCWslfN0047gve6XBdv/ZDYOmn8BLwJbu82zDtbvs=
+			EuzP2mSqQWF8/FQIByBWjG8pJAKucGyK+I7pHaB4ZqI=
 			</data>
 		</dict>
 		<key>Modules/TheStageCore.swiftmodule/arm64-apple-ios.swiftdoc</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			9hf9DZCdGZIF2NuIN8rpfdkUx6PnWw9PhTzJYadkAhA=
+			QmDRZG0NiDCIdS8J4OyaJOMNfZ2yBzjUT9u3XqDPrY8=
 			</data>
 		</dict>
 		<key>Modules/TheStageCore.swiftmodule/arm64-apple-ios.swiftinterface</key>
 		<dict>
 			<key>hash2</key>
 			<data>
-			GNLuYinLRIygPQq/+1f11wTjoV24aaaW5Dwt0aBPrAQ=
+			9j3kCOfGvwv9LqkgmlepDm0DUsla8ieP+4sTodPpwM8=
 			</data>
 		</dict>
 	</dict>

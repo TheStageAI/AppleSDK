@@ -23,7 +23,7 @@ in this example).
 
 ## Prerequisites
 
-1. Apple Silicon Mac, **Xcode 16+**, [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
+1. Apple Silicon Mac, **Xcode 26+**, [xcodegen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`)
 2. Physical iPhone on **iOS 18+**, unlocked + trusted
 3. API token from [app.thestage.ai](https://app.thestage.ai)
 4. This example lives inside a checkout of

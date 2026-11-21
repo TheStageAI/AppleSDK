@@ -163,7 +163,7 @@ final class TTSStreamHandler: NSObject, FlutterStreamHandler {
             let pipeline = try TheStageAI.shared.tts_pipeline(
                 model_name: model_name
             )
-            let stream = pipeline.open_stream(
+            let stream = try pipeline.open_stream(
                 generation,
                 config: stream_config
             )

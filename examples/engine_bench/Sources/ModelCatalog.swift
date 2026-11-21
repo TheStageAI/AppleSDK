@@ -67,9 +67,8 @@ struct BundledModel: Identifiable, Hashable {
 }
 
 enum ModelCatalog {
-    /// The speculative packs (root-slot drafter, bundle-bound QLPA) are the
-    /// SDK 1.5 line: ``ModelRevisionMap`` pins them at `v1.5`, so entries pass
-    /// no revision and declare `speculative` themselves.
+    /// Packs with a drafter come at the revision the SDK pins, so entries
+    /// pass no revision and declare `speculative` themselves.
     static let speculativeRevision = "v1.5"
 
     /// Picker order; local-only dev packs appear when they are bundled.
@@ -78,8 +77,8 @@ enum ModelCatalog {
     }
 
     private static let catalog: [BundledModel] = [
-        // LFM2.5 ships from the speculative revision only: the pack carries
-        // the compact drafter, and the switch runs it plain or speculative.
+        // LFM2.5 packs carry a drafter; the switch runs them plain or
+        // speculative.
         BundledModel(
             name: "lfm2.5-230m-compact",
             displayName: "LFM2.5 230M",
@@ -97,6 +96,22 @@ enum ModelCatalog {
             speculative: true
         ),
         BundledModel(
+            name: "lfm2.5-1.2b",
+            displayName: "LFM2.5 1.2B",
+            template: .lfm2,
+            hfRepo: "TheStageAI/LFM2.5-1.2B",
+            revision: nil,
+            speculative: true
+        ),
+        BundledModel(
+            name: "lfm3-1.7b",
+            displayName: "LFM3 1.7B",
+            template: .lfm3,
+            hfRepo: "TheStageAI/LFM3-1.7B",
+            revision: nil,
+            speculative: true
+        ),
+        BundledModel(
             name: "qwen3-0.6b",
             displayName: "Qwen3 0.6B",
             template: .qwen2,
@@ -110,11 +125,9 @@ enum ModelCatalog {
             hfRepo: "TheStageAI/gemma-3-1b-it",
             revision: nil
         ),
-        // Gemma-4 E2B from the speculative revision: decoder + DFlash2 drafter
-        // (selector tree + PRESTO, verify 32) + vision tower in one pack. Here
-        // it opens text-only through TSLLM with the drafter (token-id prompt
-        // sets, the speculative switch); the VLM tab opens the same pack with
-        // its tower and always decodes plain.
+        // Gemma-4 E2B: here it opens text-only through TSLLM with its drafter
+        // (the speculative switch); the VLM tab opens the same pack and always
+        // decodes plain.
         BundledModel(
             name: "gemma4-e2b-it",
             displayName: "Gemma4 E2B",

@@ -22,7 +22,7 @@ struct BundledModel: Identifiable, Hashable {
     /// Optional revision override. `nil` → SDK ``ModelRevisionMap``.
     let revision: String?
     var family: BundledFamily = .llm
-    /// Ships a root-slot proposer regardless of revision (a local dev pack).
+    /// The pack supports speculative decoding.
     var speculative: Bool = false
     /// Listed only when `BundledModels/<name>/` is in the app bundle.
     var localOnly: Bool = false
@@ -42,7 +42,7 @@ struct BundledModel: Identifiable, Hashable {
         }
     }
 
-    /// Packs published on the speculative-decoding revision ship a proposer;
+    /// Packs that support speculative decoding get the switch;
     /// the toggle then drives `LLMGenerationConfig.speculative_decoding`.
     var supportsSpeculation: Bool {
         speculative || revision == ModelCatalog.speculativeRevision

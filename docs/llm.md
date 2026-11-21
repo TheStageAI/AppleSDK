@@ -336,7 +336,7 @@ set keeps that value.
 | `enable_thinking` | true | **Set false for chat.** Qwen3 only; adds a reasoning prelude that eats the token budget and looks like a pause in the UI. |
 | `seed` | random | Set for reproducible tests, with `temperature = 0`. |
 | `stop_sequences` | `[]` | Stop early on a marker your prompt format defines. |
-| `speculative_decoding` | `nil` (pack policy) | Packs that ship a drafter decode several tokens per step at identical output — only with greedy sampling (`temperature` `0`, no suppressed tokens; a `repetition_penalty` is fine on LFM2.5 packs, whose drafter pair verifies under it, and forces plain decoding on the others); otherwise the call decodes plain. `false` forces plain decoding (A/B timing, memory). `true` is the same as `nil`: a pack without a drafter decodes plain, never fails. `LLMResult.tokens_per_second` and `last_spec_acceptance_length` (nil when plain) show which path ran. On devices where the system charges Neural Engine memory to the app (iOS 27), a plain call releases the pack's speculative-only engine views and the next speculative call reloads them, so switching between the two can take a few seconds once; stay on one setting for a conversation. |
+| `speculative_decoding` | `nil` (on when the pack supports it) | Faster decoding with the same output. Applies only with greedy sampling (`temperature` `0`); otherwise the call decodes normally. `false` turns it off. Switching it on and off within a conversation can cost a few seconds once, so keep one setting. |
 
 Chat template, end-of-sequence tokens and the context window are baked
 into the pack; there is nothing to set.

@@ -22,7 +22,7 @@ struct BundledASRModel: Identifiable, Hashable {
     let revision: String?
 
     let family: ASRFamily
-    /// The pack ships a root-slot drafter (the switch runs it plain or speculative).
+    /// The pack supports speculative decoding (the switch runs it plain or speculative).
     var speculative: Bool = false
     var supportsSpeculation: Bool { speculative }
 
@@ -57,11 +57,10 @@ enum ASRCatalog {
             revision: nil,
             family: .whisper
         ),
-        // Qwen3-ASR ships from the speculative revision only: the pack
-        // carries the DFlash2 drafter, and the switch runs it plain or
-        // speculative.
+        // Qwen3-ASR supports speculative decoding; the switch runs it plain
+        // or speculative.
         BundledASRModel(
-            name: "qwen3-asr-0.6b-dflash2",
+            name: "qwen3-asr-0.6b",
             displayName: "Qwen3-ASR 0.6b",
             hfRepo: "TheStageAI/Qwen3-ASR-0.6B",
             revision: nil,
@@ -189,7 +188,7 @@ final class ASRBenchModel: ObservableObject {
     @Published var running = false
     @Published var recording = false
     @Published var runs = 3
-    /// Speculative decoding on packs that ship a proposer; ignored elsewhere.
+    /// Speculative decoding on packs that support it; ignored elsewhere.
     @Published var speculative = true
     @Published var loadPhase: String?
     @Published var loadFraction = 0.0

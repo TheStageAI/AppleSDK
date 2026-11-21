@@ -37,7 +37,7 @@ final class BenchModel: ObservableObject {
     @Published var running = false
 
     @Published var maxNew = 128
-    /// Speculative decoding on packs that ship a proposer; ignored elsewhere.
+    /// Speculative decoding on packs that support it; ignored elsewhere.
     @Published var speculative = true
     @Published var runs = 5
 
@@ -65,7 +65,7 @@ final class BenchModel: ObservableObject {
         return sets
     }
 
-    /// Model-load progress (HF download / extract / decrypt+compile). `nil`
+    /// Model-load progress (HF download / extract / load). `nil`
     /// when no load is in flight; fraction is monotonic 0...1 across phases.
     @Published var loadPhase: String?
     @Published var loadFraction = 0.0
@@ -139,14 +139,6 @@ final class BenchModel: ObservableObject {
                         )
                         self.status = "done"
                         self.running = false
-                        // Dev hook: `QLIP_GRAPH_PROFILE=1` in the environment
-                        // prints the SDK's per-stage breakdown to stdout
-                        // (readable via `devicectl ... launch --console`).
-                        if ProcessInfo.processInfo.environment["QLIP_GRAPH_PROFILE"] != nil,
-                            let report = llm.profile_report()
-                        {
-                            print("=== profile (\(model.displayName)) ===\n\(report)")
-                        }
                     } else {
                         self.output += chunk.text
                     }
@@ -390,7 +382,7 @@ final class BenchModel: ObservableObject {
     // Helpers
     // ----------------------------------------------------------------------------------
     /// `nil` = the pack's own policy (plain packs), an explicit switch on a
-    /// speculative pack: `true` requires the proposer, `false` runs plain.
+    /// speculative pack: `true` runs speculative, `false` runs plain.
     private nonisolated static func decoding(_ model: BundledModel, _ on: Bool) -> Bool? {
         model.supportsSpeculation ? on : nil
     }
@@ -399,7 +391,7 @@ final class BenchModel: ObservableObject {
     /// a pack's sampling defaults (temperature, repetition penalty) send the
     /// request to plain decoding whatever the switch says. On a speculative
     /// pack both switch positions therefore run the same greedy settings, so
-    /// the on/off comparison measures the proposer and nothing else.
+    /// the on/off comparison measures speculative decoding and nothing else.
     @discardableResult
     private nonisolated static func applyDecoding(
         _ cfg: inout LLMGenerationConfig, _ model: BundledModel, _ on: Bool
@@ -527,7 +519,7 @@ struct ContentView: View {
             if let phase = model.loadPhase {
                 VStack(alignment: .leading, spacing: 2) {
                     if phase == "loading" {
-                        // Decrypt + CoreML compile: no granular progress
+                        // Loading: no granular progress
                         // exists (the SDK's next event is `ready`), so an
                         // indeterminate spinner beats a bar frozen at 85%.
                         HStack(spacing: 8) {

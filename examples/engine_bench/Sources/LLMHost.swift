@@ -22,8 +22,6 @@ protocol BenchTextModel: AnyObject {
         prompt: String, config: LLMGenerationConfig
     ) throws -> AsyncStream<LLMStreamChunk>
     func release()
-    /// Per-node graph timings when `QLIP_GRAPH_PROFILE` is set; nil otherwise.
-    func profile_report() -> String?
     /// Generate from pre-templated token ids (dataset benches).
     func infer(prompt_ids: [Int], config: LLMGenerationConfig) throws -> LLMResult
     /// Tokens per verify cycle of the last speculative request; nil on plain.
@@ -58,8 +56,6 @@ extension TSVLM: BenchTextModel {
     ) throws -> AsyncStream<LLMStreamChunk> {
         try infer_stream(prompt: prompt, system_prompt: nil, config: config)
     }
-
-    func profile_report() -> String? { nil }
 
     func infer(prompt_ids: [Int], config: LLMGenerationConfig) throws -> LLMResult {
         throw LLMHostError.tokenPromptsUnsupported
@@ -110,7 +106,7 @@ final class LLMHost {
     /// Load (or return the cached) decoder for `model`, releasing any other
     /// resident model first. Bundled models load from the app bundle; anything
     /// else is fetched from the model's HF repo (download -> extract ->
-    /// decrypt, cached by the SDK) with `onProgress` reporting the phases.
+    /// load, cached by the SDK) with `onProgress` reporting the phases.
     func llm(
         for model: BundledModel,
         onProgress: LoadProgressHandler? = nil

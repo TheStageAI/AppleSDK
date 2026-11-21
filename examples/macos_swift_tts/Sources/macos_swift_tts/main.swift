@@ -31,7 +31,7 @@ try await TheStageAI.shared.initialize(api_token: token)
 // 3. Load NeuTTS nano-multilingual from HuggingFace. The handler fires
 //    through downloading -> extracting -> loading -> ready;
 //    downloading/extracting are skipped once the engines are cached.
-//    Omit revision → ModelRevisionMap for this SDK build.
+//    Omit revision: the SDK pins the one it ships with.
 let tts = try await NeuTTSMultilingualPipeline(
     engines_path: "TheStageAI/neutts-nano-multilingual",
     voice_id: "paul",
@@ -41,7 +41,7 @@ let tts = try await NeuTTSMultilingualPipeline(
 print()  // finish the in-place progress line
 
 // 4. Warm up once. The first synthesis after load pays a one-time cost
-//    (Metal kernel compilation, lazy graph build), so its tokens/sec is
+//    (one-time setup), so its tokens/sec is
 //    misleadingly low. Run a throwaway phrase now — and discard it — so
 //    the user's first real synthesis, and the metrics below, reflect
 //    steady-state speed.
@@ -57,7 +57,7 @@ print("output sample rate: \(tts.sample_rate) Hz")
 let player = AudioStreamPlayer(sample_rate: Double(tts.sample_rate))
 player.start()
 
-let streamer = try tts.open_streamer()
+let streamer = try tts.open_stream()
 let consumer = Task {
     for await chunk in streamer.output {
         // The stream tags each chunk with its rate. If it ever disagreed
@@ -89,7 +89,7 @@ for phrase in phrases {
     print("speaking: \(phrase)")
     streamer.send(phrase + " ")
 }
-streamer.stop_stream()
+streamer.close()
 
 // 7. Wait for playback to finish, then tear down.
 await consumer.value

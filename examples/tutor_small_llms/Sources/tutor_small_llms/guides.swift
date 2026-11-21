@@ -29,7 +29,7 @@ struct MeetingWhen: Decodable {
     let location: String?
 }
 
-func greedy_config(_ llm: TheStageLLM, max_new_tokens: Int) -> LLMGenerationConfig {
+func greedy_config(_ llm: TSLLM, max_new_tokens: Int) -> LLMGenerationConfig {
     var config = llm.generation_defaults
     config.temperature = 0
     config.top_k = 0
@@ -41,7 +41,7 @@ func greedy_config(_ llm: TheStageLLM, max_new_tokens: Int) -> LLMGenerationConf
     return config
 }
 
-func vendor_config(_ llm: TheStageLLM, family: PackFamily) -> LLMGenerationConfig {
+func vendor_config(_ llm: TSLLM, family: PackFamily) -> LLMGenerationConfig {
     var config = llm.generation_defaults
     config.enable_thinking = false
     config.max_new_tokens = 256
@@ -81,7 +81,7 @@ func documented_tools() -> [Tool] {
     return [weather, DefaultTools.get_local_time, DefaultTools.web_search]
 }
 
-func run_guide_1(llm_engine: LLMChatEngine, llm: TheStageLLM) async throws {
+func run_guide_1(llm_engine: LLMChatEngine, llm: TSLLM) async throws {
     print("\n======== Guide 1 / Expense record ========")
     let config = greedy_config(llm, max_new_tokens: 128)
     try await expense_ticket(
@@ -138,7 +138,7 @@ private func expense_ticket(
     )
 }
 
-func run_guide_2(llm_engine: LLMChatEngine, llm: TheStageLLM) async throws {
+func run_guide_2(llm_engine: LLMChatEngine, llm: TSLLM) async throws {
     print("\n======== Guide 2 / Calendar event ========")
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(identifier: "Europe/Rome")!
@@ -213,7 +213,7 @@ private func calendar_thread(
     }
 }
 
-func run_guide_3(llm_engine: LLMChatEngine, llm: TheStageLLM) async throws {
+func run_guide_3(llm_engine: LLMChatEngine, llm: TSLLM) async throws {
     print("\n======== Guide 3 / Pickup code ========")
     var config = greedy_config(llm, max_new_tokens: 16)
     config.max_new_tokens = 16
@@ -249,7 +249,7 @@ func run_guide_3(llm_engine: LLMChatEngine, llm: TheStageLLM) async throws {
     }
 }
 
-func run_guide_4(llm_engine: LLMChatEngine, llm: TheStageLLM) async throws {
+func run_guide_4(llm_engine: LLMChatEngine, llm: TSLLM) async throws {
     print("\n======== Guide 4 / Share-sheet router ========")
     var config = greedy_config(llm, max_new_tokens: 16)
     config.max_new_tokens = 16
@@ -275,7 +275,7 @@ func run_guide_4(llm_engine: LLMChatEngine, llm: TheStageLLM) async throws {
     }
 }
 
-func run_guide_5(llm: TheStageLLM, family: PackFamily) async throws {
+func run_guide_5(llm: TSLLM, family: PackFamily) async throws {
     print("\n======== Guide 5 / One live fact with a tool ========")
     guard llm.supports_tool_calling else {
         print("this pack cannot call tools (Gemma). skip.")

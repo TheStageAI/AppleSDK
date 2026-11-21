@@ -3,9 +3,10 @@
 ![On-Device Apple SDK](docs/assets/on-device-apple-sdk-banner.png)
 
 **On-device** speech, language, and audio inference for **iOS and macOS** on
-Apple Silicon. Engines ship as Core ML bundles from Hugging Face; the
-SDK picks ANE / GPU / CPU per device. On iPhones running iOS 27 the SDK
-downloads a Core AI pack built for the phone's chip when the model has one. After `initialize`, **inference never
+Apple Silicon. Engines ship as optimized packs from Hugging Face; the
+SDK picks the Neural Engine, GPU or CPU per device, and on supported
+iPhones downloads a pack built for the phone's chip when the model has
+one. After `initialize`, **inference never
 leaves the device** — there is no server in the hot path.
 
 | | |
@@ -205,7 +206,7 @@ flutter run --release \
     -d <YOUR_IPHONE_DEVICE_ID>
 ```
 
-`examples/voice_agent` is the same recipe (+ `OPENAI_API_KEY` if you use
+`examples/voice_agent_custom_nodes` is the same recipe (+ `OPENAI_API_KEY` if you use
 the cloud LLM provider).
 
 ---
@@ -249,7 +250,7 @@ import TheStageSDK
 let ai = TheStageAI.shared
 try await ai.initialize(api_token: "th_…")
 
-let llm = try await TheStageLLM(
+let llm = try await TSLLM(
     engines_path: "TheStageAI/Qwen3-0.6B",
     on_load_progress: { p in
         print("[\(p.model)] \(p.phase) \(Int(p.fraction * 100))%")
@@ -267,7 +268,7 @@ Two ways to drive models (same cache, same progress events):
 
 | Style | When to use |
 | --- | --- |
-| Typed pipelines (`TheStageLLM(...)`, `WhisperPipeline(...)`, …) | Native Swift apps — compile-time APIs |
+| Typed pipelines (`TSLLM(...)`, `WhisperPipeline(...)`, …) | Native Swift apps — compile-time APIs |
 | `TheStageAI.shared.start_model` / `infer` / `infer_stream` | JSON lifecycle, Flutter, dynamic model sets |
 
 ### Flutter (iOS)
@@ -327,9 +328,8 @@ path to a working UI: copy an `examples/` app.
 
 ### Revisions
 
-Omit `revision:` in normal apps. This build resolves HF tags via an
-internal map aligned with SDK **`1.6.0`** → fleet
-**`v1.6`**. Override only when
+Omit `revision:` in normal apps. SDK **`1.6.0`** pins the revision of every model
+([`RELEASE.md`](./RELEASE.md)). Override only when
 you intentionally pin an older engine tag.
 
 ### Init & seats (product)
@@ -383,8 +383,6 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | TTS push | `streamer.send` / `stop_stream` | `send` / `finish_stream` / `stop_stream` |
 | Progress | per-call `on_load_progress` | global `on_progress` |
 | Typed pipelines | yes | no — JSON path only |
-
-**Naming trap:** Swift `apiToken:` vs Flutter `api_token:`.
 
 ---
 

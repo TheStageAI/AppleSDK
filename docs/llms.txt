@@ -40,7 +40,7 @@
 - AECMethod (vpio / neural / none) on agent audio config
 
 ## Pages
-- llm.md — TSLLM
+- llm.md — TSLLM (Qwen3-0.6B, LFM2.5-230M / 350M / 1.2B, LFM3-1.7B, Gemma3-1B)
 - vlm.md — TSVLM (LFM2.5-VL; Gemma-4 E2B text-only)
 - asr.md — WhisperPipeline + Qwen3ASRPipeline + ParakeetASRPipeline, language ("auto" / codes)
 - diarization.md — speakers in ASR (SpeakerSetup / ASRSpeakerConfig), NemotronDiarizationPipeline

@@ -97,7 +97,7 @@ let tts = try await NeuTTSMultilingualPipeline(
 let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
 player.start()
 
-let speech = tts.open_stream()
+let speech = try tts.open_stream()
 let consumer = Task {
     for await chunk in speech.output {
         if let pcm = chunk.audio { player.enqueue(pcm) }
@@ -229,7 +229,7 @@ let tts = try await NeuTTSMultilingualPipeline(
 let player = AudioStreamPlayer(config: AudioStreamConfig(sample_rate: 24_000))
 player.start()
 
-let speech = tts.open_stream()
+let speech = try tts.open_stream()
 // consumer first
 let consumer = Task {
     for await chunk in speech.output {
@@ -321,7 +321,7 @@ let tts = try await NeuTTSMultilingualPipeline(
     language: "english"
 )
 
-let speech = tts.open_stream(
+let speech = try tts.open_stream(
     // default 25
     config: TTSStreamConfig(first_frames_per_chunk: 8)
 )
@@ -388,7 +388,7 @@ let tts = try await NeuTTSMultilingualPipeline(
     voice_id: "dave",
     language: "english"
 )
-let speech = tts.open_stream()
+let speech = try tts.open_stream()
 let stt = try await WhisperPipeline(
     engines_path: "TheStageAI/thewhisper-large-v3-turbo"
 )

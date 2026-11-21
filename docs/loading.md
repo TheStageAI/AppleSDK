@@ -38,7 +38,7 @@ Here we will cover the following topics:
 - [Download ahead, in parallel](#download-ahead-in-parallel): prefetch every pack at once, show "downloaded" without loading.
 - [Compile ahead](#compile-ahead): the first load is the compile; run it on your schedule, one model at a time.
 - [Stay specialized](#stay-specialized): detect a purge, re-specialize on a charger.
-- [Memory and residency](#memory-and-residency): starts are reference-counted; what is loaded right now.
+- [Memory and residency](#memory-and-residency): a running model is held by owners; what is loaded right now.
 - [Usage Guides](#usage-guides): first launch of a three-model app, a catalog screen, an overnight keeper.
 - [Troubleshooting](#troubleshooting): symptom → cause → fix.
 - [Delete a model](#delete-a-model): free the disk a downloaded model takes.
@@ -50,7 +50,7 @@ Here we will cover the following topics:
 |---|---|---|---|
 | Download | the pack is fetched from Hugging Face into the SDK's folder under Application Support | network bound; 100 MB to 2 GB per pack | the pack, per repo and revision; survives relaunch and app updates; an interrupted transfer resumes within 30 minutes, after that it restarts |
 | Unpack | the archive is extracted and promoted to one resident copy; the archive is deleted once the model opened | seconds; needs free disk of twice the archive | the resident tree; survives relaunch and app updates; never purged by iOS |
-| Compile and specialize | CoreML compiles the engines and the Neural Engine builds its programs, on the first load of that pack | cold: tens of seconds for a small LLM, minutes for a large one; warm: about a second | the compiled engines under Application Support; the Neural Engine programs under `Caches`, which iOS purges under storage pressure. The SDK saves a copy of them after every load and puts it back after a purge |
+| Compile and specialize | the system compiles the engines and the Neural Engine builds its programs, on the first load of that pack | cold: tens of seconds for a small LLM, minutes for a large one; warm: about a second | the compiled engines under Application Support; the Neural Engine programs under `Caches`, which iOS purges under storage pressure. The SDK saves a copy of them after every load and puts it back after a purge |
 | Warm-up | one prediction per engine, so the first user request pays nothing | about 150 ms per model when warm | the saved programs now cover every engine the model uses |
 
 Two consequences shape everything below. Downloads are independent of
@@ -314,7 +314,7 @@ folder under Application Support on first use, and after a purge puts
 the saved programs back before it answers, so call it when the app
 comes to the foreground or from a background task, not from a view
 body; `is_pack_resident` is the read for views. A purge is reported `.cold` for every requested model until a
-load of that model proves the restored programs are ones CoreML
+load of that model proves the restored programs are ones the system
 accepts; `respecialize_if_needed` is that proof.
 
 Some models finish specializing on their first inference rather than on
@@ -513,7 +513,7 @@ if try await TheStageAI.shared.specialization_health(for: stack) != .warm {
 | `insufficientSpace` before any bytes download | Unpacking needs free disk of twice the archive. | Report `needed_bytes` to the user; nothing was downloaded. |
 | Two models downloaded, one failed with `extractionFailed` | SDK older than 1.5.0: a concurrent unpack was swept as an orphan. | Update the SDK; retry the failed one. |
 | A model fails to load while a settings screen is open | SDK older than 1.5.0: `is_pack_resident` touched the resident files while they were loading. | Update the SDK; the check is a read now. |
-| Two features lose a shared model when one stops | Both started the same handle; `stop_model` with `force: true`. | Stop without `force`: the model unloads with the last user. |
+| Two features lose a shared model when one stops | Both started the same handle; `stop_model` with `force: true`. | Start and stop with an `owner` each, without `force`: the model unloads when no owner holds it. |
 | Compile of one model makes another's start slow | Both run on the one Neural Engine compiler. | Compile one at a time; never a background compile behind a user's load. |
 
 ## Delete a model
@@ -580,7 +580,7 @@ let ai = TheStageAI.shared
 for request in stack {
     _ = try ai.stop_model(model_name: request.handle)
 }
-// A model unloads when its last start is stopped;
+// A model unloads when no owner holds it;
 // force: true unloads it at once.
 ```
 

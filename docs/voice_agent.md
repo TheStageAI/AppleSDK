@@ -50,7 +50,7 @@ The agent is four stages; each accepts the packs from its own page.
 |---|---|---|
 | Voice detection | `TheStageAI/silero-vad` | Always on device. |
 | Speech to text | `TheStageAI/thewhisper-large-v3-turbo`, `TheStageAI/Qwen3-ASR-0.6B` | TheWhisper for live captions; see [ASR](./asr.md). |
-| Language model | `TheStageAI/Qwen3-0.6B`, `TheStageAI/LFM2.5-230M` / `350M`, `TheStageAI/gemma-3-1b-it` — or any OpenAI-compatible endpoint | Local packs run tools; Gemma3 does not. See [LLM](./llm.md). |
+| Language model | `TheStageAI/Qwen3-0.6B`, `TheStageAI/LFM2.5-230M` / `350M` / `1.2B`, `TheStageAI/LFM3-1.7B`, `TheStageAI/gemma-3-1b-it` — or any OpenAI-compatible endpoint | Local packs run tools; Gemma3 does not. See [LLM](./llm.md). |
 | Text to speech | `TheStageAI/neutts-nano-multilingual`, `TheStageAI/Qwen3-TTS-12Hz-0.6B-Base` | Voices and languages per [TTS](./tts.md). |
 | Turn detection (optional) | `TheStageAI/smart-turn-v3` | Neural end-of-turn; tolerates mid-sentence pauses. |
 | Speaker ID (optional) | `TheStageAI/redimnet2` | Respond only to an enrolled voice; see [Speaker embedding](./speaker_embedding.md). |
@@ -427,7 +427,7 @@ await agent.start(config: {
 |---|---|---|---|
 | `system_prompt` | voice default | **yes** (`set_system_prompt`) | Persona, brand, scope. Keep it short — paid on every turn. |
 | `max_tokens` | 256 | no | Replies get cut off — raise. Spoken replies rarely need more. |
-| `speculative_decoding` | `nil` (pack card) | no | `true` for packs with a drafter (LFM2.5, Gemma 4): greedy, several tokens per step, same text as plain greedy; `temperature` and the sampling overlay are ignored. `false` forces plain decoding. |
+| `speculative_decoding` | `nil` (on when the pack supports it) | no | Faster decoding with the same output on packs that support it; it decodes greedily, so `temperature` and the sampling overlay are ignored. `false` turns it off. |
 | `chat_memory` / `chat_memory_max_turns` | sliding window | no | Long sessions on small packs run out of context — lower. |
 | `tts_voice` / `tts_voice_dir` / `tts_language` | pack default | **yes** (`set_voice`) | See [TTS](./tts.md) for voices and packs. |
 | `silence_timeout_ms` | 608 | no | Cuts users off mid-thought — raise to 1 000–1 500. Feels slow — lower. |

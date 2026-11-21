@@ -12,6 +12,7 @@ import TheStageSDK
 enum TTSFamily: Hashable {
     case neutts
     case qwen3Tts
+    case pocket
 }
 
 struct BundledTTSModel: Identifiable, Hashable {
@@ -53,6 +54,27 @@ enum TTSCatalog {
             revision: nil,
             family: .qwen3Tts
         ),
+        BundledTTSModel(
+            name: "phonon-31m-en",
+            displayName: "Phonon 31M English",
+            hfRepo: "TheStageAI/phonon-31m-en",
+            revision: nil,
+            family: .pocket
+        ),
+        BundledTTSModel(
+            name: "pocket-tts-18m-en",
+            displayName: "Pocket TTS 18M English",
+            hfRepo: "TheStageAI/pocket-tts-18m-en",
+            revision: nil,
+            family: .pocket
+        ),
+        BundledTTSModel(
+            name: "pocket-tts-100m-ru",
+            displayName: "Pocket TTS 100M Russian",
+            hfRepo: "TheStageAI/pocket-tts-100m-ru",
+            revision: nil,
+            family: .pocket
+        ),
     ]
     static var first: BundledTTSModel { all[0] }
 }
@@ -75,6 +97,13 @@ extension NeuTTSMultilingualPipeline: BenchTTS {
 }
 
 extension Qwen3TTSPipeline: BenchTTS {
+    func bench_infer(text: String) -> TTSResult { infer(text: text) }
+    func bench_stream(text: String) -> AsyncStream<InferenceStreamChunk> {
+        infer_stream(text: text)
+    }
+}
+
+extension PhononTTSPipeline: BenchTTS {
     func bench_infer(text: String) -> TTSResult { infer(text: text) }
     func bench_stream(text: String) -> AsyncStream<InferenceStreamChunk> {
         infer_stream(text: text)
@@ -120,6 +149,14 @@ final class TTSHost {
                 revision: model.revision,
                 on_load_progress: onProgress
             )
+        case .pocket:
+            tts = try await PhononTTSPipeline(
+                engines_path: model.enginesPath(),
+                voice_id: voice,
+                device: "npu",
+                revision: model.revision,
+                on_load_progress: onProgress
+            )
         }
         current = (key, tts)
         return tts
@@ -134,8 +171,7 @@ final class TTSBenchModel: ObservableObject {
     @Published var selected: BundledTTSModel = TTSCatalog.first
     /// Voice ids shipped inside the resolved pack (`voices/<id>/`), read with
     /// ``TSTTSPipeline/available_voices(root:)`` once the bundle is on disk.
-    /// The pack decides: the Core ML and Core AI packs of one repo can ship
-    /// different voice sets.
+    /// The pack decides which voices it ships.
     @Published var voices: [String] = []
     @Published var voice: String = ""
     @Published var text = "Hello! This is a test of the new text to speech model."

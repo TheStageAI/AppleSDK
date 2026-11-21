@@ -1,6 +1,6 @@
 # LLM (Language Model)
 
-On-device chat models — Qwen3, LFM2.5 and Gemma 3 — running fully on the
+On-device chat models — Qwen3, LFM2.5, LFM3 and Gemma 3 — running fully on the
 Neural Engine. Tokenisation, the chat template, the KV cache, sampling
 and stop policy all ship inside the pack; you send text and read text.
 Nothing the user types leaves the device, and there is no per-token
@@ -12,7 +12,7 @@ can call in any of them.
 
 > **Main features**
 >
-> - **On-device chat**: Qwen3-0.6B, LFM2.5-230M / 350M and Gemma3-1B —
+> - **On-device chat**: Qwen3-0.6B, LFM2.5-230M / 350M / 1.2B, LFM3-1.7B and Gemma3-1B —
 >   no server round-trip, no per-token cost.
 > - **Streaming and batch**: `infer` for a full reply, `infer_stream`
 >   for token deltas, on the same object.
@@ -71,7 +71,8 @@ whether they can reason before answering.
 | A voice assistant with tools | **Qwen3-0.6B** | Tools, thinking when needed, and the same tokenizer as Qwen3-ASR. |
 | The smallest, fastest chat | **LFM2.5-230M** | Lowest memory and first-token latency; still calls tools. |
 | Structured extraction from documents | **LFM2.5-350M** | Better instruction following than 230M at little extra cost. |
-| Longest, most fluent replies | **Gemma3-1B** | Largest pack; no tool calling — passing `tools` throws. |
+| Longest, most fluent replies | **Gemma3-1B** | Fluent long-form text; no tool calling — passing `tools` throws. |
+| Harder questions, with tools and reasoning | **LFM3-1.7B** | The largest pack; calls tools and thinks before answering (on by default). |
 
 Context window is fixed per pack. Prompt, history and the reply share
 it; the SDK trims history for you in a session.
@@ -335,7 +336,7 @@ set keeps that value.
 | `enable_thinking` | true | **Set false for chat.** Qwen3 only; adds a reasoning prelude that eats the token budget and looks like a pause in the UI. |
 | `seed` | random | Set for reproducible tests, with `temperature = 0`. |
 | `stop_sequences` | `[]` | Stop early on a marker your prompt format defines. |
-| `speculative_decoding` | `nil` (pack policy) | Packs that ship a drafter decode several tokens per step at identical output — only with greedy sampling (`temperature` `0`, no suppressed tokens; a `repetition_penalty` is fine on LFM2.5 packs, whose drafter pair verifies under it, and forces plain decoding on the others); otherwise the call decodes plain. `false` forces plain decoding (A/B timing, memory). `true` is the same as `nil`: a pack without a drafter decodes plain, never fails. `LLMResult.tokens_per_second` and `last_spec_acceptance_length` (nil when plain) show which path ran. On devices where the system charges Neural Engine memory to the app (iOS 27), a plain call releases the pack's speculative-only engine views and the next speculative call reloads them, so switching between the two can take a few seconds once; stay on one setting for a conversation. |
+| `speculative_decoding` | `nil` (on when the pack supports it) | Faster decoding with the same output. Applies only with greedy sampling (`temperature` `0`); otherwise the call decodes normally. `false` turns it off. Switching it on and off within a conversation can cost a few seconds once, so keep one setting. |
 
 Chat template, end-of-sequence tokens and the context window are baked
 into the pack; there is nothing to set.
@@ -1004,18 +1005,18 @@ final tools = [
 > - Describe *when* to call the tool in `description`, not just what it
 >   does — that is what the model keys on.
 > - Never speak or display `tool_result`; it is for the model.
-> - Qwen3 and LFM2.5 call tools; Gemma3-1B does not.
+> - Qwen3, LFM2.5 and LFM3 call tools; Gemma3-1B does not.
 
 ### Replies are slow to start, or begin with a blank
 
 > **Problem**
 >
-> **Building** — any chat or assistant on a Qwen3 pack.
+> **Building** — any chat or assistant on a Qwen3 or LFM3 pack.
 >
 > **Users want** — the first word within a moment of asking, never a
 > bubble that shows `<think>` or nothing at all.
 >
-> **Hard part** — Qwen3 reasons before it answers, and that reasoning
+> **Hard part** — Qwen3 and LFM3 reason before they answer, and that reasoning
 > shares the token budget with the reply — a short cap leaves no room
 > for an answer.
 
@@ -1026,6 +1027,7 @@ final tools = [
   genuinely hard questions.
 - `final_text` — always what you render; `thinking` — optional to
   show.
+- LFM3-1.7B thinks unless you set the flag to `false`.
 - LFM2.5 and Gemma3 ignore the flag.
 
 **Swift**
@@ -1083,6 +1085,7 @@ print(rows[0]['final_text']);
 > - Show `final_text`, never raw `text`, when thinking is on.
 > - Thinking tokens count against `max_new_tokens`; `256` with
 >   thinking on often yields an empty answer.
+> - LFM3-1.7B thinks unless you set the flag to `false`.
 > - LFM2.5 and Gemma3 ignore the flag.
 
 ### Make outputs reproducible for tests
@@ -1162,7 +1165,7 @@ expect(a[0]['text'], b[0]['text']);
 | Seconds of silence, then the answer | Qwen3 thinking is on. | `enable_thinking = false` for chat. |
 | Bubble shows `<think>` | Rendering `text` with thinking on. | Render `final_text`. |
 | Model "forgot" the previous turn | Using `infer(prompt:)` for a conversation. | `TSChatSession` (Swift) or `messages` on `infer_stream` (Flutter). |
-| Passing `tools` throws | Gemma3-1B has no tool support. | Use Qwen3 or LFM2.5; check `supports_tool_calling`. |
+| Passing `tools` throws | Gemma3-1B has no tool support. | Use Qwen3, LFM2.5 or LFM3; check `supports_tool_calling`. |
 | Tool never gets called | Description does not say when to use it. | Rewrite `description` as "Use when the user asks …". |
 | Garbled or wrong-language output | Temperature too high, or template tokens pasted into `prompt`. | Start from `generation_defaults`; send plain text only. |
 | Long answers loop | No repetition penalty. | `repetition_penalty = 1.05`–`1.1`. |

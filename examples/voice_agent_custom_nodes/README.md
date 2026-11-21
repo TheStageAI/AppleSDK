@@ -57,7 +57,7 @@ flutter run --release \
 
 ## Hugging Face models (defaults)
 
-Revision comes from the SDK ``ModelRevisionMap`` for this line — do not
+The revision is pinned by the SDK — do not
 hardcode `vA.B` unless you intentionally override:
 
 | Role | HF repo |

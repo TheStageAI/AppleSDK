@@ -8,6 +8,7 @@ export 'src/asr_engine.dart';
 export 'src/asr_stream.dart';
 export 'src/tts_stream.dart';
 export 'src/model_component.dart';
+export 'src/model_deletion.dart';
 export 'src/inference_types.dart';
 export 'src/ts_asr_engine.dart';
 export 'src/ts_compat_aliases.dart';

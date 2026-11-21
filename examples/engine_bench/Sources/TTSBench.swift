@@ -12,12 +12,12 @@ import TheStageSDK
 enum TTSFamily: Hashable {
     case neutts
     case qwen3Tts
+    case pocket
 }
 
 struct BundledTTSModel: Identifiable, Hashable {
     let name: String
     let displayName: String
-    let voices: [String]
     let hfRepo: String
     /// Optional HF revision override. `nil` → ``ModelRevisionMap``.
     let revision: String?
@@ -43,7 +43,6 @@ enum TTSCatalog {
         BundledTTSModel(
             name: "neutts-nano-multilingual",
             displayName: "NeuTTS nano multilingual",
-            voices: ["dave", "bril", "jo", "paul"],
             hfRepo: "TheStageAI/neutts-nano-multilingual",
             revision: nil,
             family: .neutts
@@ -51,11 +50,30 @@ enum TTSCatalog {
         BundledTTSModel(
             name: "qwen3-tts-12hz-0.6b-base",
             displayName: "Qwen3-TTS 0.6b",
-            voices: ["b_ref", "donald_trump", "elon_musk",
-                     "jensen_huang", "joe_biden"],
             hfRepo: "TheStageAI/Qwen3-TTS-12Hz-0.6B-Base",
             revision: nil,
             family: .qwen3Tts
+        ),
+        BundledTTSModel(
+            name: "phonon-31m-en",
+            displayName: "Phonon 31M English",
+            hfRepo: "TheStageAI/phonon-31m-en",
+            revision: nil,
+            family: .pocket
+        ),
+        BundledTTSModel(
+            name: "pocket-tts-18m-en",
+            displayName: "Pocket TTS 18M English",
+            hfRepo: "TheStageAI/pocket-tts-18m-en",
+            revision: nil,
+            family: .pocket
+        ),
+        BundledTTSModel(
+            name: "pocket-tts-100m-ru",
+            displayName: "Pocket TTS 100M Russian",
+            hfRepo: "TheStageAI/pocket-tts-100m-ru",
+            revision: nil,
+            family: .pocket
         ),
     ]
     static var first: BundledTTSModel { all[0] }
@@ -79,6 +97,13 @@ extension NeuTTSMultilingualPipeline: BenchTTS {
 }
 
 extension Qwen3TTSPipeline: BenchTTS {
+    func bench_infer(text: String) -> TTSResult { infer(text: text) }
+    func bench_stream(text: String) -> AsyncStream<InferenceStreamChunk> {
+        infer_stream(text: text)
+    }
+}
+
+extension PhononTTSPipeline: BenchTTS {
     func bench_infer(text: String) -> TTSResult { infer(text: text) }
     func bench_stream(text: String) -> AsyncStream<InferenceStreamChunk> {
         infer_stream(text: text)
@@ -124,6 +149,14 @@ final class TTSHost {
                 revision: model.revision,
                 on_load_progress: onProgress
             )
+        case .pocket:
+            tts = try await PhononTTSPipeline(
+                engines_path: model.enginesPath(),
+                voice_id: voice,
+                device: "npu",
+                revision: model.revision,
+                on_load_progress: onProgress
+            )
         }
         current = (key, tts)
         return tts
@@ -136,7 +169,11 @@ final class TTSHost {
 @MainActor
 final class TTSBenchModel: ObservableObject {
     @Published var selected: BundledTTSModel = TTSCatalog.first
-    @Published var voice: String = TTSCatalog.first.voices[0]
+    /// Voice ids shipped inside the resolved pack (`voices/<id>/`), read with
+    /// ``TSTTSPipeline/available_voices(root:)`` once the bundle is on disk.
+    /// The pack decides which voices it ships.
+    @Published var voices: [String] = []
+    @Published var voice: String = ""
     @Published var text = "Hello! This is a test of the new text to speech model."
     @Published var statsLine = ""
     @Published var status = "tap Synthesize"
@@ -147,6 +184,47 @@ final class TTSBenchModel: ObservableObject {
     @Published var loadFraction = 0.0
 
     private var player: StreamPlayer?
+    private var voicesTask: Task<Void, Never>?
+
+    /// First-appearance hook: lists voices unless a lookup already ran.
+    func ensureVoices() {
+        if voicesTask == nil { refreshVoices() }
+    }
+
+    /// Resolves the selected model's bundle (download + extract, no model
+    /// load) and lists the voices it ships.
+    func refreshVoices() {
+        let model = selected
+        voicesTask?.cancel()
+        voices = []
+        voice = ""
+        status = "fetching \(model.displayName) voices…"
+        voicesTask = Task {
+            do {
+                try await LLMHost.shared.ensureInitialized()
+                let path = model.enginesPath()
+                let root = path.hasPrefix("/")
+                    ? path
+                    : try await TheStageAI.shared.prefetch_engines(
+                        repo_id: path,
+                        revision: model.revision,
+                        on_load_progress: progressHandler()
+                    )
+                guard !Task.isCancelled, model == self.selected else { return }
+                let found = TSTTSPipeline.available_voices(root: root)
+                self.loadPhase = nil
+                self.voices = found
+                self.voice = found.first ?? ""
+                self.status = found.isEmpty
+                    ? "no voices in \(model.displayName) pack"
+                    : "tap Synthesize"
+            } catch {
+                guard !Task.isCancelled, model == self.selected else { return }
+                self.loadPhase = nil
+                self.status = "voices: \(error.localizedDescription)"
+            }
+        }
+    }
 
     private func progressHandler() -> LoadProgressHandler {
         { [weak self] p in
@@ -366,8 +444,11 @@ struct TTSBenchView: View {
             }
             .disabled(model.running)
             .padding(.horizontal)
-            .onChange(of: model.selected) { _, m in
-                model.voice = m.voices[0]
+            .onChange(of: model.selected) { _, _ in
+                model.refreshVoices()
+            }
+            .onAppear {
+                if model.voices.isEmpty { model.ensureVoices() }
             }
 
             // Same reason as the model picker above: five voices named like
@@ -379,7 +460,7 @@ struct TTSBenchView: View {
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 0)
                 Picker("Voice", selection: $model.voice) {
-                    ForEach(model.selected.voices, id: \.self) { v in
+                    ForEach(model.voices, id: \.self) { v in
                         Text(v).tag(v)
                     }
                 }
@@ -427,7 +508,7 @@ struct TTSBenchView: View {
                 } label: {
                     buttonLabel("Synthesize", color: .blue)
                 }
-                .disabled(model.running)
+                .disabled(model.running || model.voice.isEmpty)
 
                 Button {
                     textFocused = false
@@ -435,7 +516,7 @@ struct TTSBenchView: View {
                 } label: {
                     buttonLabel("Benchmark", color: .purple)
                 }
-                .disabled(model.running)
+                .disabled(model.running || model.voice.isEmpty)
             }
             .padding(.horizontal)
 

@@ -90,7 +90,7 @@ extension TheStageFlutterPlugin {
             .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
 
         // A sealed pack shipped as-is: BundledModels/<name>.thestage next to
-        // its `<name>.qlip_bundle.json` sidecar. The SDK opens the archive
+        // its sidecar file. The SDK opens the archive
         // in place and extracts into its own cache, so the app carries the
         // exact artifact that was verified and published -- no unpacked
         // tree to drift from it.

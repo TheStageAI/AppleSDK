@@ -9,7 +9,7 @@ export TS_API_TOKEN=th_…
 PACK=qwen06 GUIDE=1,2,3,4,5 swift run -c release
 ```
 
-- `PACK` — `lfm230` | `lfm350` | `qwen06` | `gemma1b` (default `lfm350`)
+- `PACK` — `lfm230` | `lfm350` | `lfm3` | `qwen06` | `gemma1b` (default `lfm350`)
 - `GUIDE` — any subset of `1,2,3,4,5`: receipt · calendar · pickup code ·
   share-sheet router · tools
 - `LLM_BUNDLE` — a local bundle path instead of the Hugging Face id

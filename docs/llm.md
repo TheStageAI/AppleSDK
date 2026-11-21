@@ -1,6 +1,6 @@
 # LLM (Language Model)
 
-On-device chat models — Qwen3, LFM2.5 and Gemma 3 — running fully on the
+On-device chat models — Qwen3, LFM2.5, LFM3 and Gemma 3 — running fully on the
 Neural Engine. Tokenisation, the chat template, the KV cache, sampling
 and stop policy all ship inside the pack; you send text and read text.
 Nothing the user types leaves the device, and there is no per-token
@@ -12,7 +12,7 @@ can call in any of them.
 
 > **Main features**
 >
-> - **On-device chat**: Qwen3-0.6B, LFM2.5-230M / 350M and Gemma3-1B —
+> - **On-device chat**: Qwen3-0.6B, LFM2.5-230M / 350M / 1.2B, LFM3-1.7B and Gemma3-1B —
 >   no server round-trip, no per-token cost.
 > - **Streaming and batch**: `infer` for a full reply, `infer_stream`
 >   for token deltas, on the same object.
@@ -45,22 +45,24 @@ Here we will cover the following topics:
 
 ## Supported models
 
-Four packs (plus Gemma-4 E2B, which ships under [`TSVLM`](./vlm.md) as a
+Six packs (plus Gemma-4 E2B, which ships under [TSVLM](./vlm.md) as a
 text-only multimodal pack). They share one API; they differ in size, tool support and
 whether they can reason before answering.
 
 | Model | HF repo | Size | Device | Fleet pin |
 |---|---|---|---|---|
-| Qwen3-0.6B | `TheStageAI/Qwen3-0.6B` | 0.6B | NPU | v1.1 |
-| LFM2.5-230M | `TheStageAI/LFM2.5-230M` | 230M | NPU | v1.1 |
-| LFM2.5-350M | `TheStageAI/LFM2.5-350M` | 350M | NPU | v1.1 |
-| Gemma3-1B | `TheStageAI/gemma-3-1b-it` | 1B | NPU | v1.1 |
+| Qwen3-0.6B | `TheStageAI/Qwen3-0.6B` | 0.6B | NPU | v1.6 |
+| LFM2.5-230M | `TheStageAI/LFM2.5-230M` | 230M | NPU | v1.6 |
+| LFM2.5-350M | `TheStageAI/LFM2.5-350M` | 350M | NPU | v1.6 |
+| LFM2.5-1.2B | `TheStageAI/LFM2.5-1.2B` | 1.2B | NPU | v1.6 |
+| LFM3-1.7B | `TheStageAI/LFM3-1.7B` | 1.7B | NPU | v1.6 |
+| Gemma3-1B | `TheStageAI/gemma-3-1b-it` | 1B | NPU | v1.6 |
 
-| Feature | Qwen3-0.6B | LFM2.5-230M | LFM2.5-350M | Gemma3-1B |
-|---|---|---|---|---|
-| Chat + streaming | yes | yes | yes | yes |
-| Tool calling | yes | yes | yes | — |
-| Thinking mode | yes | — | — | — |
+| Feature | Qwen3-0.6B | LFM2.5-230M | LFM2.5-350M | LFM2.5-1.2B | LFM3-1.7B | Gemma3-1B |
+|---|---|---|---|---|---|---|
+| Chat + streaming | yes | yes | yes | yes | yes | yes |
+| Tool calling | yes | yes | yes | yes | yes | — |
+| Thinking mode | yes | — | — | — | yes (on by default) | — |
 
 **Which one?**
 
@@ -69,7 +71,8 @@ whether they can reason before answering.
 | A voice assistant with tools | **Qwen3-0.6B** | Tools, thinking when needed, and the same tokenizer as Qwen3-ASR. |
 | The smallest, fastest chat | **LFM2.5-230M** | Lowest memory and first-token latency; still calls tools. |
 | Structured extraction from documents | **LFM2.5-350M** | Better instruction following than 230M at little extra cost. |
-| Longest, most fluent replies | **Gemma3-1B** | Largest pack; no tool calling — passing `tools` throws. |
+| Longest, most fluent replies | **Gemma3-1B** | Fluent long-form text; no tool calling — passing `tools` throws. |
+| Harder questions, with tools and reasoning | **LFM3-1.7B** | The largest pack; calls tools and thinks before answering (on by default). |
 
 Context window is fixed per pack. Prompt, history and the reply share
 it; the SDK trims history for you in a session.
@@ -187,7 +190,7 @@ let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
 var config = llm.generation_defaults
 config.enable_thinking = false
 
-let session = LLMChatEngine(llm: llm).chat_session(
+let session = llm.chat_session(
     system_prompt: "You are a friendly assistant. Answer in one sentence.",
     memory: .SLIDING(max_turns: 10)
 )
@@ -245,7 +248,7 @@ history.add({'role': 'assistant', 'content': reply.toString()});
 | Load a model | `try await TSLLM(engines_path:)` | `start_model(model_name: 'llm', engines_path:)` |
 | One answer | `llm.infer(prompt:system_prompt:config:)` → `LLMResult` | `infer(model_name:input_json:)` → `rows[0]` |
 | Streamed reply | `llm.infer_stream(prompt:system_prompt:config:)` → `LLMStreamChunk` | `infer_stream(model_name:input_json:)` → `chunk['delta']` |
-| Conversation | `LLMChatEngine(llm:).chat_session(…)` → `TSChatSession` | `'messages'` in `input_json` on `infer_stream` |
+| Conversation | `llm.chat_session(…)` → `TSChatSession` | `'messages'` in `input_json` on `infer_stream` |
 | Tools | `infer_stream(prompt:tools: [Tool], …)` → `LLMStreamEvent` | `'tools'` in `input_json`; handle `tool_call` chunks |
 | Release | drop the object | `stop_model(model_name: 'llm')` |
 
@@ -333,7 +336,7 @@ set keeps that value.
 | `enable_thinking` | true | **Set false for chat.** Qwen3 only; adds a reasoning prelude that eats the token budget and looks like a pause in the UI. |
 | `seed` | random | Set for reproducible tests, with `temperature = 0`. |
 | `stop_sequences` | `[]` | Stop early on a marker your prompt format defines. |
-| `speculative_decoding` | `nil` (pack policy) | Packs that ship a drafter decode several tokens per step at identical output — only with greedy sampling (`temperature` `0`, no suppressed tokens; a `repetition_penalty` is fine on LFM2.5 packs, whose drafter pair verifies under it, and forces plain decoding on the others); otherwise the call decodes plain. `false` forces plain decoding (A/B timing, memory). `true` is the same as `nil`: a pack without a drafter decodes plain, never fails. `LLMResult.tokens_per_second` and `last_spec_acceptance_length` (nil when plain) show which path ran. On devices where the system charges Neural Engine memory to the app (iOS 27), a plain call releases the pack's speculative-only engine views and the next speculative call reloads them, so switching between the two can take a few seconds once; stay on one setting for a conversation. |
+| `speculative_decoding` | `nil` (on when the pack supports it) | Faster decoding with the same output. Applies only with greedy sampling (`temperature` `0`); otherwise the call decodes normally. `false` turns it off. Switching it on and off within a conversation can cost a few seconds once, so keep one setting. |
 
 Chat template, end-of-sequence tokens and the context window are baked
 into the pack; there is nothing to set.
@@ -375,7 +378,7 @@ let extracted = try await engine.infer(
 )
 
 // Conversation with memory
-let session = engine.chat_session(
+let session = llm.chat_session(
     system_prompt: "You are a helpful assistant.",
     tools: [],
     memory: .SLIDING(max_turns: 10)
@@ -417,7 +420,7 @@ final extracted = TheStageFlutterSDK.infer_stream(
 
 ### Important API
 
-`TSChatSession` — created by `LLMChatEngine(llm:).chat_session(…)`:
+`TSChatSession` — created by `llm.chat_session(…)`:
 
 | Member | Role |
 |---|---|
@@ -591,7 +594,7 @@ let result = llm.infer(prompt: prompt, config: config)
 result.text
 // the reply with thinking and tool markup removed
 result.final_text
-// "eos" | "max_new_tokens" | "stop_sequence"
+// "eos" | "max_new_tokens" | "stop_sequence" | "engine_error"
 result.stop_reason
 result.tokens_per_second
 // seconds
@@ -616,7 +619,7 @@ final r = rows[0];
 r['text'];
 // with thinking and tool markup removed
 r['final_text'];
-// 'eos' | 'max_new_tokens' | 'stop_sequence'
+// 'eos' | 'max_new_tokens' | 'stop_sequence' | 'engine_error'
 r['stop_reason'];
 r['tokens_per_second'];
 r['time_to_first_token'];
@@ -628,7 +631,7 @@ r['time_to_first_token'];
 | `final_text` | `final_text` | Reply with `<think>` and tool markup stripped. Show this. |
 | `thinking` | `thinking` | The reasoning prelude, when thinking was on. |
 | `tool_calls` | `tool_calls` | `[ToolCall]` — `name`, `arguments`. Batch only. |
-| `stop_reason` | `stop_reason` | `eos` = finished naturally; `max_new_tokens` = cut off; `stop_sequence` = hit a stop string. |
+| `stop_reason` | `stop_reason` | `eos` = finished naturally; `max_new_tokens` = cut off; `stop_sequence` = hit a stop string; `engine_error` = the model could not run on this device (for example a long-context part failed to load); the text holds what was generated before. |
 | `prompt_tokens` / `generated_tokens` | same | Sizes, for budgeting the context window. |
 | `time_to_first_token` / `tokens_per_second` | same | Latency and speed. |
 
@@ -762,7 +765,7 @@ final fields = jsonDecode(out.toString());
 
 **Solution — what to use**
 
-- `LLMChatEngine.chat_session(system_prompt:memory:)` — owns the
+- `TSLLM.chat_session(system_prompt:memory:)` — owns the
   history so each turn is one call.
 - `infer_stream(user_request:config:)` — `text_delta` events go
   straight into the bubble.
@@ -779,7 +782,7 @@ final fields = jsonDecode(out.toString());
 ```swift
 let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
 
-let session = LLMChatEngine(llm: llm).chat_session(
+let session = llm.chat_session(
     system_prompt: "You are the support assistant for Acme. Be brief.",
     memory: .SLIDING(max_turns: 8)
 )
@@ -876,7 +879,7 @@ stopButton.onPressed = () => sub.cancel();
 let llm = try await TSLLM(engines_path: "TheStageAI/Qwen3-0.6B")
 let persona = "You are Sam, a warm hiking companion. Keep replies short."
 
-let session = LLMChatEngine(llm: llm).chat_session(
+let session = llm.chat_session(
     system_prompt: persona,
     // ~6 exchanges of context
     memory: .SLIDING(max_turns: 6)
@@ -959,7 +962,7 @@ let orderStatus = Tool(
     }
 )
 
-let session = LLMChatEngine(llm: llm).chat_session(
+let session = llm.chat_session(
     system_prompt: DefaultTools.voice_system_prompt + "\nYou help Acme customers.",
     tools: [orderStatus] + DefaultTools.phone,
     memory: .SLIDING(max_turns: 8)
@@ -1002,18 +1005,18 @@ final tools = [
 > - Describe *when* to call the tool in `description`, not just what it
 >   does — that is what the model keys on.
 > - Never speak or display `tool_result`; it is for the model.
-> - Qwen3 and LFM2.5 call tools; Gemma3-1B does not.
+> - Qwen3, LFM2.5 and LFM3 call tools; Gemma3-1B does not.
 
 ### Replies are slow to start, or begin with a blank
 
 > **Problem**
 >
-> **Building** — any chat or assistant on a Qwen3 pack.
+> **Building** — any chat or assistant on a Qwen3 or LFM3 pack.
 >
 > **Users want** — the first word within a moment of asking, never a
 > bubble that shows `<think>` or nothing at all.
 >
-> **Hard part** — Qwen3 reasons before it answers, and that reasoning
+> **Hard part** — Qwen3 and LFM3 reason before they answer, and that reasoning
 > shares the token budget with the reply — a short cap leaves no room
 > for an answer.
 
@@ -1024,6 +1027,7 @@ final tools = [
   genuinely hard questions.
 - `final_text` — always what you render; `thinking` — optional to
   show.
+- LFM3-1.7B thinks unless you set the flag to `false`.
 - LFM2.5 and Gemma3 ignore the flag.
 
 **Swift**
@@ -1081,6 +1085,7 @@ print(rows[0]['final_text']);
 > - Show `final_text`, never raw `text`, when thinking is on.
 > - Thinking tokens count against `max_new_tokens`; `256` with
 >   thinking on often yields an empty answer.
+> - LFM3-1.7B thinks unless you set the flag to `false`.
 > - LFM2.5 and Gemma3 ignore the flag.
 
 ### Make outputs reproducible for tests
@@ -1160,7 +1165,7 @@ expect(a[0]['text'], b[0]['text']);
 | Seconds of silence, then the answer | Qwen3 thinking is on. | `enable_thinking = false` for chat. |
 | Bubble shows `<think>` | Rendering `text` with thinking on. | Render `final_text`. |
 | Model "forgot" the previous turn | Using `infer(prompt:)` for a conversation. | `TSChatSession` (Swift) or `messages` on `infer_stream` (Flutter). |
-| Passing `tools` throws | Gemma3-1B has no tool support. | Use Qwen3 or LFM2.5; check `supports_tool_calling`. |
+| Passing `tools` throws | Gemma3-1B has no tool support. | Use Qwen3, LFM2.5 or LFM3; check `supports_tool_calling`. |
 | Tool never gets called | Description does not say when to use it. | Rewrite `description` as "Use when the user asks …". |
 | Garbled or wrong-language output | Temperature too high, or template tokens pasted into `prompt`. | Start from `generation_defaults`; send plain text only. |
 | Long answers loop | No repetition penalty. | `repetition_penalty = 1.05`–`1.1`. |

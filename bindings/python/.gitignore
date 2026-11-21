@@ -1,0 +1,9 @@
+src/thestage_sdk/_bin/
+dist/
+*.egg-info/
+__pycache__/
+.pytest_cache/
+.venv/
+
+# Open WebUI writes its session-signing key next to where it runs.
+.webui_secret_key

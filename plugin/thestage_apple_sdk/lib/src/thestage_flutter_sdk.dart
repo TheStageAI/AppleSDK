@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import 'method_channels.dart';
 import 'model_component.dart';
+import 'model_deletion.dart';
 
 // ---------------------------------------------------------------------------
 // TheStageFlutterSDK
@@ -190,6 +191,31 @@ class TheStageFlutterSDK {
       },
     );
     return result ?? '';
+  }
+
+  /// Delete a downloaded pack from this device, keyed like [prefetch_engines]
+  /// (the Hugging Face repo id). Removes every on-device copy of the repo, or
+  /// only [revision]'s copies when given. Repeating it is safe: nothing on
+  /// disk returns `freed_bytes == 0`; a local `engines_path` is never touched.
+  ///
+  /// Throws [ModelInUseException] while the pack is loaded (stop it first) and
+  /// [ModelBusyException] while a download or start of it runs.
+  static Future<ModelDeletion> delete_model({
+    required String engines_path,
+    String? revision,
+  }) async {
+    try {
+      final result = await _channel.invokeMethod<Map<Object?, Object?>>(
+        MethodRoute.deleteModel,
+        {
+          'engines_path': engines_path,
+          if (revision != null) 'revision': revision,
+        },
+      );
+      return ModelDeletion.fromMap(result);
+    } on PlatformException catch (error) {
+      throw deleteModelError(error);
+    }
   }
 
   // ---------------------------------------------------------------------------

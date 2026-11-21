@@ -16,9 +16,8 @@ enum ASRTextContext { NONE, SUBMITTED }
 
 /// Live-commit policy.
 ///
-/// Two algorithms: [NAIVE] (portable) and [THESTAGE_V5] (measured-clock
-/// ladder). Older wire names (`THESTAGE`, `THESTAGE_V2`, `THESTAGE_V4`) are
-/// accepted by the native side and resolve onto these.
+/// Portable and measured-clock streaming policies. Older wire names
+/// (`THESTAGE`, `THESTAGE_V2`, `THESTAGE_V4`) resolve on the native side.
 enum ASRStreamingAlgorithm {
   /// The portable algorithm. Runs on any streaming pipeline; cuts the buffer
   /// at measured word ends only where the pipeline reports them.
@@ -27,6 +26,13 @@ enum ASRStreamingAlgorithm {
   /// Measured-clock commit ladder. Needs word timestamps the pipeline
   /// measured rather than inferred.
   THESTAGE_V5,
+
+  /// Sentence-cut preview policy; opt in while its 10-second quality gate is tuned.
+  THESTAGE_V6,
+
+  /// The V5 ladder at 0.75 / 3 / 0.5; with the engine also the VAD energy hold,
+  /// SmartTurn (needs a turn detector) and overlap routed to both speakers.
+  THESTAGE_V5_5,
 }
 
 enum ASRLocalAgreementMode { TOLERANT, CONSECUTIVE }
@@ -82,8 +88,7 @@ class ASRGenerationConfig {
 
 /// Live-session knobs. Every field is an override: `null` keeps
 /// the loaded model's `for_pipeline` policy. An empty config is
-/// `{}` on the wire so Swift applies 2.0 s (generic) or 1.2 s
-/// (measured word times / SpeechKit), never a Dart hardcoded 5.0.
+/// `{}` on the wire so Swift applies the loaded model's policy.
 class ASRStreamingConfig {
   static const List<String> field_names = [
     'algorithm',
@@ -111,6 +116,13 @@ class ASRStreamingConfig {
     'confirmation_scope',
     'segment_stall_passes',
     'carry_cut_punctuation',
+    'cut_search_s',
+    'cut_force_s',
+    'cut_age_s',
+    'cut_confirm_ratio',
+    'cut_veto_cer',
+    'cut_pick',
+    'clock_release_s',
   ];
 
   final ASRStreamingAlgorithm? algorithm;
@@ -138,6 +150,13 @@ class ASRStreamingConfig {
   final ASRConfirmationScope? confirmation_scope;
   final int? segment_stall_passes;
   final bool? carry_cut_punctuation;
+  final double? cut_search_s;
+  final double? cut_force_s;
+  final double? cut_age_s;
+  final double? cut_confirm_ratio;
+  final double? cut_veto_cer;
+  final String? cut_pick;
+  final double? clock_release_s;
 
   const ASRStreamingConfig({
     this.algorithm,
@@ -165,6 +184,13 @@ class ASRStreamingConfig {
     this.confirmation_scope,
     this.segment_stall_passes,
     this.carry_cut_punctuation,
+    this.cut_search_s,
+    this.cut_force_s,
+    this.cut_age_s,
+    this.cut_confirm_ratio,
+    this.cut_veto_cer,
+    this.cut_pick,
+    this.clock_release_s,
   });
 
   Map<String, dynamic> to_json() => {
@@ -202,6 +228,13 @@ class ASRStreamingConfig {
           'segment_stall_passes': segment_stall_passes,
         if (carry_cut_punctuation != null)
           'carry_cut_punctuation': carry_cut_punctuation,
+        if (cut_search_s != null) 'cut_search_s': cut_search_s,
+        if (cut_force_s != null) 'cut_force_s': cut_force_s,
+        if (cut_age_s != null) 'cut_age_s': cut_age_s,
+        if (cut_confirm_ratio != null) 'cut_confirm_ratio': cut_confirm_ratio,
+        if (cut_veto_cer != null) 'cut_veto_cer': cut_veto_cer,
+        if (cut_pick != null) 'cut_pick': cut_pick,
+        if (clock_release_s != null) 'clock_release_s': clock_release_s,
       };
 }
 

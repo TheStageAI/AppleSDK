@@ -19,6 +19,9 @@ let packs: [String: Pack] = [
     "lfm350": Pack(
         id: "lfm350", repo: "TheStageAI/LFM2.5-350M", family: .lfm
     ),
+    "lfm3": Pack(
+        id: "lfm3", repo: "TheStageAI/LFM3-1.7B", family: .lfm
+    ),
     "qwen06": Pack(
         id: "qwen06", repo: "TheStageAI/Qwen3-0.6B", family: .qwen
     ),
@@ -51,7 +54,7 @@ guard let token = env["TS_API_TOKEN"], !token.isEmpty else {
 let pack_id = env["PACK"] ?? "lfm350"
 guard let pack = packs[pack_id] else {
     FileHandle.standardError.write(Data(
-        "PACK must be lfm230 | lfm350 | qwen06 | gemma1b\n".utf8))
+        "PACK must be lfm230 | lfm350 | lfm3 | qwen06 | gemma1b\n".utf8))
     exit(1)
 }
 

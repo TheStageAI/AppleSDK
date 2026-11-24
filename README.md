@@ -2,12 +2,18 @@
 
 ![On-Device Apple SDK](docs/assets/on-device-apple-sdk-banner.png)
 
-**On-device** speech, language, and audio inference for **iOS and macOS** on
-Apple Silicon. Engines ship as optimized packs from Hugging Face; the
-SDK picks the Neural Engine, GPU or CPU per device, and on supported
-iPhones downloads a pack built for the phone's chip when the model has
-one. After `initialize`, **inference never
-leaves the device** — there is no server in the hot path.
+Run LLMs, speech recognition, text-to-speech and voice agents **on the
+device**, on **iPhone and Mac**. You pass a Hugging Face model id; the SDK
+downloads a pack optimized for the device's chip, picks the Neural Engine,
+GPU or CPU, and runs it. After `initialize`, **inference never leaves the
+device** — there is no server in the hot path.
+
+- **Fast:** up to **4.1× faster** decoding with speculative decoding
+  ([results](#speculative-decoding)).
+- **Easy on the battery:** up to **5.1× less power** than MLX on the GPU
+  ([results](#built-for-battery--not-just-toks)).
+- **One API** for Swift, Flutter and Python, from one model call to a full
+  voice agent.
 
 | | |
 | --- | --- |
@@ -20,12 +26,80 @@ leaves the device** — there is no server in the hot path.
 
 > **Not supported:** iOS Simulator, Intel Macs, Android, server-side inference.
 
-### Known issues (1.6.0)
+---
 
-- **Voice tool-call streaming / parsing:** filler text and tool-call markup
-  can appear interleaved on the same stream, so TTS may start speaking while
-  a tool call is still being recognized or executed. Some edge cases in tool
-  call parsing remain. **Planned fix in the next release.**
+## Try it without writing code: Edgent
+
+**Edgent** is our edge gallery app for iPhone and Mac. It runs TheStage AI
+models on the Apple Neural Engine and shows what the SDK's engines do in a
+real product:
+
+| Engine | What you can try in Edgent |
+| --- | --- |
+| **Note-taking** | Record a meeting or a lecture and get a live transcript with speakers, all on the device |
+| **Dictation** | Hold a shortcut on the Mac and speak into any app |
+| **Voice assistant** | Talk to an on-device assistant that listens, thinks, calls tools and answers by voice |
+| **Model gallery** | Download models and test them: chat, vision, speech-to-text, text-to-speech |
+
+![Edgent on Mac and iPhone](docs/assets/edgent-mac-iphone.jpg)
+
+**Get the free beta on TestFlight:**
+[testflight.apple.com/join/wygq1BJd](https://testflight.apple.com/join/wygq1BJd)
+— one link for iPhone (iOS 18+) and Mac (Apple silicon, macOS 15+). On a
+Mac, switch the platform to **macOS** on the TestFlight page before you
+install.
+
+Edgent stands on the work of great model builders. The models it runs come
+from [Liquid AI](https://huggingface.co/LiquidAI) (LFM),
+[Google](https://huggingface.co/google) (Gemma, EmbeddingGemma),
+[Qwen](https://huggingface.co/Qwen) (Qwen3, Qwen3-ASR, Qwen3-TTS),
+[OpenAI](https://huggingface.co/openai) (Whisper, the base of our
+[TheWhisper](https://huggingface.co/TheStageAI/thewhisper-large-v3-turbo)),
+[NVIDIA](https://huggingface.co/nvidia) (Parakeet),
+[Neuphonic](https://huggingface.co/neuphonic) (NeuTTS),
+[Kyutai](https://huggingface.co/kyutai) (Pocket TTS),
+[Silero](https://github.com/snakers4/silero-vad) (VAD) and
+[Pipecat](https://huggingface.co/pipecat-ai) (Smart Turn). We optimize
+them for Apple devices; the credit for the models is theirs.
+
+---
+
+## Quick start
+
+### 60 seconds on Mac (no Xcode, no device)
+
+```bash
+cd examples/macos_swift_tts
+export TS_API_TOKEN=th_…          # from app.thestage.ai
+swift run
+```
+
+First run downloads NeuTTS engines and caches them; later runs start cold
+from disk. Playback-only — no mic permission. Details:
+[examples/macos_swift_tts/README.md](./examples/macos_swift_tts/README.md).
+
+### Physical iPhone (Flutter)
+
+```bash
+./scripts/setup.sh                # idempotent; espeak only if you need nano-EN
+cp examples/voice_agent/secrets.example.json \
+   examples/voice_agent/secrets.json
+# edit secrets.json → TS_API_TOKEN
+```
+
+In Xcode (`examples/voice_agent/ios/Runner.xcodeproj`): set **Team** +
+unique **Bundle Identifier**, then:
+
+```bash
+cd examples/voice_agent
+flutter pub get
+flutter run --release \
+    --dart-define-from-file=secrets.json \
+    -d <YOUR_IPHONE_DEVICE_ID>
+```
+
+`examples/voice_agent_custom_nodes` is the same recipe (+ `OPENAI_API_KEY` if you use
+the cloud LLM provider).
 
 ---
 
@@ -77,17 +151,19 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 
 ## Table of contents
 
-1. [What's in this repo](#whats-in-this-repo)
-2. [Capabilities & model fleet](#capabilities--model-fleet)
-3. [Performance](#performance)
-4. [Quick start](#quick-start)
-5. [Prerequisites](#prerequisites)
-6. [Integrate](#integrate)
-7. [Mental model](#mental-model)
-8. [Contracts](#contracts) (audio · progress · Swift↔Flutter)
-9. [Documentation map](#documentation-map)
-10. [Troubleshooting](#troubleshooting)
-11. [Secrets & license](#secrets--license)
+1. [Try it without writing code: Edgent](#try-it-without-writing-code-edgent)
+2. [Quick start](#quick-start)
+3. [Built for battery](#built-for-battery--not-just-toks)
+4. [What's in this repo](#whats-in-this-repo)
+5. [Capabilities & model fleet](#capabilities--model-fleet)
+6. [Performance](#performance)
+7. [Prerequisites](#prerequisites)
+8. [Integrate](#integrate)
+9. [Mental model](#mental-model)
+10. [Contracts](#contracts) (audio · progress · Swift↔Flutter)
+11. [Documentation map](#documentation-map)
+12. [Troubleshooting](#troubleshooting)
+13. [Secrets & license](#secrets--license)
 
 ---
 
@@ -146,6 +222,36 @@ Model cards (contracts + acknowledgments):
 Release-build comparisons vs common on-device stacks. Device class and thermals
 matter — treat these as relative guidance, not an SLA.
 
+### Speculative decoding
+
+A small drafter model proposes several tokens and the main model checks them
+in one pass. Decoding gets **2.4–4.1× faster**, and with greedy sampling the
+output is token-for-token the same as plain decoding.
+
+![Gemma-4-E2B-it — plain vs speculative decoding, tokens per second](docs/assets/specdec-gemma-4-e2b.png)
+
+![LFM2.5-230M — plain vs speculative decoding, tokens per second](docs/assets/specdec-lfm2.5-230m.png)
+
+| Model | Device | Plain | Speculative | Speed-up |
+| --- | --- | --- | --- | --- |
+| LFM2.5-230M | M3 Max | 284 tok/s | **741 tok/s** | **2.61×** |
+| LFM2.5-230M | iPhone 17 Pro | 324 tok/s | **776 tok/s** | **2.39×** |
+| LFM2.5-350M | M3 Max | 194 tok/s | **581 tok/s** | **2.99×** |
+| LFM2.5-350M | iPhone 17 Pro | 247 tok/s | **605 tok/s** | **2.45×** |
+| LFM2.5-1.2B | M3 Max | 95 tok/s | **378 tok/s** | **3.99×** |
+| Gemma-4-E2B-it | M3 Max | 45 tok/s | **188 tok/s** | **4.14×** |
+| Gemma-4-E2B-it | iPhone 17 Pro | 46 tok/s | **184 tok/s** | **4.01×** |
+| Qwen3-ASR-0.6B | M3 Max | 60 tok/s | **183 tok/s** | **3.06×** |
+| Qwen3-ASR-0.6B | iPhone 17 Pro | 67 tok/s | **196 tok/s** | **2.94×** |
+
+*Mean decode tokens per second, greedy sampling, after warm-up. LLMs on
+held-out tool-use and function-calling prompts; ASR on multilingual speech.
+Method and all charts:
+[4× Faster On-Device LLMs: Speculative Decoding on the ANE](https://app.thestage.ai/blog/speculative-decoding-on-the-ane?id=23).*
+
+You do not turn anything on: a model that supports it uses it whenever
+`temperature` is `0`. See `speculative_decoding` in [llm.md](./docs/llm.md).
+
 ### Decode throughput vs MLX (GPU)
 
 Gemma-3-1B-it tokens/sec across iPhones — TheStage on ANE vs MLX on GPU
@@ -169,45 +275,6 @@ SDK vs CoreML-LLM and CoreAI (higher is better):
 
 Power / efficiency (intro highlight):
 [Built for battery](#built-for-battery--not-just-toks).
-
----
-
-## Quick start
-
-### 60 seconds on Mac (no Xcode, no device)
-
-```bash
-cd examples/macos_swift_tts
-export TS_API_TOKEN=th_…          # from app.thestage.ai
-swift run
-```
-
-First run downloads NeuTTS engines and caches them; later runs start cold
-from disk. Playback-only — no mic permission. Details:
-[examples/macos_swift_tts/README.md](./examples/macos_swift_tts/README.md).
-
-### Physical iPhone (Flutter)
-
-```bash
-./scripts/setup.sh                # idempotent; espeak only if you need nano-EN
-cp examples/voice_agent/secrets.example.json \
-   examples/voice_agent/secrets.json
-# edit secrets.json → TS_API_TOKEN
-```
-
-In Xcode (`examples/voice_agent/ios/Runner.xcodeproj`): set **Team** +
-unique **Bundle Identifier**, then:
-
-```bash
-cd examples/voice_agent
-flutter pub get
-flutter run --release \
-    --dart-define-from-file=secrets.json \
-    -d <YOUR_IPHONE_DEVICE_ID>
-```
-
-`examples/voice_agent_custom_nodes` is the same recipe (+ `OPENAI_API_KEY` if you use
-the cloud LLM provider).
 
 ---
 
@@ -412,6 +479,15 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 
 ## Troubleshooting
 
+### Known issues (1.6.0)
+
+- **Voice tool-call streaming / parsing:** filler text and tool-call markup
+  can appear interleaved on the same stream, so TTS may start speaking while
+  a tool call is still being recognized or executed. Some edge cases in tool
+  call parsing remain. **Planned fix in the next release.**
+
+### Symptoms and fixes
+
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
 | `notInitialized` / pipelines throw at construct | Forgot `initialize` | Call it once at app start (online) |
@@ -422,7 +498,7 @@ Optional `on_load_progress` (Swift) / `TheStageFlutterSDK.on_progress`
 | TTS / ASR “wrong” model type | Bundle auto-route | Pass the correct HF repo; see tts.md |
 | SwiftPM / plugin resolve fails | Floating version | Pin `exact:` / `ref: 1.6.0` |
 | Voice agent never commits turn | Thresholds / mode | See smart-turn knobs in voice_agent.md |
-| Tool call + spoken filler overlap / odd parse | Known streaming gap this release | See Known issues above; fix planned next release |
+| Tool call + spoken filler overlap / odd parse | Known streaming gap this release | See [Known issues](#known-issues-160); fix planned next release |
 
 ---
 

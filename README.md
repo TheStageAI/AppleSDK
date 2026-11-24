@@ -53,13 +53,53 @@ Edgent stands on the work of great model builders. The models it runs come
 from [Liquid AI](https://huggingface.co/LiquidAI) (LFM),
 [Google](https://huggingface.co/google) (Gemma, EmbeddingGemma),
 [Qwen](https://huggingface.co/Qwen) (Qwen3, Qwen3-ASR, Qwen3-TTS),
-[OpenAI](https://huggingface.co/openai) (Whisper),
+[OpenAI](https://huggingface.co/openai) (Whisper, the base of our
+[TheWhisper](https://huggingface.co/TheStageAI/thewhisper-large-v3-turbo)),
 [NVIDIA](https://huggingface.co/nvidia) (Parakeet),
 [Neuphonic](https://huggingface.co/neuphonic) (NeuTTS),
 [Kyutai](https://huggingface.co/kyutai) (Pocket TTS),
 [Silero](https://github.com/snakers4/silero-vad) (VAD) and
 [Pipecat](https://huggingface.co/pipecat-ai) (Smart Turn). We optimize
 them for Apple devices; the credit for the models is theirs.
+
+---
+
+## Quick start
+
+### 60 seconds on Mac (no Xcode, no device)
+
+```bash
+cd examples/macos_swift_tts
+export TS_API_TOKEN=th_…          # from app.thestage.ai
+swift run
+```
+
+First run downloads NeuTTS engines and caches them; later runs start cold
+from disk. Playback-only — no mic permission. Details:
+[examples/macos_swift_tts/README.md](./examples/macos_swift_tts/README.md).
+
+### Physical iPhone (Flutter)
+
+```bash
+./scripts/setup.sh                # idempotent; espeak only if you need nano-EN
+cp examples/voice_agent/secrets.example.json \
+   examples/voice_agent/secrets.json
+# edit secrets.json → TS_API_TOKEN
+```
+
+In Xcode (`examples/voice_agent/ios/Runner.xcodeproj`): set **Team** +
+unique **Bundle Identifier**, then:
+
+```bash
+cd examples/voice_agent
+flutter pub get
+flutter run --release \
+    --dart-define-from-file=secrets.json \
+    -d <YOUR_IPHONE_DEVICE_ID>
+```
+
+`examples/voice_agent_custom_nodes` is the same recipe (+ `OPENAI_API_KEY` if you use
+the cloud LLM provider).
 
 ---
 
@@ -112,11 +152,11 @@ initialize (online) ──► start_model / Pipeline(...) ──► infer / infe
 ## Table of contents
 
 1. [Try it without writing code: Edgent](#try-it-without-writing-code-edgent)
-2. [Built for battery](#built-for-battery--not-just-toks)
-3. [What's in this repo](#whats-in-this-repo)
-4. [Capabilities & model fleet](#capabilities--model-fleet)
-5. [Performance](#performance)
-6. [Quick start](#quick-start)
+2. [Quick start](#quick-start)
+3. [Built for battery](#built-for-battery--not-just-toks)
+4. [What's in this repo](#whats-in-this-repo)
+5. [Capabilities & model fleet](#capabilities--model-fleet)
+6. [Performance](#performance)
 7. [Prerequisites](#prerequisites)
 8. [Integrate](#integrate)
 9. [Mental model](#mental-model)
@@ -235,45 +275,6 @@ SDK vs CoreML-LLM and CoreAI (higher is better):
 
 Power / efficiency (intro highlight):
 [Built for battery](#built-for-battery--not-just-toks).
-
----
-
-## Quick start
-
-### 60 seconds on Mac (no Xcode, no device)
-
-```bash
-cd examples/macos_swift_tts
-export TS_API_TOKEN=th_…          # from app.thestage.ai
-swift run
-```
-
-First run downloads NeuTTS engines and caches them; later runs start cold
-from disk. Playback-only — no mic permission. Details:
-[examples/macos_swift_tts/README.md](./examples/macos_swift_tts/README.md).
-
-### Physical iPhone (Flutter)
-
-```bash
-./scripts/setup.sh                # idempotent; espeak only if you need nano-EN
-cp examples/voice_agent/secrets.example.json \
-   examples/voice_agent/secrets.json
-# edit secrets.json → TS_API_TOKEN
-```
-
-In Xcode (`examples/voice_agent/ios/Runner.xcodeproj`): set **Team** +
-unique **Bundle Identifier**, then:
-
-```bash
-cd examples/voice_agent
-flutter pub get
-flutter run --release \
-    --dart-define-from-file=secrets.json \
-    -d <YOUR_IPHONE_DEVICE_ID>
-```
-
-`examples/voice_agent_custom_nodes` is the same recipe (+ `OPENAI_API_KEY` if you use
-the cloud LLM provider).
 
 ---
 
